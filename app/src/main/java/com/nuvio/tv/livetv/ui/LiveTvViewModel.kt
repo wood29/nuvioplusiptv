@@ -451,19 +451,33 @@ class LiveTvViewModel @Inject constructor(
     }
 
     /** Every channel in the current group, hidden ones included, for Manage visibility. */
-    fun channelsWithHidden(): List<LiveChannel> {
+    suspend fun channelsWithHidden(): List<LiveChannel> = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Default) {
         val user = userState.value.copy(hiddenChannels = emptySet())
-        return buildUi(
+        buildUi(
             displayChannels.value, user, settings.value,
             session.currentGroupId.value ?: uiState.value.selectedGroupId, "", true
         ).channels
     }
 
     /** Every group you can hide (not Favorites, Recently watched or All), hidden ones included. */
-    fun groupsWithHidden(): List<ChannelGroup> {
+    suspend fun groupsWithHidden(): List<ChannelGroup> = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Default) {
         val user = userState.value.copy(hiddenGroups = emptySet())
-        return buildUi(displayChannels.value, user, settings.value, uiState.value.selectedGroupId, "", true)
+        buildUi(displayChannels.value, user, settings.value, uiState.value.selectedGroupId, "", true)
             .groups.filter { !it.special && !it.id.startsWith(ChannelGroup.CUSTOM_PREFIX) }
+    }
+
+    /**
+     * Nuvio Plus: hides (or shows) every playlist group of one country at once, by the prefix in
+     * front of the group names ("UK | …", "DE: …"). Returns how many groups were changed.
+     */
+    suspend fun setCountryHidden(country: String, hidden: Boolean): Int {
+        val ids = groupsWithHidden()
+            .filter { com.nuvio.tv.livetv.data.GroupCountry.of(it.title) == country }
+            .map { it.id }.toSet()
+        if (ids.isEmpty()) return 0
+        if (hidden) prefs.updateHiddenGroups(show = emptySet(), hide = ids)
+        else prefs.updateHiddenGroups(show = ids, hide = emptySet())
+        return ids.size
     }
 
     fun saveGroupVisibility(inList: List<ChannelGroup>, hidden: Set<String>) = viewModelScope.launch {
@@ -704,8 +718,9 @@ class LiveTvViewModel @Inject constructor(
     fun moveFavorite(channel: LiveChannel, delta: Int) = viewModelScope.launch { prefs.moveFavorite(channel.key, delta) }
 
     /** A group's channels as the guide shows them (for Pick favorites from the group menu). */
-    fun channelsInGroup(groupId: String): List<LiveChannel> =
+    suspend fun channelsInGroup(groupId: String): List<LiveChannel> = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Default) {
         buildUi(displayChannels.value, userState.value, settings.value, groupId, "", true, exactGroup = true).channels
+    }
 
     /** Saves Pick favorites: of [inList], exactly [chosen] are favorites. */
     fun saveFavorites(inList: List<LiveChannel>, chosen: Set<String>) = viewModelScope.launch {
@@ -1441,7 +1456,8 @@ internal fun buildUi(
     fun sorted(list: List<LiveChannel>): List<LiveChannel> = when (s.channelSort) {
         ChannelSort.PLAYLIST -> list
         ChannelSort.NUMBER -> list.sortedBy { it.number }
-        ChannelSort.NAME -> list.sortedBy { it.name.lowercase() }
+        // The lower-case name is worked out once per channel, not on every comparison.
+        ChannelSort.NAME -> list.map { it to it.name.lowercase() }.sortedBy { it.second }.map { it.first }
     }
 
     /**
@@ -1540,7 +1556,8 @@ internal fun buildUi(
     val rawList = when {
         groupId == ChannelGroup.ALL && s.showAllChannelsGroup -> ordered(ChannelGroup.ALL, visible)
         // "Playlist order" keeps your own order here; Number / Name sort these too.
-        groupId == ChannelGroup.FAVORITES -> sorted(favorites)
+        // Nuvio Plus: Favorites keep your own order (Move up/down works whatever the sort is).
+        groupId == ChannelGroup.FAVORITES -> favorites
         groupId == ChannelGroup.RECENT -> recent
         groupId == ChannelGroup.SEARCH -> {
             val q = query.trim()
@@ -1550,7 +1567,8 @@ internal fun buildUi(
         }
         groupId in lockedIds -> emptyList()
         groupId.startsWith(ChannelGroup.CUSTOM_PREFIX) ->
-            sorted(user.customGroups.firstOrNull { it.id == groupId }?.channelKeys?.mapNotNull { customPool[it] }.orEmpty())
+            // Nuvio Plus: your own groups keep the order you put the channels in.
+            user.customGroups.firstOrNull { it.id == groupId }?.channelKeys?.mapNotNull { customPool[it] }.orEmpty()
         else -> ordered(groupId, groupChannels(groupId)).distinctBy { it.key }
     }
     // TiviMate's number override: 1, 2, 3… in the order the group shows them.

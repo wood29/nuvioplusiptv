@@ -419,7 +419,13 @@ class OnDemandRepository @Inject constructor(
                 // Panels don't always send perfectly valid JSON; be forgiving.
                 reader.isLenient = true
                 try {
-                    if (reader.peek() != JsonToken.BEGIN_ARRAY) { reader.skipValue(); return@sequence }
+                    if (reader.peek() != JsonToken.BEGIN_ARRAY) {
+                        // Nuvio Plus: not a list (e.g. {"user_info":{"auth":0}} or {} during maintenance).
+                        // Report it, so nothing is treated as "the provider has no titles".
+                        reader.skipValue()
+                        onStop(IllegalStateException("The provider didn't send a list (account expired or server busy?)"))
+                        return@sequence
+                    }
                     reader.beginArray()
                 } catch (e: Exception) {
                     onStop(e); return@sequence

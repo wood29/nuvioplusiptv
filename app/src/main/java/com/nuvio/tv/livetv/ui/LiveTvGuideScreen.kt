@@ -2015,6 +2015,8 @@ private fun LiveTvGuideScreenBody(
                 },
                 onManageVisibility = {
                     menuTarget = null
+                    // Nuvio Plus: the full list is built off the main thread (it froze the screen).
+                    scope.launch {
                     val list = viewModel.channelsWithHidden()
                     // Where the channel sits on screen now, so it stays right there once the
                     // hidden channels are back in the list. (The list used to jump: hidden
@@ -2031,6 +2033,7 @@ private fun LiveTvGuideScreenBody(
                         listState.scrollToItem((row - slot).coerceAtLeast(0), if (row - slot >= 0) slotOffset else 0)
                         delay(20)
                         runCatching { gridFocus.requestFocus() }
+                    }
                     }
                 },
                 onHideGroup = {
@@ -2172,6 +2175,7 @@ private fun LiveTvGuideScreenBody(
                     }
                     if (g.id != ChannelGroup.FAVORITES && g.id != ChannelGroup.RECENT && g.id != ChannelGroup.SEARCH) add("Pick favorites…" to {
                         groupMenu = null
+                        scope.launch {
                         val list = viewModel.channelsInGroup(g.id)
                         if (list.isEmpty()) {
                             com.nuvio.tv.livetv.record.LiveTvNotice.show("No channels in ${g.title}")
@@ -2185,13 +2189,30 @@ private fun LiveTvGuideScreenBody(
                             nameFocus = settings.browseByChannelName
                             scope.launch { delay(80); listState.scrollToItem(0); runCatching { gridFocus.requestFocus() } }
                         }
+                        }
                     })
+                    // Nuvio Plus: hide a whole country (every "UK | …" group) in one go.
+                    com.nuvio.tv.livetv.data.GroupCountry.of(g.title)?.let { country ->
+                        add("Hide all $country groups" to {
+                            groupMenu = null
+                            scope.launch {
+                                val n = viewModel.setCountryHidden(country, hidden = true)
+                                val current = ui.groups.firstOrNull { it.id == ui.selectedGroupId }?.title.orEmpty()
+                                if (com.nuvio.tv.livetv.data.GroupCountry.of(current) == country) viewModel.selectGroup(ui.defaultGroupId)
+                                com.nuvio.tv.livetv.record.LiveTvNotice.show(
+                                    "$n $country groups hidden. Bring them back with Manage visibility."
+                                )
+                            }
+                        })
+                    }
                     add("Manage visibility" to {
                         groupMenu = null
-                        val all = viewModel.groupsWithHidden()
-                        groupVisibilityList = all
-                        groupHiddenPending = user.hiddenGroups intersect all.map { it.id }.toSet()
-                        scope.launch { delay(80); runCatching { groupsFocus.requestFocus() } }
+                        scope.launch {
+                            val all = viewModel.groupsWithHidden()
+                            groupVisibilityList = all
+                            groupHiddenPending = user.hiddenGroups intersect all.map { it.id }.toSet()
+                            delay(80); runCatching { groupsFocus.requestFocus() }
+                        }
                     })
                     add("Reorder groups" to {
                         groupMenu = null

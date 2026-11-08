@@ -1,14 +1,12 @@
-name: Release to Users
+name: Release
 
-# Publishes an update of your fork between Nuvio releases, for example after you
-# change Live TV. Run it from the Actions tab. It picks the next version number
-# automatically so the app's built-in updater offers it:
-#   Nuvio 1.1.0-beta.2  ->  1.1.0-beta.2.1, 1.1.0-beta.2.2, ...
-#   Nuvio 1.2.0         ->  1.2.1-livetv.1, 1.2.1-livetv.2, ...
-# The next real Nuvio release always counts as newer than these.
-# Always releases the main branch (what was tested and approved), whichever branch is picked
-# in the Run workflow menu. Unfinished work on dev is never released.
+# Our own build (wood29). Every push to the "mine" branch builds the app, signs it with our own
+# key from the repository secrets and publishes it as a release, so the in-app Update button
+# offers it. Can also be run by hand from the Actions tab.
+#   Nuvio 1.1.0-beta.13  ->  1.1.0-beta.13.1, 1.1.0-beta.13.2, ...
 on:
+  push:
+    branches: [ mine ]
   workflow_dispatch:
     inputs:
       notes:
@@ -19,6 +17,10 @@ on:
 permissions:
   contents: write
 
+concurrency:
+  group: release
+  cancel-in-progress: false
+
 jobs:
   release:
     runs-on: ubuntu-latest
@@ -26,7 +28,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
         with:
-          ref: main
+          ref: mine
           fetch-depth: 0
 
       - name: Work out the version number
@@ -121,14 +123,22 @@ jobs:
           rm keys.properties
           echo "Keys set:"; cut -d= -f1 local.properties
 
+      # Our own signing key, only from the repository secrets (never in the code).
       - name: Signing
+        env:
+          KEYSTORE_B64: ${{ secrets.PERSONAL_KEYSTORE_B64 }}
+          KEY_PASS: ${{ secrets.PERSONAL_KEY_PASS }}
         run: |
-          cp keystore/livetv-fork.jks "$RUNNER_TEMP/key.jks"
+          if [ -z "$KEYSTORE_B64" ] || [ -z "$KEY_PASS" ]; then
+            echo "::error::Add the PERSONAL_KEYSTORE_B64 and PERSONAL_KEY_PASS repository secrets first." >&2
+            exit 1
+          fi
+          echo "$KEYSTORE_B64" | base64 -d > "$RUNNER_TEMP/key.jks"
           {
             echo "NUVIO_RELEASE_STORE_FILE=$RUNNER_TEMP/key.jks"
-            echo "NUVIO_RELEASE_KEY_ALIAS=livetv"
-            echo "NUVIO_RELEASE_KEY_PASSWORD=livetvfork"
-            echo "NUVIO_RELEASE_STORE_PASSWORD=livetvfork"
+            echo "NUVIO_RELEASE_KEY_ALIAS=personal"
+            echo "NUVIO_RELEASE_KEY_PASSWORD=$KEY_PASS"
+            echo "NUVIO_RELEASE_STORE_PASSWORD=$KEY_PASS"
           } >> "$GITHUB_ENV"
 
       - name: Build APK
@@ -153,14 +163,14 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ steps.version.outputs.version }}
-          target_commitish: main
-          name: Nuvio + IPTV ${{ steps.version.outputs.version }}
+          target_commitish: mine
+          name: Nuvio Plus ${{ steps.version.outputs.version }}
           prerelease: true
           files: out/*.apk
           body: |
-            Nuvio + IPTV update ${{ steps.version.outputs.version }}.
+            Nuvio Plus update ${{ steps.version.outputs.version }}.
 
-            ${{ inputs.notes }}
+            ${{ inputs.notes || github.event.head_commit.message }}
 
       # One link that always gives the newest APK (for a Downloader code):
       # https://github.com/<you>/<repo>/releases/download/downloader/NuvioPlusIPTV.apk
@@ -182,18 +192,3 @@ jobs:
               --latest=false --prerelease
           fi
           gh release upload downloader dl/NuvioPlusIPTV.apk -R "$GITHUB_REPOSITORY" --clobber
-
-      # Brings the README from dev onto main, so the front page shows the newest one. Only the README
-      # changes on main; the app that was just released is untouched.
-      - name: Update the README on main
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          git fetch --no-tags origin dev main
-          # A separate folder, so files changed by the build above are never touched.
-          git worktree add --detach "$RUNNER_TEMP/readme" origin/main
-          cd "$RUNNER_TEMP/readme"
-          git checkout origin/dev -- README.md
-          if git diff --cached --quiet; then echo "README on main is already the newest."; exit 0; fi
-          git -c user.name=homelessbrian -c user.email=briansmithhb@gmail.com commit -m "README: newest from dev"
-          git push origin HEAD:main

@@ -388,7 +388,10 @@ class OnDemandDatabase @Inject constructor(@ApplicationContext private val appCo
                 db.execSQL("DROP INDEX IF EXISTS items_tmdb")
                 db.execSQL("DROP INDEX IF EXISTS items_added")
             }
-            db.delete("categories", "pl = ? AND kind = ?", arrayOf(playlistId, kind.key))
+            // Nuvio Plus: keep the old categories when the provider sent none (bad reply, expired account).
+            if (categories.isNotEmpty() || existing.isEmpty()) {
+                db.delete("categories", "pl = ? AND kind = ?", arrayOf(playlistId, kind.key))
+            }
             categories.forEachIndexed { i, (id, name) ->
                 db.insertWithOnConflict("categories", null, ContentValues().apply {
                     put("pl", playlistId); put("kind", kind.key); put("id", id); put("name", name); put("position", i)
@@ -422,8 +425,11 @@ class OnDemandDatabase @Inject constructor(@ApplicationContext private val appCo
                 existing[it.id] = h // a title listed twice is written once
                 written++
             }
-            // Titles the provider no longer lists.
-            if (existing.size > seen.size) {
+            // Titles the provider no longer lists. Nuvio Plus: only when the new list looks complete.
+            // A reply with nothing in it (maintenance, expired account, not a list) or one cut off
+            // part-way would otherwise delete the whole catalogue, or everything after the cut.
+            val looksComplete = seen.isNotEmpty() && seen.size >= existing.size / 2
+            if (looksComplete && existing.size > seen.size) {
                 val del = db.compileStatement("DELETE FROM items WHERE pl = ? AND kind = ? AND id = ?")
                 existing.keys.filter { it !in seen }.forEach { id ->
                     del.clearBindings(); del.bindString(1, playlistId); del.bindString(2, kind.key); del.bindString(3, id)
