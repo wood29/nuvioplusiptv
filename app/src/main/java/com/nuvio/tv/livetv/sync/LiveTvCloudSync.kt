@@ -97,9 +97,14 @@ class LiveTvCloudSync @Inject constructor(
         .build()
     private val json = "application/json; charset=utf-8".toMediaType()
 
-    private val available: Boolean =
+    // Nuvio Plus (wood29): switched off. This service uploads the setup, including IPTV passwords,
+    // unencrypted to the original fork author's server (livetv-cloud.nuvioplusiptv.workers.dev)
+    // together with the Nuvio sign-in token. Our own sync (e.g. to the home NAS) replaces it.
+    @Suppress("unused")
+    private val officialServer: Boolean =
         !serverConfiguration.isCustom &&
             serverConfiguration.backendUrl.toHttpUrlOrNull()?.host.equals("api.nuvio.tv", ignoreCase = true)
+    private val available: Boolean = false
 
     private val _state = MutableStateFlow(
         CloudSyncState(available = available, lastSyncMs = store.getLong(KEY_LAST_SYNC, 0L))
