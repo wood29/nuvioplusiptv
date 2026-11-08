@@ -136,7 +136,12 @@ jobs:
             echo "::error::Add the PERSONAL_KEYSTORE_B64 and PERSONAL_KEY_PASS repository secrets first." >&2
             exit 1
           fi
-          echo "$KEYSTORE_B64" | base64 -d > "$RUNNER_TEMP/key.jks"
+          # Spaces or line breaks picked up while copying don't matter.
+          if ! printf '%s' "$KEYSTORE_B64" | tr -d ' \r\n\t' | base64 -d > "$RUNNER_TEMP/key.jks"; then
+            echo "::error::PERSONAL_KEYSTORE_B64 couldn't be read: paste the whole contents of PERSONAL_KEYSTORE_B64.txt again." >&2
+            exit 1
+          fi
+          echo "Signing key: $(wc -c < "$RUNNER_TEMP/key.jks") bytes (expected about 2,600)"
           {
             echo "NUVIO_RELEASE_STORE_FILE=$RUNNER_TEMP/key.jks"
             echo "NUVIO_RELEASE_KEY_ALIAS=personal"
