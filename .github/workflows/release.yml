@@ -73,6 +73,8 @@ jobs:
           TMDB_API_KEY: ${{ secrets.TMDB_API_KEY }}
           TRAKT_CLIENT_ID: ${{ secrets.TRAKT_CLIENT_ID }}
           TRAKT_CLIENT_SECRET: ${{ secrets.TRAKT_CLIENT_SECRET }}
+          # Trakt "Development" apps only accept localhost redirect addresses (sign-in itself uses a code).
+          TRAKT_REDIRECT_URI: ${{ secrets.TRAKT_REDIRECT_URI }}
           SIMKL_CLIENT_ID: ${{ secrets.SIMKL_CLIENT_ID }}
           SIMKL_APP_NAME: ${{ secrets.SIMKL_APP_NAME }}
           MDBLIST_CLIENT_ID: ${{ secrets.MDBLIST_CLIENT_ID }}
@@ -108,6 +110,7 @@ jobs:
           add TMDB_API_KEY "$TMDB_API_KEY"
           add TRAKT_CLIENT_ID "$TRAKT_CLIENT_ID"
           add TRAKT_CLIENT_SECRET "$TRAKT_CLIENT_SECRET"
+          add TRAKT_REDIRECT_URI "$TRAKT_REDIRECT_URI"
           add SIMKL_CLIENT_ID "$SIMKL_CLIENT_ID"
           add SIMKL_APP_NAME "$SIMKL_APP_NAME"
           add MDBLIST_CLIENT_ID "$MDBLIST_CLIENT_ID"
