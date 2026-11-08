@@ -544,8 +544,9 @@ class LiveTvRepository @Inject constructor(
         for (pl in playlists) {
             outOfTheWay()
             val file = playlistFile(pl.id)
+            // Nuvio Plus: 0 = only when you press Update.
             val stale = !file.exists() ||
-                now - file.lastModified() > settings.playlistRefreshHours.coerceAtLeast(1) * HOUR
+                (settings.playlistRefreshHours > 0 && now - file.lastModified() > settings.playlistRefreshHours * HOUR)
             if (forcePlaylists || stale || pl.id in forceIds) {
                 LIVE_REPORT.add("Checking playlist \"${pl.name}\" for updates")
                 setStatus(loading = true, message = "Updating playlist \"${pl.name}\"…")
@@ -599,7 +600,7 @@ class LiveTvRepository @Inject constructor(
             outOfTheWay()
             val file = epgFile(target.fileId)
             val stale = !file.exists() ||
-                now - file.lastModified() > settings.epgRefreshHours.coerceAtLeast(1) * HOUR
+                (settings.epgRefreshHours > 0 && now - file.lastModified() > settings.epgRefreshHours * HOUR)
             // A playlist saved again (its login, user agent…): its own guide is downloaded again too.
             val forcedHere = target.sourceId in forceIds || target.playlistId in forceIds
             if (forceEpg || stale || forcedHere || guideHoles || (target.sourceId == null && changed && !file.exists())) {
@@ -930,7 +931,9 @@ class LiveTvRepository @Inject constructor(
     @Volatile private var holeRefreshTried = false
     private val rangeMutex = Mutex()
 
-    private fun defaultWindow(now: Long = System.currentTimeMillis()) = (now - 3 * HOUR) to (now + 12 * HOUR + RANGE_SLACK_MS)
+    // Nuvio Plus: the hours read for every channel at start: 1 h back to 6 h ahead (was 3 h back to
+    // 18 h ahead, about 3x as much). Scrolling the guide further still reads more (ensureRange).
+    private fun defaultWindow(now: Long = System.currentTimeMillis()) = (now - 1 * HOUR) to (now + 6 * HOUR)
 
     /**
      * Opening Live TV: if the guide database matches the current guide and channels, read just

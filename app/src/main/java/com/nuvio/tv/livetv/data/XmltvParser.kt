@@ -265,6 +265,10 @@ object XmltvParser {
      * guides put there instead: long strings of digits ("609178259") and year-based numbers
      * ("S2026E609"), which filled the end of every listing with numbers.
      */
+    // Nuvio Plus: made once, not for every listing (this runs for every programme read).
+    private val LONG_ID = Regex("""\d{5,}""")
+    private val SEASON_NO = Regex("""(?i)\bS(?:eason)?\s*(\d+)""")
+
     fun cleanEpisode(raw: String?): String? {
         val t = raw?.trim().orEmpty()
         if (t.isEmpty() || t.length > 24) return null
@@ -272,9 +276,9 @@ object XmltvParser {
         val digits = t.count { it.isDigit() }
         if (digits == 0) return t // "Part One", "Finale"
         if (letters == 0 && digits > 4) return null // a plain id
-        if (Regex("""\d{5,}""").containsMatchIn(t)) return null // ids with a prefix ("EP012345678")
+        if (LONG_ID.containsMatchIn(t)) return null // ids with a prefix ("EP012345678")
         // Season numbers that are years.
-        Regex("""(?i)\bS(?:eason)?\s*(\d+)""").find(t)?.groupValues?.get(1)?.toIntOrNull()?.let { if (it >= 100) return null }
+        SEASON_NO.find(t)?.groupValues?.get(1)?.toIntOrNull()?.let { if (it >= 100) return null }
         return t
     }
 

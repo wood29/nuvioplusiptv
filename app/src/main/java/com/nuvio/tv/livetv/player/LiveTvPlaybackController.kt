@@ -1346,7 +1346,8 @@ class LiveTvPlaybackController @Inject constructor(
             "small" -> listOf(10_000, 30_000, 1_000, 2_000)
             "large" -> listOf(40_000, 90_000, 3_000, 6_000)
             "xlarge" -> listOf(60_000, 150_000, 5_000, 10_000)
-            else -> listOf(25_000, 60_000, 2_000, 4_000)
+            // Nuvio Plus: starts after 1 s of video (was 2 s), so channels come up sooner.
+            else -> listOf(25_000, 60_000, 1_000, 3_000)
         }
         val loadControl = DefaultLoadControl.Builder()
             .setBufferDurationsMs(minMs, maxMs, startMs, rebufferMs)
@@ -1889,7 +1890,8 @@ class LiveTvPlaybackController @Inject constructor(
         if (!autoReconnect || attempt > MAX_RECONNECTS) return
         reconnectJob?.cancel()
         reconnectJob = scope.launch {
-            delay((attempt * 2_000L).coerceAtMost(10_000L))
+            // Nuvio Plus: the first retry goes straight away (most dropouts are a single hiccup).
+            delay(((attempt - 1) * 2_000L).coerceIn(0L, 10_000L))
             val ch = currentChannel ?: return@launch
             val url = currentUrl ?: return@launch
             val p = _player ?: return@launch
@@ -1906,8 +1908,8 @@ class LiveTvPlaybackController @Inject constructor(
             .setUserAgent(headers["User-Agent"] ?: LiveTvRepository.DEFAULT_UA)
             .setDefaultRequestProperties(headers.filterKeys { it != "User-Agent" })
             .setAllowCrossProtocolRedirects(true)
-            .setConnectTimeoutMs(15_000)
-            .setReadTimeoutMs(20_000), headers, headers["User-Agent"] ?: LiveTvRepository.DEFAULT_UA)
+            .setConnectTimeoutMs(8_000)
+            .setReadTimeoutMs(10_000), headers, headers["User-Agent"] ?: LiveTvRepository.DEFAULT_UA)
         val item = buildMediaItem(url, isLive)
         // Closed captions: TV channels usually carry them inside the video (CEA-608/708) without
         // announcing them, so the player never offered them and Subtitles only showed "Off".
@@ -1950,8 +1952,8 @@ class LiveTvPlaybackController @Inject constructor(
             .setUserAgent(headers["User-Agent"] ?: LiveTvRepository.DEFAULT_UA)
             .setDefaultRequestProperties(headers.filterKeys { it != "User-Agent" })
             .setAllowCrossProtocolRedirects(true)
-            .setConnectTimeoutMs(15_000)
-            .setReadTimeoutMs(20_000), headers, headers["User-Agent"] ?: LiveTvRepository.DEFAULT_UA)
+            .setConnectTimeoutMs(8_000)
+            .setReadTimeoutMs(10_000), headers, headers["User-Agent"] ?: LiveTvRepository.DEFAULT_UA)
         val itemBuilder = buildMediaItem(url, isLive).buildUpon()
         if (drm.manifestType == "mpd" || url.lowercase().contains(".mpd")) itemBuilder.setMimeType(MimeTypes.APPLICATION_MPD)
         if (drm.manifestType == "hls") itemBuilder.setMimeType(MimeTypes.APPLICATION_M3U8)
@@ -2104,7 +2106,7 @@ class LiveTvPlaybackController @Inject constructor(
     companion object {
         private const val MAX_RECONNECTS = 8
         /** No progress for this long while it should be playing = stalled. */
-        private const val STALL_MS = 15_000L
+        private const val STALL_MS = 7_000L  // Nuvio Plus: was 15 s (a dropout froze the picture that long)
         /** Two freezes within this long: the channel counts as failing (live games only). */
         private const val FREEZE_WINDOW_MS = 3 * 60_000L
         private val FORMAT_GUESSES = listOf(MimeTypes.APPLICATION_M3U8, MimeTypes.APPLICATION_MPD)

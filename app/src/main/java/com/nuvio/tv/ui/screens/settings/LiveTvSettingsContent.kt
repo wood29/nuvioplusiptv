@@ -222,7 +222,7 @@ private sealed interface LiveDialog {
 }
 
 private val EPG_OFFSETS = (-24..24).map { it * 30 }
-private val REFRESH_HOURS = listOf(3, 6, 12, 24, 48, 72, 168)
+private val REFRESH_HOURS = listOf(0, 6, 12, 24, 48, 72, 168)
 private val BANNER_SECONDS = listOf(3, 5, 8, 10, 15)
 private val FUTURE_DAYS = listOf(1, 2, 3, 5, 7, 10, 14)
 private val PAST_HOURS = listOf(6, 12, 24, 48, 72, 168)
@@ -235,6 +235,7 @@ private fun offsetLabel(min: Int): String {
 }
 
 private fun hoursLabel(h: Int): String = when {
+    h <= 0 -> "Only when I press Update"
     h >= 24 && h % 24 == 0 -> if (h == 24) "1 day" else "${h / 24} days"
     else -> "$h hours"
 }
@@ -483,7 +484,7 @@ internal fun LiveTvSettingsContent(
                         onClick = { viewModel.refreshAll() }
                     )
                     SettingsActionRow(
-                        "Check Playlists for Updates Every", "How often channel lists are downloaded again from your providers",
+                        "Check Playlists for Updates Every", "How often channel lists, films and series are downloaded again from your providers",
                         hoursLabel(s.playlistRefreshHours), onClick = { dialog = LiveDialog.PlaylistRefresh }
                     )
                     SettingsActionRow(

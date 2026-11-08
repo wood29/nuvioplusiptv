@@ -294,8 +294,30 @@ fun LiveTvPlayerScreen(
         }
     }
 
+    // Nuvio Plus: Channel up/down. A single press plays straight away; presses in quick
+    // succession only show where you are and play the channel you stop on, so the provider
+    // doesn't get a burst of connections (accounts with one connection then refuse).
+    var zapTargetKey by remember { mutableStateOf<String?>(null) }
+    var lastZapAt by remember { mutableStateOf(0L) }
+    var zapJob by remember { mutableStateOf<kotlinx.coroutines.Job?>(null) }
     fun zap(direction: Int) {
-        viewModel.zap(playback.channelKey, direction)?.let { viewModel.preview(it) }
+        val now = android.os.SystemClock.elapsedRealtime()
+        val quick = now - lastZapAt < 600
+        lastZapAt = now
+        val target = viewModel.zap(zapTargetKey ?: playback.channelKey, direction) ?: return
+        zapJob?.cancel()
+        if (!quick) {
+            zapTargetKey = null
+            viewModel.preview(target)
+            return
+        }
+        zapTargetKey = target.key
+        toast = "${target.number}  ${target.name}"
+        zapJob = scope.launch {
+            delay(400)
+            zapTargetKey = null
+            viewModel.preview(target)
+        }
     }
 
     // What's on now, and the poster Nuvio's catalogs would show for it (looked up ahead of time,

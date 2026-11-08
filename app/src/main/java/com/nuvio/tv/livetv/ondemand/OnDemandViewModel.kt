@@ -426,6 +426,14 @@ class OnDemandViewModel @Inject constructor(
     fun loadHome() {
         viewModelScope.launch {
             val user = prefs.userState.first()
+            // Nuvio Plus: coming back to On Demand shows the page as you left it, straight away,
+            // unless the catalogue or your group choices changed since.
+            val key = "${repository.version.value}|${user.hashCode()}|${settings.value.hashCode()}"
+            homeKey = key
+            HomeSnapshot.last?.takeIf { it.key == key }?.let { snap ->
+                restoreHome(snap)
+                return@launch
+            }
             val cats = repository.categories(VodKind.MOVIE) + repository.categories(VodKind.SERIES)
             val orderIndex = user.vodGroupOrder.withIndex().associate { (i, uid) -> uid to i }
             val ordered = cats.withIndex()
@@ -451,7 +459,14 @@ class OnDemandViewModel @Inject constructor(
             homeItems.clear(); homeEnded.clear(); homeRead.clear()
             homeSorts = user.vodSorts
             // The first page of every group (each a quick read from the device's catalog).
-            for ((c, _) in homeGroups) {
+            // Nuvio Plus: the page shows after the first few groups; the rest follow.
+            var shown = false
+            for ((index, pair) in homeGroups.withIndex()) {
+                val c = pair.first
+                if (!shown && index == FIRST_ROWS) {
+                    _home.value = VodHomeState(rows = buildHomeRows(), groups = entries, loading = false)
+                    shown = true
+                }
                 val (sort, seed) = sortOf(c.uid)
                 val raw = repository.items(c.kind, c, emptySet(), false, HOME_PAGE, 0, sort, merge = settings.value.vodMergeDuplicates, seed = seed)
                 val page = dedupe(emptyList(), raw)
@@ -890,7 +905,61 @@ class OnDemandViewModel @Inject constructor(
         }
     }
 
+    // ---------------------------------------------------------------- Nuvio Plus: page kept between visits
+
+    @Volatile private var homeKey: String? = null
+
+    private class HomeSnapshot(
+        val key: String,
+        val state: VodHomeState,
+        val groups: List<Pair<VodCategory, String>>,
+        val items: Map<String, List<VodItem>>,
+        val ended: Set<String>,
+        val read: Map<String, Int>,
+        val sorts: Map<String, String>,
+        val matched: Map<String, com.nuvio.tv.domain.model.MetaPreview>,
+        val posters: Map<String, String>,
+        val names: Map<String, String>
+    ) {
+        companion object { @Volatile var last: HomeSnapshot? = null }
+    }
+
+    private fun restoreHome(snap: HomeSnapshot) {
+        homeGroups = snap.groups
+        homeItems.clear(); homeItems.putAll(snap.items)
+        homeEnded.clear(); homeEnded.addAll(snap.ended)
+        homeRead.clear(); homeRead.putAll(snap.read)
+        homeSorts = snap.sorts
+        homeMatched.putAll(snap.matched)
+        posters.putAll(snap.posters)
+        names.putAll(snap.names)
+        if (focusedPlaylist.value == null) focusedPlaylist.value = homeGroups.firstOrNull()?.first?.playlistId
+        _home.value = snap.state
+    }
+
+    override fun onCleared() {
+        val key = homeKey
+        val state = _home.value
+        if (key != null && !state.loading && state.rows.isNotEmpty()) {
+            val uids = homeItems.values.flatten().map { it.uid }.toSet()
+            HomeSnapshot.last = HomeSnapshot(
+                key = key,
+                state = state,
+                groups = homeGroups,
+                items = HashMap(homeItems),
+                ended = HashSet(homeEnded),
+                read = HashMap(homeRead),
+                sorts = homeSorts,
+                matched = HashMap(homeMatched),
+                posters = synchronized(posters) { posters.filterKeys { it in uids } },
+                names = synchronized(names) { names.filterKeys { it in uids } }
+            )
+        }
+        super.onCleared()
+    }
+
     private companion object {
+        const val FIRST_ROWS = 6
         const val HOME_PAGE = 30
         private val AFTER_SEPARATOR = Regex("""^.{1,40}?\s(?:-|–|—|:)\s+(.+)$""")
         /** A season at the end of a series name: "Loki S02", "Dark Season 1", "Casa Temporada 3". */

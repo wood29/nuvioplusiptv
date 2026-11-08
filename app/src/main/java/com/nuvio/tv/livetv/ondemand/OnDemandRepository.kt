@@ -221,10 +221,15 @@ class OnDemandRepository @Inject constructor(
         dropped.forEach { prefs.setOnDemandImportTime(it, 0L) }
         val stamps = prefs.onDemandImportTimes()
         val now = System.currentTimeMillis()
+        // Nuvio Plus: films and series follow "Check Playlists for Updates Every" (was always
+        // daily); 0 = only when you press Update. A provider never imported is always imported.
+        val everyHours = prefs.settings.first().playlistRefreshHours
+        val intervalMs = if (everyHours > 0) everyHours * 60 * 60 * 1000L else REFRESH_MS
         for (pl in playlists) {
             if (onlyId != null && pl.id != onlyId) continue
             val last = stamps[pl.id] ?: 0L
-            if (!force && now - last < REFRESH_MS) continue
+            val due = last == 0L || (everyHours > 0 && now - last >= intervalMs)
+            if (!force && !due) continue
             // Automatic imports wait while a movie or episode is playing in Nuvio's player, and
             // while the guide is being built or Sports is finding channels.
             if (!force) com.nuvio.tv.livetv.data.BackgroundWork.awaitIdle()
@@ -243,7 +248,7 @@ class OnDemandRepository @Inject constructor(
             // Success: next import in a day. Failure: try again in an hour, not on every start.
             prefs.setOnDemandImportTime(
                 pl.id,
-                if (ok) System.currentTimeMillis() else System.currentTimeMillis() - REFRESH_MS + 60 * 60 * 1000L
+                if (ok) System.currentTimeMillis() else System.currentTimeMillis() - intervalMs + 60 * 60 * 1000L
             )
             runCatching { db.learnPrefixes(pl.id) }
             _version.value++

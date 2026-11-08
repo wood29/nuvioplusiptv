@@ -285,8 +285,8 @@ data class LiveTvSettings(
     val rememberLastGroup: Boolean = true,
     val openFullscreenOnSelect: Boolean = false,
     val infoBannerSeconds: Int = 5,
-    val playlistRefreshHours: Int = 24,
-    val epgRefreshHours: Int = 12,
+    val playlistRefreshHours: Int = 48, // Nuvio Plus: every 2 days (was 1); 0 = only when you press Update
+    val epgRefreshHours: Int = 24, // Nuvio Plus: daily (was 12 h); 0 = only when you press Update
     val epgPastHours: Int = 24,
     val epgFutureDays: Int = 3,
     val use24HourClock: Boolean = false,

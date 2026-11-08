@@ -562,6 +562,8 @@ class LiveTvViewModel @Inject constructor(
         return if (others.isEmpty()) emptyList() else listOf(ch) + others
     }
 
+    private var watchSaveJob: kotlinx.coroutines.Job? = null
+
     fun preview(channel: LiveChannel) {
         if (!switchingToBackup) backupTried.clear()
         _catchup.value = null
@@ -582,7 +584,11 @@ class LiveTvViewModel @Inject constructor(
         // in full screen, or playing from Sports / the Calendar / a launcher row, no longer
         // replaces it with the channel's own group or the default one.
         val shown = session.currentGroupId.value?.takeIf { it != ChannelGroup.SEARCH }
-        viewModelScope.launch {
+        // Nuvio Plus: saved once you've stayed on the channel a few seconds. Saving on every
+        // zap rebuilt the whole channel list (several times) right while the channel started.
+        watchSaveJob?.cancel()
+        watchSaveJob = viewModelScope.launch {
+            delay(3_000)
             prefs.recordWatched(channel.key, addToRecent = !isAdultChannel(channel))
             val user = prefs.userState.first()
             if (shown != null) {
