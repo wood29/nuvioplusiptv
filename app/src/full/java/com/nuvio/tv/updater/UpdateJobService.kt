@@ -9,8 +9,6 @@ import android.content.Context
 import android.os.Build
 import android.util.Log
 import com.nuvio.tv.BuildConfig
-import com.nuvio.tv.core.util.hasPendingJob
-import com.nuvio.tv.core.util.scheduleSafely
 import dagger.hilt.EntryPoint
 import dagger.hilt.InstallIn
 import dagger.hilt.android.EntryPointAccessors
@@ -114,13 +112,13 @@ class UpdateJobService : JobService() {
 
         fun schedulePeriodicCheck(context: Context) {
             val scheduler = context.jobScheduler()
-            if (scheduler.hasPendingJob(JOB_ID_CHECK)) return
+            if (scheduler.allPendingJobs.any { it.id == JOB_ID_CHECK }) return
             val job = JobInfo.Builder(JOB_ID_CHECK, ComponentName(context, UpdateJobService::class.java))
                 .setRequiredNetworkType(JobInfo.NETWORK_TYPE_ANY)
                 .setPeriodic(CHECK_INTERVAL_MS)
                 .setPersisted(true)
                 .build()
-            scheduler.scheduleSafely(job)
+            scheduler.schedule(job)
         }
 
         /** Downloads a newer release found by the in-app check without waiting for the next periodic run. */
@@ -128,7 +126,7 @@ class UpdateJobService : JobService() {
             val job = JobInfo.Builder(JOB_ID_CHECK_NOW, ComponentName(context, UpdateJobService::class.java))
                 .setRequiredNetworkType(JobInfo.NETWORK_TYPE_ANY)
                 .build()
-            context.jobScheduler().scheduleSafely(job)
+            context.jobScheduler().schedule(job)
         }
 
         fun cancelPeriodicCheck(context: Context) {
@@ -141,7 +139,7 @@ class UpdateJobService : JobService() {
                 .setRequiresDeviceIdle(true)
                 .setPersisted(true)
                 .build()
-            context.jobScheduler().scheduleSafely(job)
+            context.jobScheduler().schedule(job)
         }
 
         fun cancelIdleInstall(context: Context) {

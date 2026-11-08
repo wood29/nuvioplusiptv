@@ -6,6 +6,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
+import okhttp3.OkHttpClient
 import okhttp3.Request
 import org.json.JSONArray
 import org.json.JSONObject
@@ -16,7 +17,6 @@ import java.time.LocalDateTime
 import java.time.LocalTime
 import java.time.ZoneId
 import java.util.concurrent.TimeUnit
-import com.nuvio.tv.livetv.data.ForkHttp
 
 /**
  * Where the Calendar's dates come from:
@@ -29,7 +29,7 @@ import com.nuvio.tv.livetv.data.ForkHttp
  */
 internal class CalendarSources(context: Context) {
     private val dir = File(context.filesDir, "calendar").apply { mkdirs() }
-    private val http = ForkHttp.builder()
+    private val http = OkHttpClient.Builder()
         .connectTimeout(12, TimeUnit.SECONDS)
         .readTimeout(20, TimeUnit.SECONDS)
         .followRedirects(true)
@@ -95,7 +95,7 @@ internal class CalendarSources(context: Context) {
         null
     }
 
-    private val noRedirects = ForkHttp.builder()
+    private val noRedirects = OkHttpClient.Builder()
         .connectTimeout(12, TimeUnit.SECONDS)
         .readTimeout(20, TimeUnit.SECONDS)
         .followRedirects(false)

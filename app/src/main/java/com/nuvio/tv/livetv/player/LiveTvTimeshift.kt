@@ -17,6 +17,7 @@ import kotlinx.coroutines.launch
 import java.io.File
 import java.io.RandomAccessFile
 import java.net.HttpURLConnection
+import java.net.URL
 
 /**
  * Pause and rewind live TV, for channels without catch-up: when you pause, the channel is
@@ -25,9 +26,8 @@ import java.net.HttpURLConnection
  *
  *  - TS streams: cut into short pieces with a local playlist as they arrive ([TsSegmenter]),
  *    so skipping back and forward works the same as on HLS channels.
- *  - HLS (m3u8) streams: each segment is saved as it appears, from about where you paused,
- *    with a local playlist ([HlsPieces]; separate sound streams too); older segments are
- *    dropped past the time limit.
+ *  - HLS (m3u8) streams: each segment is saved as it appears, with a local playlist; older
+ *    segments are dropped past the time limit.
  *
  * Everything lives in the app's cache folder and is deleted when you go live, change channel
  * or leave Live TV.
@@ -49,14 +49,6 @@ class LiveTvTimeshift(private val context: Context) {
     @Volatile var session: Session? = null
         private set
     @Volatile private var recording = false
-
-    /**
-     * Nuvio Plus: which recording session is current. Each start/stop moves it on, so a session
-     * that is still winding down (its job was cancelled but it's blocked in a read or a delay) can
-     * no longer switch off, or write its numbers into, the session that replaced it.
-     */
-    @Volatile private var generation = 0L
-    private fun alive(gen: Long) = recording && gen == generation
 
     /** Time dropped from the start of an HLS recording (past the time limit). */
     @Volatile var trimmedMs: Long = 0L
@@ -91,11 +83,7 @@ class LiveTvTimeshift(private val context: Context) {
         /** Open the stream again when it ends (live); false for a replay, which simply ends. */
         reconnect: Boolean = true,
         /** How it's named in the Start-Up Report. */
-        label: String = "Pause buffer",
-        /** HLS, live: how far behind live the player was (where you paused); null: the usual few pieces. */
-        leadMs: Long? = null,
-        /** HLS with separate sound: the language being listened to. */
-        audioLanguage: String? = null
+        label: String = "Pause buffer"
     ): Session? {
         stop()
         val dir = File(baseDir, System.currentTimeMillis().toString()).apply { mkdirs() }
@@ -104,14 +92,13 @@ class LiveTvTimeshift(private val context: Context) {
         val now = System.currentTimeMillis()
         trimmedMs = 0L
         firstBatchMs = 0L
-        val gen = ++generation
         recording = true
         val s = if (isHls) {
             val local = File(dir, "index.m3u8")
-            Session(Kind.HLS, now, Uri.fromFile(local), dir).also { job = scope.launch { recordHls(gen, url, headers, dir, local, keepMinutes ?: 24 * 60, live = reconnect, leadMs = leadMs, audioLanguage = audioLanguage, label = label) } }
+            Session(Kind.HLS, now, Uri.fromFile(local), dir).also { job = scope.launch { recordHls(url, headers, dir, local, keepMinutes ?: 24 * 60) } }
         } else {
             val local = File(dir, "index.m3u8")
-            Session(Kind.TS, now, Uri.fromFile(local), dir).also { job = scope.launch { recordTs(gen, url, headers, dir, keepMinutes, reconnect, label) } }
+            Session(Kind.TS, now, Uri.fromFile(local), dir).also { job = scope.launch { recordTs(url, headers, dir, keepMinutes, reconnect, label) } }
         }
         session = s
         ACTIVE += s.dir
@@ -120,7 +107,6 @@ class LiveTvTimeshift(private val context: Context) {
 
     /** Stops recording and deletes it. */
     fun stop() {
-        generation++
         recording = false
         job?.cancel()
         job = null
@@ -155,7 +141,6 @@ class LiveTvTimeshift(private val context: Context) {
     // ------------------------------------------------------------------ TS
 
     private suspend fun recordTs(
-        gen: Long,
         url: String,
         headers: Map<String, String>,
         dir: File,
@@ -175,7 +160,7 @@ class LiveTvTimeshift(private val context: Context) {
             // Keeps going until you go live or change channel: a dropped connection is opened
             // again, with the gap marked, instead of ending the buffer (which sent you back to
             // live after half a minute or so).
-            while (scope.isActive && alive(gen)) {
+            while (scope.isActive && recording) {
                 if (attempt > 0) {
                     segmenter.reconnected()
                     delay((attempt * 2_000L).coerceAtMost(8_000L))
@@ -190,14 +175,14 @@ class LiveTvTimeshift(private val context: Context) {
                     else c.inputStream.use { input ->
                         val buf = ByteArray(64 * 1024)
                         var end = "the provider ended the stream"
-                        while (scope.isActive && alive(gen)) {
+                        while (scope.isActive && recording) {
                             val n = input.read(buf)
                             if (n < 0) break
                             bytes += n
                             segmenter.write(buf, 0, n)
-                            if (gen == generation) trimmedMs = (segmenter.trimmedSec * 1000).toLong()
+                            trimmedMs = (segmenter.trimmedSec * 1000).toLong()
                         }
-                        if (!alive(gen)) end = "stopped"
+                        if (!recording) end = "stopped"
                         end
                     }
                 } catch (e: kotlinx.coroutines.CancellationException) {
@@ -205,7 +190,7 @@ class LiveTvTimeshift(private val context: Context) {
                 } catch (e: Exception) {
                     e.message ?: e.javaClass.simpleName
                 }
-                if (!alive(gen)) break
+                if (!recording) break
                 // A replay that came in and ended: it's all saved (no reconnecting, which would
                 // start the replay again from its beginning).
                 if (!reconnect && (bytes > 0 || attempt >= 2)) {
@@ -220,86 +205,113 @@ class LiveTvTimeshift(private val context: Context) {
         } finally {
             report.add("$label finished after ${(System.currentTimeMillis() - began) / 1000}s (${segmenter.totalSec.toInt()}s recorded)")
             runCatching { segmenter.finish(ended = true) }
-            if (gen == generation) recording = false
+            recording = false
         }
     }
 
     // ------------------------------------------------------------------ HLS
 
-    private suspend fun recordHls(
-        gen: Long,
-        url: String,
-        headers: Map<String, String>,
-        dir: File,
-        local: File,
-        keepMinutes: Int,
-        /** Live: start at the newest pieces. A replay: save it all from its start. */
-        live: Boolean,
-        leadMs: Long?,
-        audioLanguage: String?,
-        label: String
-    ) {
-        val report = com.nuvio.tv.livetv.model.LiveTvLoadReport
+    private data class Seg(val seq: Long, val durationSec: Double, val url: String)
+
+    private suspend fun recordHls(url: String, headers: Map<String, String>, dir: File, local: File, keepMinutes: Int) {
         try {
-            val (firstText, firstUrl) = LiveHttp.fetch(url, headers)
-            val choice = if (HlsPieces.isMaster(firstText)) {
-                HlsPieces.pick(firstUrl, firstText, audioLanguage) ?: return
-            } else null
-            val videoUrl = choice?.videoUrl ?: firstUrl
-            val audioUrl = choice?.audioUrl
-            val video = HlsPieces.Track(videoUrl, dir, if (audioUrl != null) "v" else "", headers, ::open)
-            val audio = audioUrl?.let { HlsPieces.Track(it, dir, "a", headers, ::open) }
-            val videoFile = if (audio != null) File(dir, "video.m3u8") else local
-            val audioFile = File(dir, "audio.m3u8")
-            var vm = if (choice == null) HlsPieces.parseMedia(firstText) else video.fetch()
-            var am = audio?.fetch()
-            // Encrypted streams aren't recorded (the keys would have to be saved too).
-            if (vm.encrypted || am?.encrypted == true) {
-                Log.w(TAG, "Encrypted HLS: not recorded")
-                report.add("$label: encrypted stream, can't be saved")
-                if (gen == generation) recording = false
-                return
-            }
-            if (audio != null) report.add("$label: saving picture and sound separately (sound: ${choice?.audioLanguage ?: "default"})")
-            var masterWritten = false
-            while (scope.isActive && alive(gen)) {
-                // Live: from about where you are (players play a few pieces behind the newest).
-                val lead = if (live) (leadMs ?: (vm.target * 3_000L)) else null
-                video.saveNew(vm) { m -> if (lead == null) 0 else HlsPieces.startIndex(m.pieces, lead) }
-                if (audio != null && am != null) {
-                    audio.saveNew(am) { a -> if (lead == null) 0 else HlsPieces.matchingStart(a.pieces, video) }
-                }
-                // Keep only the time limit's worth.
-                val keepSec = keepMinutes * 60.0
-                video.trim(keepSec).let { cut -> if (gen == generation) trimmedMs += (cut * 1000).toLong() }
-                audio?.trim(keepSec)
-                if (gen == generation && firstBatchMs == 0L && video.saved.isNotEmpty()) firstBatchMs = (video.totalSec * 1000).toLong()
-                if (audio == null) {
-                    video.write(local, ended = false)
-                } else if (video.saved.isNotEmpty() && audio.saved.isNotEmpty()) {
-                    audio.write(audioFile, ended = false)
-                    video.write(videoFile, ended = false)
-                    if (!masterWritten) {
-                        HlsPieces.writeMaster(local, choice!!, videoFile.name, audioFile.name)
-                        masterWritten = true
+            var mediaUrl = url
+            var text = LiveHttp.fetch(mediaUrl, headers).let { (t, u) -> mediaUrl = u; t }
+            // A master playlist: take the best-quality variant.
+            if (text.contains("#EXT-X-STREAM-INF")) {
+                val lines = text.lines()
+                var best = -1L
+                var bestUri: String? = null
+                lines.forEachIndexed { i, l ->
+                    if (l.startsWith("#EXT-X-STREAM-INF")) {
+                        val bw = Regex("""BANDWIDTH=(\d+)""").find(l)?.groupValues?.get(1)?.toLongOrNull() ?: 0L
+                        val uri = lines.drop(i + 1).firstOrNull { it.isNotBlank() && !it.startsWith("#") }
+                        if (uri != null && bw >= best) { best = bw; bestUri = uri }
                     }
                 }
-                delay((vm.target * 1000L / 2).coerceIn(1_000L, 6_000L))
-                vm = runCatching { video.fetch() }.getOrElse { delay(2_000); continue }
-                if (audio != null) am = runCatching { audio.fetch() }.getOrNull()
+                mediaUrl = resolve(mediaUrl, bestUri ?: return)
+                text = LiveHttp.fetch(mediaUrl, headers).let { (t, u) -> mediaUrl = u; t }
             }
-        } catch (e: kotlinx.coroutines.CancellationException) {
-            throw e
+            // Encrypted streams aren't recorded (the keys would have to be saved too).
+            if (text.contains("#EXT-X-KEY") && !text.contains("METHOD=NONE")) {
+                Log.w(TAG, "Encrypted HLS: not recorded")
+                recording = false
+                return
+            }
+            val saved = ArrayList<Seg>()
+            var lastSeq = -1L
+            var mapLine: String? = null
+            var target = 6
+            while (scope.isActive && recording) {
+                val lines = text.lines()
+                var seq = Regex("""#EXT-X-MEDIA-SEQUENCE:(\d+)""").find(text)?.groupValues?.get(1)?.toLongOrNull() ?: 0L
+                target = Regex("""#EXT-X-TARGETDURATION:(\d+)""").find(text)?.groupValues?.get(1)?.toIntOrNull() ?: target
+                // fMP4 streams: the init segment, once.
+                if (mapLine == null) {
+                    Regex("""#EXT-X-MAP:URI="([^"]+)"""").find(text)?.groupValues?.get(1)?.let { m ->
+                        download(resolve(mediaUrl, m), headers, File(dir, "init.mp4"))
+                        mapLine = "#EXT-X-MAP:URI=\"init.mp4\""
+                    }
+                }
+                var dur = 0.0
+                for (l in lines) {
+                    when {
+                        l.startsWith("#EXTINF:") -> dur = l.removePrefix("#EXTINF:").substringBefore(',').toDoubleOrNull() ?: target.toDouble()
+                        l.isNotBlank() && !l.startsWith("#") -> {
+                            if (seq > lastSeq) {
+                                val segFile = File(dir, "seg$seq.ts")
+                                if (download(resolve(mediaUrl, l), headers, segFile)) {
+                                    saved += Seg(seq, dur, segFile.name)
+                                    lastSeq = seq
+                                }
+                            }
+                            seq++
+                        }
+                    }
+                }
+                // Keep only the time limit's worth.
+                var total = saved.sumOf { it.durationSec }
+                while (saved.size > 3 && total > keepMinutes * 60.0) {
+                    val first = saved.removeAt(0)
+                    trimmedMs += (first.durationSec * 1000).toLong()
+                    total -= first.durationSec
+                    runCatching { File(dir, first.url).delete() }
+                }
+                if (firstBatchMs == 0L && saved.isNotEmpty()) firstBatchMs = (saved.sumOf { it.durationSec } * 1000).toLong()
+                writeLocalPlaylist(local, saved, target, mapLine)
+                delay((target * 1000L / 2).coerceIn(1_000L, 6_000L))
+                text = runCatching { LiveHttp.fetch(mediaUrl, headers).let { (t, u) -> mediaUrl = u; t } }.getOrElse { delay(2_000); continue }
+            }
         } catch (e: Exception) {
             Log.w(TAG, "HLS recording stopped: ${e.message}")
-            report.add("$label: HLS saving stopped (${e.message ?: e.javaClass.simpleName})")
         } finally {
-            if (gen == generation) recording = false
+            recording = false
         }
+    }
+
+    private fun writeLocalPlaylist(file: File, segs: List<Seg>, target: Int, mapLine: String?) {
+        if (segs.isEmpty()) return
+        val sb = StringBuilder()
+        sb.append("#EXTM3U\n#EXT-X-VERSION:6\n#EXT-X-TARGETDURATION:").append(target + 1).append('\n')
+        sb.append("#EXT-X-MEDIA-SEQUENCE:").append(segs.first().seq).append('\n')
+        sb.append("#EXT-X-PLAYLIST-TYPE:EVENT\n")
+        mapLine?.let { sb.append(it).append('\n') }
+        segs.forEach { s -> sb.append("#EXTINF:").append(String.format(java.util.Locale.US, "%.3f", s.durationSec)).append(",\n").append(s.url).append('\n') }
+        val tmp = File(file.parentFile, file.name + ".tmp")
+        tmp.writeText(sb.toString())
+        if (!tmp.renameTo(file)) { tmp.copyTo(file, overwrite = true); tmp.delete() }
     }
 
     private fun fetchText(url: String, headers: Map<String, String>): String =
         open(url, headers).inputStream.use { it.readBytes().toString(Charsets.UTF_8) }
+
+    private fun download(url: String, headers: Map<String, String>, to: File): Boolean = runCatching {
+        val tmp = File(to.parentFile, to.name + ".part")
+        open(url, headers).inputStream.use { input -> tmp.outputStream().use { input.copyTo(it, 64 * 1024) } }
+        tmp.renameTo(to)
+    }.getOrDefault(false)
+
+    private fun resolve(base: String, ref: String): String = runCatching { URL(URL(base), ref).toString() }.getOrDefault(ref)
 
     /**
      * Plays a file that's still being written (the TS recording): at the end of what's written

@@ -28,7 +28,6 @@ import androidx.navigation.NavHostController
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
-import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.navArgument
 import com.nuvio.tv.core.build.AppFeaturePolicy
 import com.nuvio.tv.core.party.PartyMedia
@@ -580,10 +579,7 @@ private fun PlaybackNavHost(
             arguments = listOf(
                 navArgument("videoId") { type = NavType.StringType },
                 navArgument("contentType") { type = NavType.StringType },
-                navArgument("title") {
-                    type = NavType.StringType
-                    nullable = true
-                },
+                navArgument("title") { type = NavType.StringType },
                 navArgument("poster") {
                     type = NavType.StringType
                     nullable = true
@@ -817,10 +813,7 @@ private fun PlaybackNavHost(
             route = Screen.Player.route,
             arguments = listOf(
                 navArgument("streamUrl") { type = NavType.StringType },
-                navArgument("title") {
-                    type = NavType.StringType
-                    nullable = true
-                },
+                navArgument("title") { type = NavType.StringType },
                 navArgument("streamName") {
                     type = NavType.StringType
                     nullable = true
@@ -1524,24 +1517,9 @@ private fun PlaybackNavHost(
             )
         }
 
-        composable(Screen.Sports.route) { sportsEntry ->
-            // A Sports page that isn't the one on screen (left behind by a page switch that got
-            // cut short) stays drawn and working out of sight, a second copy alongside the real one,
-            // until Sports is picked again. Once it's been off screen longer than a page fade, it's
-            // closed (its lists, video window and timers with it).
-            val currentEntry by navController.currentBackStackEntryAsState()
-            val onScreen = currentEntry?.id == sportsEntry.id
-            var sportsShown by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(true) }
-            androidx.compose.runtime.LaunchedEffect(onScreen) {
-                if (onScreen) sportsShown = true
-                else {
-                    kotlinx.coroutines.delay(1_500)
-                    if (sportsShown) com.nuvio.tv.livetv.model.LiveTvLoadReport.add("Sports: an extra copy of the page was left open off screen; closed it")
-                    sportsShown = false
-                }
-            }
+        composable(Screen.Sports.route) {
             // Live TV fork: the Sports page (scores, schedules, which of your channels show each game).
-            if (sportsShown) com.nuvio.tv.livetv.sports.SportsScreen(
+            com.nuvio.tv.livetv.sports.SportsScreen(
                 onOpenLive = { com.nuvio.tv.livetv.sports.openLiveTvFullscreen(navController) },
                 // Back on a game opened from another page: that page again, as it was (like
                 // picking it in the side menu).

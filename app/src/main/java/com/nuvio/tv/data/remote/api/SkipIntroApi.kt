@@ -113,7 +113,6 @@ data class AnimeSkipShow(
 data class AnimeSkipEpisode(
     @Json(name = "season") val season: String? = null,
     @Json(name = "number") val number: String? = null,
-    @Json(name = "baseDuration") val baseDuration: Double? = null,
     @Json(name = "timestamps") val timestamps: List<AnimeSkipTimestamp>? = null
 )
 

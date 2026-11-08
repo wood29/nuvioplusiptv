@@ -64,7 +64,6 @@ private data class LayoutUiPrefs(
     val showFullReleaseDate: Boolean,
     val modernLandscapePostersEnabled: Boolean,
     val alwaysShowLandscapeClearlogo: Boolean = false,
-    val heroDescriptionAutoScrollEnabled: Boolean = false,
     val modernHeroFullScreenBackdropEnabled: Boolean,
     val homeImdbRatingsVisibility: HomeImdbRatingsVisibility,
     val detailImdbRatingsVisibility: DetailImdbRatingsVisibility = DetailImdbRatingsVisibility.SHOW_ALL,
@@ -188,16 +187,14 @@ internal fun HomeViewModel.observeLayoutPreferencesPipeline() {
     viewModelScope.launch {
         combine(
             baseLayoutUiPrefsFlow,
-            modernLayoutPrefsFlow,
-            layoutPreferenceDataStore.heroDescriptionAutoScrollEnabled
-        ) { basePrefs, modernPrefs, heroDescriptionAutoScrollEnabled ->
+            modernLayoutPrefsFlow
+        ) { basePrefs, modernPrefs ->
             basePrefs.copy(
                 modernLandscapePostersEnabled = modernPrefs.landscapePosters,
                 modernHeroFullScreenBackdropEnabled = modernPrefs.fullScreenBackdrop,
                 homeImdbRatingsVisibility = modernPrefs.homeImdbRatingsVisibility,
                 alwaysShowLandscapeClearlogo = modernPrefs.alwaysShowLandscapeClearlogo,
                 detailImdbRatingsVisibility = modernPrefs.detailImdbRatingsVisibility,
-                heroDescriptionAutoScrollEnabled = heroDescriptionAutoScrollEnabled,
             )
         }
             .distinctUntilChanged()
@@ -242,7 +239,6 @@ internal fun HomeViewModel.observeLayoutPreferencesPipeline() {
                         showFullReleaseDate = prefs.showFullReleaseDate,
                         modernLandscapePostersEnabled = prefs.modernLandscapePostersEnabled,
                         alwaysShowLandscapeClearlogo = prefs.alwaysShowLandscapeClearlogo,
-                        heroDescriptionAutoScrollEnabled = prefs.heroDescriptionAutoScrollEnabled,
                         modernHeroFullScreenBackdropEnabled = prefs.modernHeroFullScreenBackdropEnabled,
                         homeImdbRatingsVisibility = prefs.homeImdbRatingsVisibility,
                         detailImdbRatingsVisibility = prefs.detailImdbRatingsVisibility,

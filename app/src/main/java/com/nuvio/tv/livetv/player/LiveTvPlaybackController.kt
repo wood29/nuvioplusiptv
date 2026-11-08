@@ -19,7 +19,6 @@ import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
 import com.nuvio.tv.livetv.data.LiveTvRepository
 import com.nuvio.tv.livetv.model.LiveChannel
-import com.nuvio.tv.ui.screens.settings.MemoryBudget
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -234,17 +233,6 @@ class LiveTvPlaybackController @Inject constructor(
      * you're more than a few seconds behind live (otherwise they keep their usual jobs).
      */
     fun shiftIsBehind(): Boolean {
-        if (_ownTimeline.value) {
-            val p = _player ?: return false
-            if (_state.value.userPaused || !p.isCurrentMediaItemDynamic) return true
-            val offset = p.currentLiveOffset
-            if (offset == C.TIME_UNSET) return false
-            // Past how far behind live it normally plays (so one skip back already counts).
-            val target = runCatching {
-                p.currentTimeline.getWindow(p.currentMediaItemIndex, androidx.media3.common.Timeline.Window()).liveConfiguration?.targetOffsetMs
-            }.getOrNull()?.takeIf { it != C.TIME_UNSET } ?: 10_000L
-            return offset > target + OWN_BEHIND_MS
-        }
         if (_shiftStartedAt.value == null) return false
         if (!alwaysBuffer || _state.value.userPaused) return true
         val pos = shiftPositionWallMs() ?: return false
@@ -293,38 +281,7 @@ class LiveTvPlaybackController @Inject constructor(
     }
 
     /** Skipping back and forward works on every recording (TS ones are saved in pieces too now). */
-    fun shiftCanSeek(): Boolean = (timeshift.session != null && shiftPrepared) || _recordingPlayback.value != null || _ownTimeline.value
-
-    // ---------------------------------------------------------------- a sports addon game's own timeline
-
-    private val _ownTimeline = MutableStateFlow(false)
-    /**
-     * True while a sports addon game is playing whose stream can be paused and skipped through
-     * by itself (a replay, or a live stream with its own rewind window). Pause and skipping then
-     * work on the stream itself, as in Nuvio's own player, instead of the pause buffer.
-     */
-    val ownTimeline: StateFlow<Boolean> = _ownTimeline.asStateFlow()
-
-    /** Where the stream is, how long its timeline is, and whether it's live (still growing). */
-    data class OwnTimeline(val positionMs: Long, val durationMs: Long, val live: Boolean)
-
-    fun ownTimelineNow(): OwnTimeline? {
-        if (!_ownTimeline.value) return null
-        val p = _player ?: return null
-        val d = p.duration.takeIf { it != C.TIME_UNSET && it > 0 } ?: return null
-        return OwnTimeline(p.currentPosition.coerceIn(0L, d), d, p.isCurrentMediaItemDynamic)
-    }
-
-    private fun updateOwnTimeline() {
-        val p = _player
-        val ch = currentChannel
-        _ownTimeline.value = p != null && ch?.sourceId == com.nuvio.tv.livetv.sports.SportsAddonSource.SOURCE_ID &&
-            _state.value.catchupTitle == null && _shiftStartedAt.value == null && _recordingPlayback.value == null &&
-            p.isCurrentMediaItemSeekable && p.duration != C.TIME_UNSET &&
-            // Live: only with a real rewind window (a short one would run out while paused, so
-            // those keep the pause buffer). A replay: any real length.
-            p.duration >= (if (p.isCurrentMediaItemDynamic) OWN_LIVE_WINDOW_MS else OWN_MIN_MS)
-    }
+    fun shiftCanSeek(): Boolean = (timeshift.session != null && shiftPrepared) || _recordingPlayback.value != null
 
     // ---------------------------------------------------------------- watching while recording
 
@@ -362,7 +319,10 @@ class LiveTvPlaybackController @Inject constructor(
             var waited = 0
             // Wait until about 15 s are saved: playing right behind the newest piece stalls
             // whenever a piece comes in late (the freezes while watching a channel you record).
-            fun savedSec(): Double = HlsPieces.savedSec(playlist)
+            fun savedSec(): Double = runCatching {
+                playlist.readLines().filter { it.startsWith("#EXTINF:") }
+                    .sumOf { it.removePrefix("#EXTINF:").substringBefore(',').toDoubleOrNull() ?: 0.0 }
+            }.getOrDefault(0.0)
             while (waited < 20_000 && !(playlist.exists() && playlist.length() > 0)) { delay(250); waited += 250 }
             while (!fromStart && waited < 20_000 && savedSec() < 15.0) { delay(250); waited += 250 }
             if (_recordingPlayback.value != playlist) return@launch
@@ -412,15 +372,8 @@ class LiveTvPlaybackController @Inject constructor(
         com.nuvio.tv.livetv.model.LiveTvLoadReport.add("Pause buffer: pausing; recording started")
         val url = currentUrl ?: ch.url
         p.pause()
-        // HLS: save from where you paused (how far behind live the player was), in the language
-        // you're listening to if the sound comes separately.
-        val behindLive = runCatching { p.currentLiveOffset }.getOrNull()?.takeIf { it != C.TIME_UNSET && it > 0 }
-        val audioLanguage = runCatching {
-            p.currentTracks.groups.firstOrNull { it.type == C.TRACK_TYPE_AUDIO && it.isSelected }
-                ?.let { g -> (0 until g.length).firstOrNull { g.isTrackSelected(it) }?.let { g.getTrackFormat(it).language } }
-        }.getOrNull()
         p.stop() // hand the provider connection over to the recording
-        val session = timeshift.start(url, ch.headers, timeshiftMinutes, leadMs = behindLive, audioLanguage = audioLanguage)
+        val session = timeshift.start(url, ch.headers, timeshiftMinutes)
         if (session == null) {
             // Couldn't record: back to the live stream, paused.
             com.nuvio.tv.livetv.model.LiveTvLoadReport.add("Pause buffer: couldn't start recording (no room, or provider refused); paused live instead")
@@ -496,17 +449,7 @@ class LiveTvPlaybackController @Inject constructor(
                     .setTargetOffsetMs(offsetMs).build()
             )
             .build()
-        // Closed captions are inside the recorded video too: look for them as for the live stream
-        // (without this, full screen with Rewind Anytime lost the captions).
         return androidx.media3.exoplayer.hls.HlsMediaSource.Factory(androidx.media3.datasource.DefaultDataSource.Factory(context))
-            .setExtractorFactory(
-                LiveCaptions.Hls(
-                    androidx.media3.exoplayer.hls.DefaultHlsExtractorFactory(
-                        androidx.media3.extractor.ts.DefaultTsPayloadReaderFactory.FLAG_ALLOW_NON_IDR_KEYFRAMES,
-                        /* exposeCea608WhenMissingDeclarations = */ true
-                    )
-                )
-            )
             .createMediaSource(item)
     }
 
@@ -520,8 +463,6 @@ class LiveTvPlaybackController @Inject constructor(
 
     /** Go live: drop the recording and play the channel live again. */
     fun goLive() {
-        // A sports addon game's own rewind window: back to its newest part.
-        if (_ownTimeline.value) { _player?.seekToDefaultPosition(); _player?.play(); return }
         // Rewind anytime: back to the newest part of the buffer (it keeps your rewind history).
         if (alwaysBuffer && _shiftStartedAt.value != null && shiftPrepared) {
             _player?.seekToDefaultPosition(); _player?.play(); return
@@ -567,15 +508,34 @@ class LiveTvPlaybackController @Inject constructor(
      * Many live streams don't state their frame rate, so the player's own value is often
      * missing and the display was never switched.
      */
-    private val frameRateEstimator = LiveFrameRateEstimator()
-    val measuredFps: Float get() = frameRateEstimator.framesPerSecond
+    @Volatile var measuredFps: Float = -1f
+        private set
+    private val frameDeltas = LongArray(48)
+    private var frameDeltaCount = 0
+    private var lastFrameUs = Long.MIN_VALUE
     private val frameListener = androidx.media3.exoplayer.video.VideoFrameMetadataListener { presentationTimeUs, _, _, _ ->
-        frameRateEstimator.onFrame(presentationTimeUs)
+        val last = lastFrameUs
+        lastFrameUs = presentationTimeUs
+        if (last == Long.MIN_VALUE) return@VideoFrameMetadataListener
+        val d = presentationTimeUs - last
+        if (d !in 5_000L..100_000L) return@VideoFrameMetadataListener // a jump, a seek, a new channel
+        frameDeltas[frameDeltaCount % frameDeltas.size] = d
+        frameDeltaCount++
+        if (frameDeltaCount >= frameDeltas.size && frameDeltaCount % 24 == 0) {
+            // The average of the gaps near the middle one: streams whose frame times are rounded
+            // to whole milliseconds (60 fps as 17, 17, 16 ms…) gave 17 ms, 58.8 fps, as the
+            // middle gap, which matched no refresh rate. Averaged, they come out at 59.94.
+            val median = frameDeltas.sorted()[frameDeltas.size / 2]
+            val near = frameDeltas.filter { kotlin.math.abs(it - median) <= median / 4 }
+            measuredFps = 1_000_000f / near.average().toFloat()
+        }
     }
 
     /** A new channel: measure its frame rate afresh. */
     private fun resetFrameRate() {
-        frameRateEstimator.reset()
+        measuredFps = -1f
+        frameDeltaCount = 0
+        lastFrameUs = Long.MIN_VALUE
     }
 
     /** Live TV buffer size ("none", "small", "normal", "large", "xlarge"); changing it rebuilds the player. */
@@ -642,9 +602,7 @@ class LiveTvPlaybackController @Inject constructor(
         /** Catch-up: how far the replay begins before [catchupStartMs] (whole-minute links); skipped once it's in. */
         catchupLeadMs: Long = 0L,
         /** Catch-up: the link the app built first (the others are other kinds of the same request). */
-        catchupPrimaryUrl: String? = null,
-        /** Catch-up: the real time the link asks for, to check against the stream's own clock (null: don't check). */
-        catchupExpectWallMs: Long? = null
+        catchupPrimaryUrl: String? = null
     ) {
         // Something chosen to play (back from the background through a launcher row, say):
         // that wins over picking up what was on before.
@@ -653,14 +611,10 @@ class LiveTvPlaybackController @Inject constructor(
         if (!switchingForGame) gameTried.clear()
         if (currentChannel?.key != channel.key) recentStalls.clear()
         shiftStartPending = false
-        _ownTimeline.value = false
         if (_shiftStartedAt.value != null) stopShift()
         if (_recordingPlayback.value != null) { _recordingPlayback.value = null; shiftJob?.cancel() }
         archiveStartWallMs = if (catchupTitle != null) catchupStartMs else null
         archiveWallMapped = false
-        archiveExpectWallMs = if (catchupTitle != null) catchupExpectWallMs else null
-        wrongShowSkips = 0
-        wallCheckedFor = null
         if (currentChannel?.key != channel.key) {
             neverStartedCount = 0
             audioHandled = false
@@ -702,11 +656,9 @@ class LiveTvPlaybackController @Inject constructor(
                 .build()
         }
         if (!captionsHandled) {
-            // A choice you made on this channel (on or off) wins over the setting.
-            val textOff = channelCaptions[channel.key]?.let { it.startsWith("off") } ?: !captionsByDefault
             p.trackSelectionParameters = p.trackSelectionParameters.buildUpon()
                 .clearOverridesOfType(C.TRACK_TYPE_TEXT)
-                .setTrackTypeDisabled(C.TRACK_TYPE_TEXT, textOff)
+                .setTrackTypeDisabled(C.TRACK_TYPE_TEXT, !captionsByDefault)
                 .build()
         }
         if (currentChannel?.key == channel.key && currentUrl == url && _state.value.error == null &&
@@ -752,58 +704,6 @@ class LiveTvPlaybackController @Inject constructor(
 
     /** The real time the replay should start at, when known. */
     @Volatile private var archiveStartWallMs: Long? = null
-
-    /** The time the catch-up link asked for, to compare with the stream's own clock; null = no check. */
-    @Volatile private var archiveExpectWallMs: Long? = null
-    private var wrongShowSkips = 0
-    private var wallCheckedFor: String? = null
-
-    /**
-     * Some providers answer a catch-up link written in the wrong clock with a different show
-     * (hours earlier or later), and nothing says so. When the stream carries its own clock and
-     * it doesn't cover the time asked for, the link is dropped and the next one with a
-     * different time is tried. With no other time to try, the replay carries on as before.
-     */
-    private fun checkCatchupClock(timeline: androidx.media3.common.Timeline) {
-        val expect = archiveExpectWallMs ?: return
-        val url = currentUrl ?: return
-        if (_state.value.catchupTitle == null || wallCheckedFor == url || timeline.isEmpty) return
-        val p = _player ?: return
-        val w = timeline.getWindow(p.currentMediaItemIndex.coerceIn(0, timeline.windowCount - 1), androidx.media3.common.Timeline.Window())
-        if (w.isPlaceholder || w.windowStartTimeMs == C.TIME_UNSET) return
-        wallCheckedFor = url
-        val from = w.windowStartTimeMs
-        val to = if (w.durationMs != C.TIME_UNSET && w.durationMs > 0) from + w.durationMs else System.currentTimeMillis()
-        if (expect >= from - WRONG_SHOW_SLACK_MS && expect <= to + WRONG_SHOW_SLACK_MS) return
-        val minutesOff = (from - expect) / 60_000
-        val stamp = com.nuvio.tv.livetv.data.CatchupUrlBuilder.askedStamp(url)
-        val other = fallbackUrls.filter { com.nuvio.tv.livetv.data.CatchupUrlBuilder.askedStamp(it) != stamp }
-        val ch = currentChannel
-        if (ch == null || wrongShowSkips >= 2 || other.isEmpty()) {
-            com.nuvio.tv.livetv.model.LiveTvLoadReport.add(
-                "Catch-up: the stream's clock is $minutesOff min away from the show asked for; no other time to try, playing it"
-            )
-            return
-        }
-        wrongShowSkips++
-        com.nuvio.tv.livetv.model.LiveTvLoadReport.add(
-            "Catch-up: the provider sent a show $minutesOff min away from the one asked for; trying ${redact(other.first())}"
-        )
-        scope.launch {
-            if (currentUrl != url) return@launch
-            val pl = _player ?: return@launch
-            fallbackUrls.clear()
-            fallbackUrls.addAll(other)
-            val fb = fallbackUrls.removeFirst()
-            pl.stop()
-            currentUrl = fb
-            if (saveFallback(ch, fb)) return@launch
-            archiveStartPending = true
-            pl.setMediaSource(buildMediaSource(fb, ch.headers, isLive = false))
-            pl.prepare()
-            pl.playWhenReady = true
-        }
-    }
 
     /**
      * The provider sent its live stream with a long rewind window instead of the show itself:
@@ -917,16 +817,11 @@ class LiveTvPlaybackController @Inject constructor(
         clearStarting()
         reconnectJob?.cancel()
         stopReplayCache()
-        // A pause buffer lets go of its provider connection too (a recording you're watching
-        // from carries on; only watching it stops).
-        if (_shiftStartedAt.value != null || timeshift.session != null) stopShift()
-        if (_recordingPlayback.value != null) { _recordingPlayback.value = null; shiftJob?.cancel() }
         _player?.stop()
         _player?.clearMediaItems()
         currentChannel = null
         LiveWatching.sourceId = null
         currentUrl = null
-        _ownTimeline.value = false
         _state.value = LivePlaybackState()
     }
 
@@ -1142,8 +1037,6 @@ class LiveTvPlaybackController @Inject constructor(
         when {
             _shiftStartedAt.value != null -> if (p.isPlaying) p.pause() else resumeShift()
             _recordingPlayback.value != null -> if (p.isPlaying) p.pause() else p.play()
-            // A sports addon game: the stream itself pauses (no pause buffer needed).
-            _ownTimeline.value -> p.playWhenReady = !p.playWhenReady
             p.isPlaying && _state.value.catchupTitle == null -> pauseLive()
             p.isPlaying -> p.pause()
             else -> p.play()
@@ -1167,45 +1060,11 @@ class LiveTvPlaybackController @Inject constructor(
     /** Captions were already switched on (or you chose) for the channel now playing. */
     private var captionsHandled = false
 
-    /** Saved caption choices: channel key -> "off" / "on|cc" / "on|sub|label" (kept up to date by Live TV). */
-    var channelCaptions: Map<String, String> = emptyMap()
-    /** Called when you switch captions on or off, to remember it for that channel. */
-    var onCaptionsChosen: ((channelKey: String, captions: String) -> Unit)? = null
-
-    private fun saveCaptionChoice(option: LiveTrackOption?) {
-        val key = currentChannel?.key ?: return
-        val saved = when {
-            option == null -> "off"
-            option.kind != null -> "on|cc"
-            else -> "on|sub|" + option.label
-        }
-        channelCaptions = channelCaptions + (key to saved)
-        onCaptionsChosen?.invoke(key, saved)
-    }
-
-    /** Puts the saved choice back once the channel's tracks are known (see [saveCaptionChoice]). */
-    private fun applySavedCaptions(saved: String) {
-        if (saved.startsWith("off")) {
-            if (captionsOn()) selectTrack(C.TRACK_TYPE_TEXT, null)
-            return
-        }
-        val all = tracksOf(C.TRACK_TYPE_TEXT)
-        val wantsCc = saved.startsWith("on|cc")
-        val label = saved.removePrefix("on|sub|")
-        val now = if (captionsOn()) all.firstOrNull { it.selected } else null
-        // Already showing the right kind (the other copy of the captions counts too).
-        if (now != null && (if (wantsCc) now.kind != null else now.kind == null && now.label == label)) return
-        val pick = if (wantsCc) primaryCaption(all) else all.firstOrNull { it.kind == null && it.label == label }
-        if (pick == null) return
-        selectTrack(C.TRACK_TYPE_TEXT, pick)
-        if (pick.kind != null) watchCaptions()
-    }
-
     /** One press: captions off if on; otherwise on, with the first available track. */
     fun toggleCaptions(): Boolean {
         captionsHandled = true // your choice for this channel stands
         captionWatch?.cancel()
-        return if (captionsOn()) { selectTrack(C.TRACK_TYPE_TEXT, null); saveCaptionChoice(null); false }
+        return if (captionsOn()) { selectTrack(C.TRACK_TYPE_TEXT, null); false }
         else {
             val all = tracksOf(C.TRACK_TYPE_TEXT)
             val pick = subtitleTracks().firstOrNull()
@@ -1217,7 +1076,6 @@ class LiveTvPlaybackController @Inject constructor(
             )
             pick ?: return false
             selectTrack(C.TRACK_TYPE_TEXT, pick)
-            saveCaptionChoice(pick)
             if (pick.kind != null) watchCaptions()
             true
         }
@@ -1228,7 +1086,6 @@ class LiveTvPlaybackController @Inject constructor(
         captionsHandled = true
         captionWatch?.cancel()
         selectTrack(C.TRACK_TYPE_TEXT, option)
-        saveCaptionChoice(option)
     }
 
     private var captionWatch: Job? = null
@@ -1454,15 +1311,10 @@ class LiveTvPlaybackController @Inject constructor(
         return out
     }
 
-    /**
-     * How much the player may download ahead, in bytes, from how much memory the app really gets.
-     * Uses the same figure as the image cache and the main player ([MemoryBudget.heapMb]): on a
-     * 1 GB box that reports a 512 MB "large" heap it can't back, that is half the reported heap,
-     * so the download-ahead is about 75 MB there instead of about 150 MB.
-     */
+    /** How much the player may download ahead, in bytes, from how much memory the app gets. */
     private fun playerBufferBytes(): Int {
-        val heapMb = MemoryBudget.heapMb.takeIf { it > 0 } ?: 512L
-        return ((heapMb shl 20) * 3 / 10).coerceIn(32L shl 20, 160L shl 20).toInt()
+        val appMemory = Runtime.getRuntime().maxMemory().takeIf { it in 1 until Long.MAX_VALUE } ?: (512L shl 20)
+        return (appMemory * 3 / 10).coerceIn(32L shl 20, 160L shl 20).toInt()
     }
 
     private fun buildPlayer(): ExoPlayer {
@@ -1501,8 +1353,7 @@ class LiveTvPlaybackController @Inject constructor(
             .setPrioritizeTimeOverSizeThresholds(true)
             // The download-ahead lives in the app's memory. The player's own cap (about 130 MB
             // for video) is more than half of what a cheap stick gives an app, which made the
-            // whole app stutter as memory ran short. Capped to about 30% of the memory the app can
-            // really use (see playerBufferBytes):
+            // whole app stutter as memory ran short. Capped to about 30% of the app's memory:
             // the same on boxes with plenty, smaller on low-memory ones. The minimum buffer
             // time is always kept, so channels are just as steady.
             .setTargetBufferBytes(playerBufferBytes())
@@ -1597,13 +1448,8 @@ class LiveTvPlaybackController @Inject constructor(
             applySavedAudio()
             // "Captions on by default": once the channel's caption tracks are known, switch them
             // on (once per channel, and not if you've turned them off yourself).
+            if (!captionsByDefault || captionsHandled) return
             if (tracks.groups.none { it.type == C.TRACK_TYPE_TEXT && it.length > 0 }) return
-            // What you chose on this channel last time (or earlier in this watch) comes first.
-            // Checked on every track change, not once: a reconnect or the full-screen switch
-            // to the rewind buffer brings new tracks and the choice would otherwise be lost.
-            val saved = currentChannel?.key?.let { channelCaptions[it] }
-            if (saved != null) { captionsHandled = true; applySavedCaptions(saved); return }
-            if (!captionsByDefault) return
             captionsHandled = true
             if (!captionsOn()) subtitleTracks().firstOrNull()?.let {
                 selectTrack(C.TRACK_TYPE_TEXT, it)
@@ -1646,8 +1492,6 @@ class LiveTvPlaybackController @Inject constructor(
         }
 
         override fun onTimelineChanged(timeline: androidx.media3.common.Timeline, reason: Int) {
-            updateOwnTimeline()
-            checkCatchupClock(timeline)
             if (shiftStartPending && !timeline.isEmpty) {
                 val pl = _player
                 if (pl != null) {
@@ -2232,7 +2076,6 @@ class LiveTvPlaybackController @Inject constructor(
         currentChannel = null
         LiveWatching.sourceId = null
         currentUrl = null
-        _ownTimeline.value = false
         _state.value = LivePlaybackState()
     }
 
@@ -2259,17 +2102,9 @@ class LiveTvPlaybackController @Inject constructor(
     }
 
     companion object {
-        /** A sports addon stream needs at least this much timeline to pause and skip in it by itself. */
-        private const val OWN_MIN_MS = 60_000L
-        /** A live sports addon stream with at least this much rewind window is paused and skipped in by itself. */
-        private const val OWN_LIVE_WINDOW_MS = 5 * 60_000L
-        /** This much further behind live than it normally plays counts as "behind live" in a sports addon game. */
-        private const val OWN_BEHIND_MS = 8_000L
         private const val MAX_RECONNECTS = 8
         /** No progress for this long while it should be playing = stalled. */
         private const val STALL_MS = 15_000L
-        /** How far a replay's own clock may be from the time asked for before it counts as a different show. */
-        private const val WRONG_SHOW_SLACK_MS = 10 * 60_000L
         /** Two freezes within this long: the channel counts as failing (live games only). */
         private const val FREEZE_WINDOW_MS = 3 * 60_000L
         private val FORMAT_GUESSES = listOf(MimeTypes.APPLICATION_M3U8, MimeTypes.APPLICATION_MPD)

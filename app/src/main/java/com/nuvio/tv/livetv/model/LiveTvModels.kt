@@ -323,10 +323,6 @@ data class LiveTvSettings(
     val sequentialNumbers: Boolean = false,
     /** Left while watching opens overlay mode; off: Left returns to the guide's group list. */
     val overlayMode: Boolean = true,
-    /** Overlay mode: OK on another channel switches to it and keeps the list open (OK on the playing one closes it). */
-    val overlayKeepOpen: Boolean = false,
-    /** Overlay mode: the highlighted channel's upcoming shows and show details beside the list. Off: only on Right. */
-    val overlayShowDetails: Boolean = true,
     /** Open Live TV instead of Nuvio's home screen when the app starts (older setting). */
     val startOnLiveTv: Boolean = false,
     /** The page Nuvio opens on: HOME, LIVE_TV, ON_DEMAND, SEARCH, LIBRARY or DISCOVER. */
@@ -496,17 +492,8 @@ data class LiveTvSettings(
     val guideBackdrop: String = "auto",
     /** The row of recently watched channels at the bottom of the full info panel (OK). */
     val recentInPanel: Boolean = true,
-    /**
-     * The Channel Row under the full play bar: "OFF" hides it; anything else shows it. (Older
-     * builds also used "RECENT" / "FAVORITES" for which list it showed; see [PanelRowLists].)
-     */
+    /** The row at the bottom of the full info panel: "RECENT", "FAVORITES" or "OFF". */
     val panelRow: String = "RECENT",
-    /** The Channel Row's lists, one per line, in order: "1|id" (on) or "0|id" (off). Empty = from [panelRow]. */
-    val panelRowLists: String = "",
-    /** The Channel Row's list used last, so it opens there again. */
-    val panelRowLast: String = "",
-    /** Which list the Channel Row opens on: "last" (the one used last) or "first". */
-    val panelRowOpens: String = "last",
     /** Channel surfing: Up / Down show other channels on the info bar; OK switches. */
     val channelSurf: Boolean = false,
     /** Parts of the full-screen bar switched off (⚙ → Play bar layout), comma separated. */
@@ -546,8 +533,6 @@ data class LiveUserState(
     val channelQuality: Map<String, String> = emptyMap(),
     /** Channel key -> the audio track you picked there ("language|label|channels"). */
     val channelAudio: Map<String, String> = emptyMap(),
-    /** Channel key -> your caption choice there: "off", "on|cc" (closed captions) or "on|sub|<label>". */
-    val channelCaptions: Map<String, String> = emptyMap(),
     /** On Demand categories you hid ("movie:<playlist>:<category>" / "series:…"). */
     val vodHiddenCategories: Set<String> = emptySet(),
     /** On Demand page: your order of the provider's groups (category uids), and your names for them. */
@@ -615,43 +600,6 @@ data class ChannelGroup(
     }
 }
 
-
-/** One list in the play bar's Channel Row: Recently watched, Favorites, or one of your groups. */
-data class PanelRowList(val id: String, val on: Boolean)
-
-/** Reading and writing [LiveTvSettings.panelRowLists]. */
-object PanelRowLists {
-    const val RECENT = ChannelGroup.RECENT
-    const val FAVORITES = ChannelGroup.FAVORITES
-
-    /** Every list, on or off, in order. Recently watched and Favorites are always there. */
-    fun parse(s: LiveTvSettings): List<PanelRowList> {
-        if (s.panelRowLists.isBlank()) {
-            // Before lists could be picked: the one list the old setting chose.
-            return if (s.panelRow == "FAVORITES") listOf(PanelRowList(FAVORITES, true), PanelRowList(RECENT, false))
-            else listOf(PanelRowList(RECENT, true), PanelRowList(FAVORITES, false))
-        }
-        val out = s.panelRowLists.split('\n').mapNotNull { line ->
-            val bar = line.indexOf('|')
-            if (bar < 1 || bar == line.lastIndex) null else PanelRowList(line.substring(bar + 1), line.substring(0, bar) == "1")
-        }.distinctBy { it.id }.toMutableList()
-        if (out.none { it.id == RECENT }) out += PanelRowList(RECENT, false)
-        if (out.none { it.id == FAVORITES }) out += PanelRowList(FAVORITES, false)
-        return out
-    }
-
-    fun encode(lists: List<PanelRowList>): String =
-        lists.joinToString("\n") { (if (it.on) "1|" else "0|") + it.id }
-
-    fun shown(s: LiveTvSettings): Boolean = s.panelRow != "OFF"
-
-    /** The row on or off, keeping its lists as they are. */
-    fun setShown(s: LiveTvSettings, on: Boolean): LiveTvSettings =
-        s.copy(panelRow = if (on) "RECENT" else "OFF", panelRowLists = encode(parse(s)))
-
-    fun withLists(s: LiveTvSettings, lists: List<PanelRowList>): LiveTvSettings =
-        s.copy(panelRowLists = encode(lists))
-}
 
 /** The start page, including the older "Open Live TV when Nuvio starts" switch. */
 val LiveTvSettings.effectiveStartPage: String
@@ -808,7 +756,7 @@ object DeveloperTools {
  */
 object LiveTvLoadReport {
     /** Which Live TV kit this app was built from: changed with every kit, so a report shows the exact build. */
-    const val KIT_STAMP = "2026-11-08 13:42"
+    const val KIT_STAMP = "2026-11-05 20:45"
 
     /** The first line of every report: kit and app version, so it's clear which build wrote it. */
     val buildLine: String

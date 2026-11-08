@@ -200,11 +200,8 @@ object XmltvParser {
         // air date here instead ("20260929"), which would make every poster look "wrong year".
         val year = date?.trim()?.takeIf { it.length == 4 }?.toIntOrNull()?.takeIf { it in 1900..2100 }
             ?: yearIn(title) ?: yearIn(desc)
-        val fullDesc = when {
-            subTitle.isNullOrBlank() -> desc?.takeIf { it.isNotBlank() }
-            desc.isNullOrBlank() -> subTitle
-            else -> "$subTitle\n$desc"
-        }
+        val fullDesc = listOfNotNull(subTitle?.takeIf { it.isNotBlank() }, desc?.takeIf { it.isNotBlank() })
+            .joinToString("\n").ifBlank { null }
         return EpgProgram(
             startMs = start,
             stopMs = stop,
@@ -263,9 +260,6 @@ object XmltvParser {
         return cleanEpisode(text)
     }
 
-    private val episodeIdDigits = Regex("""\d{5,}""")
-    private val episodeSeason = Regex("""(?i)\bS(?:eason)?\s*(\d+)""")
-
     /**
      * An episode label worth showing ("S2 E5", "Ep. 12", "1x05"), or null for the ids some
      * guides put there instead: long strings of digits ("609178259") and year-based numbers
@@ -278,9 +272,9 @@ object XmltvParser {
         val digits = t.count { it.isDigit() }
         if (digits == 0) return t // "Part One", "Finale"
         if (letters == 0 && digits > 4) return null // a plain id
-        if (episodeIdDigits.containsMatchIn(t)) return null // ids with a prefix ("EP012345678")
+        if (Regex("""\d{5,}""").containsMatchIn(t)) return null // ids with a prefix ("EP012345678")
         // Season numbers that are years.
-        episodeSeason.find(t)?.groupValues?.get(1)?.toIntOrNull()?.let { if (it >= 100) return null }
+        Regex("""(?i)\bS(?:eason)?\s*(\d+)""").find(t)?.groupValues?.get(1)?.toIntOrNull()?.let { if (it >= 100) return null }
         return t
     }
 

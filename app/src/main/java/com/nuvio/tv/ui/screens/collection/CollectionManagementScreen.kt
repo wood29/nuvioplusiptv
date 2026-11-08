@@ -1,6 +1,5 @@
 package com.nuvio.tv.ui.screens.collection
 
-import android.os.Build
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.selected
@@ -199,7 +198,7 @@ fun CollectionManagementScreen(
                 try { targetRequester.requestFocus() } catch (_: Exception) {}
             }
             Row(horizontalArrangement = Arrangement.spacedBy(NuvioTheme.spacing.sm)) {
-                if (uiState.collections.isNotEmpty() && Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                if (uiState.collections.isNotEmpty()) {
                     NuvioButton(onClick = {
                         scope.launch {
                             try {

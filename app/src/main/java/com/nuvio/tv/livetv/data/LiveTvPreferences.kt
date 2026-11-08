@@ -102,8 +102,6 @@ class LiveTvPreferences @Inject constructor(
         val aspectMode = stringPreferencesKey("aspect_mode")
         val sequentialNumbers = booleanPreferencesKey("sequential_numbers")
         val overlayMode = booleanPreferencesKey("overlay_mode")
-        val overlayKeepOpen = booleanPreferencesKey("overlay_keep_open")
-        val overlayShowDetails = booleanPreferencesKey("overlay_show_details")
         val startOnLiveTv = booleanPreferencesKey("start_on_live_tv")
         val startPage = stringPreferencesKey("start_page")
         val openOn = stringPreferencesKey("open_on")
@@ -148,8 +146,6 @@ class LiveTvPreferences @Inject constructor(
         val groupPlaylistHeadings = booleanPreferencesKey("group_playlist_headings")
         /** This TV has had Group by Playlist turned on once (per TV, never synced). */
         val groupPlaylistTurnedOn = booleanPreferencesKey("group_playlist_turned_on_once")
-        /** This TV has looked once for channels renamed before renames were followed (per TV). */
-        val renamedChannelsChecked = booleanPreferencesKey("renamed_channels_checked")
         /** This TV only: ids of playlists and guides removed here, not yet passed on by sync. */
         val removedSources = stringSetPreferencesKey("removed_sources")
         val nameRemovals = stringPreferencesKey("name_removals")
@@ -194,9 +190,6 @@ class LiveTvPreferences @Inject constructor(
         val guideBackdrop = stringPreferencesKey("guide_backdrop")
         val recentInPanel = booleanPreferencesKey("recent_in_panel")
         val panelRow = stringPreferencesKey("panel_row")
-        val panelRowLists = stringPreferencesKey("panel_row_lists")
-        val panelRowLast = stringPreferencesKey("panel_row_last")
-        val panelRowOpens = stringPreferencesKey("panel_row_opens")
         val channelSurf = booleanPreferencesKey("channel_surf")
         val barHidden = stringPreferencesKey("bar_hidden")
         val guideInfoHidden = stringPreferencesKey("guide_info_hidden")
@@ -205,7 +198,6 @@ class LiveTvPreferences @Inject constructor(
         val reminders = stringPreferencesKey("reminders")
         val channelQuality = stringPreferencesKey("channel_quality")
         val channelAudio = stringPreferencesKey("channel_audio")
-        val channelCaptions = stringPreferencesKey("channel_captions")
         val vodHiddenCategories = stringSetPreferencesKey("vod_hidden_categories")
         val vodGroupOrder = stringPreferencesKey("vod_group_order")
         val vodGroupNames = stringPreferencesKey("vod_group_names")
@@ -317,41 +309,12 @@ class LiveTvPreferences @Inject constructor(
         deviceStore.edit { it[Keys.groupPlaylistTurnedOn] = true }
     }
 
-    /**
-     * Each screen that watches these lists, settings or user data used to decode them again on
-     * every save (every channel change saves). One saved copy is now decoded once and every
-     * screen gets the same result; an unchanged result is handed back as the same object, so
-     * each screen's "did it change" check is instant.
-     */
-    private class SnapshotMemo<T> {
-        private var a: Any? = null
-        private var b: Any? = null
-        private var id = Int.MIN_VALUE
-        private var has = false
-        private var value: T? = null
-
-        @Suppress("UNCHECKED_CAST")
-        @Synchronized
-        fun get(a: Any, b: Any?, id: Int, compute: () -> T): T {
-            if (has && a === this.a && b === this.b && id == this.id) return value as T
-            val fresh = compute()
-            val result = if (has && fresh == value) value as T else fresh
-            this.a = a; this.b = b; this.id = id; value = result; has = true
-            return result
-        }
-    }
-
-    private val playlistsMemo = SnapshotMemo<List<PlaylistSource>>()
-    private val epgsMemo = SnapshotMemo<List<EpgSource>>()
-    private val settingsMemo = SnapshotMemo<LiveTvSettings>()
-    private val userStateMemo = SnapshotMemo<LiveUserState>()
-
     val playlists: Flow<List<PlaylistSource>> = store.data
-        .map { p -> playlistsMemo.get(p, null, 0) { decodePlaylists(p[Keys.playlists]) } }
+        .map { decodePlaylists(it[Keys.playlists]) }
         .distinctUntilChanged()
 
     val epgSources: Flow<List<EpgSource>> = store.data
-        .map { p -> epgsMemo.get(p, null, 0) { decodeEpgs(p[Keys.epgs]) } }
+        .map { decodeEpgs(it[Keys.epgs]) }
         .distinctUntilChanged()
 
     /**
@@ -368,12 +331,10 @@ class LiveTvPreferences @Inject constructor(
     }
 
     val settings: Flow<LiveTvSettings> = kotlinx.coroutines.flow.combine(store.data, profileManager.activeProfileId) { p0, id ->
-        settingsMemo.get(p0, null, id) { buildSettings(withMyMenu(p0, id)) }
-    }.distinctUntilChanged()
-
-    private fun buildSettings(p: Preferences): LiveTvSettings {
+        withMyMenu(p0, id)
+    }.map { p ->
         val d = LiveTvSettings()
-        return LiveTvSettings(
+        LiveTvSettings(
             showInSidebar = p[Keys.showInSidebar] ?: d.showInSidebar,
             showChannelNames = p[Keys.showNames] ?: d.showChannelNames,
             showChannelNumbers = p[Keys.showNumbers] ?: d.showChannelNumbers,
@@ -418,8 +379,6 @@ class LiveTvPreferences @Inject constructor(
             aspectMode = p[Keys.aspectMode] ?: d.aspectMode,
             sequentialNumbers = p[Keys.sequentialNumbers] ?: d.sequentialNumbers,
             overlayMode = p[Keys.overlayMode] ?: d.overlayMode,
-            overlayKeepOpen = p[Keys.overlayKeepOpen] ?: d.overlayKeepOpen,
-            overlayShowDetails = p[Keys.overlayShowDetails] ?: d.overlayShowDetails,
             startOnLiveTv = p[Keys.startOnLiveTv] ?: d.startOnLiveTv,
             startPage = p[Keys.startPage] ?: d.startPage,
             openOn = p[Keys.openOn] ?: d.openOn,
@@ -503,15 +462,12 @@ class LiveTvPreferences @Inject constructor(
             recentInPanel = p[Keys.recentInPanel] ?: d.recentInPanel,
             // Before the choice existed it was an on / off switch for Recent.
             panelRow = p[Keys.panelRow] ?: if (p[Keys.recentInPanel] == false) "OFF" else d.panelRow,
-            panelRowLists = p[Keys.panelRowLists] ?: d.panelRowLists,
-            panelRowLast = p[Keys.panelRowLast] ?: d.panelRowLast,
-            panelRowOpens = p[Keys.panelRowOpens] ?: d.panelRowOpens,
             channelSurf = p[Keys.channelSurf] ?: d.channelSurf,
             barHidden = p[Keys.barHidden] ?: d.barHidden,
             guideInfoHidden = p[Keys.guideInfoHidden] ?: d.guideInfoHidden,
             launcherRows = p[Keys.launcherRows] ?: d.launcherRows
         )
-    }
+    }.distinctUntilChanged()
 
     /**
      * Channels and groups hidden in every profile that uses Live TV. No one sees them, so the
@@ -539,12 +495,7 @@ class LiveTvPreferences @Inject constructor(
     suspend fun currentHiddenEverywhere(): HiddenEverywhere = hiddenEverywhere.first()
 
     val userState: Flow<LiveUserState> = kotlinx.coroutines.flow.combine(store.data, deviceStore.data, profileManager.activeProfileId) { p0, d, id ->
-        userStateMemo.get(p0, d, id) { buildUserState(profileView(p0, id), d) }
-    // Read off the main thread: this runs on every settings change, and on a slow box with
-    // memory nearly full it used to hold up the screen until Android closed the app.
-    }.flowOn(Dispatchers.Default).distinctUntilChanged()
-
-    private fun buildUserState(p: Preferences, d: Preferences): LiveUserState =
+        val p = profileView(p0, id)
         LiveUserState(
             hiddenChannels = p[Keys.hiddenChannels] ?: emptySet(),
             hiddenGroups = p[Keys.hiddenGroups] ?: emptySet(),
@@ -569,12 +520,14 @@ class LiveTvPreferences @Inject constructor(
             reminders = decodeReminders(p[Keys.reminders]),
             channelQuality = decodeStringMap(d[Keys.channelQuality] ?: p[Keys.channelQuality]),
             channelAudio = decodeStringMap(p[Keys.channelAudio]),
-            channelCaptions = decodeStringMap(p[Keys.channelCaptions]),
             vodHiddenCategories = p[Keys.vodHiddenCategories] ?: emptySet(),
             vodGroupOrder = decodeStringList(p[Keys.vodGroupOrder]),
             vodGroupNames = decodeStringMap(p[Keys.vodGroupNames]),
             vodSorts = decodeStringMap(p[Keys.vodSorts])
         )
+    // Read off the main thread: this runs on every settings change, and on a slow box with
+    // memory nearly full it used to hold up the screen until Android closed the app.
+    }.flowOn(Dispatchers.Default).distinctUntilChanged()
 
     suspend fun currentPlaylists(): List<PlaylistSource> = playlists.first()
     suspend fun currentEpgSources(): List<EpgSource> = epgSources.first()
@@ -622,10 +575,10 @@ class LiveTvPreferences @Inject constructor(
 
     // ---------- calendar (synced with the rest of Live TV's settings) ----------
 
-    // Each Nuvio profile has its own followed and hidden shows, and a profile starts with none.
-    // The first profile keeps the original keys; the others use the same names with "_p<id>".
+    // Each Nuvio profile has its own followed and hidden shows. The first profile keeps the original
+    // keys; another profile sees the first profile's list until it changes its own, then keeps its own.
     private fun mineOrShared(p: Preferences, key: Preferences.Key<String>, id: Int): String =
-        (if (id <= 1) p[key] else p[my(key, id)]) ?: ""
+        (if (id <= 1) p[key] else (p[my(key, id)] ?: p[key])) ?: ""
 
     private suspend fun editMine(key: Preferences.Key<String>, transform: (String) -> String) {
         val me = currentProfile
@@ -712,8 +665,6 @@ class LiveTvPreferences @Inject constructor(
         p[Keys.aspectMode] = s.aspectMode
         p[Keys.sequentialNumbers] = s.sequentialNumbers
         p[Keys.overlayMode] = s.overlayMode
-        p[Keys.overlayKeepOpen] = s.overlayKeepOpen
-        p[Keys.overlayShowDetails] = s.overlayShowDetails
         p[Keys.startOnLiveTv] = s.startOnLiveTv
         p[Keys.startPage] = s.startPage
         p[Keys.openOn] = s.openOn
@@ -798,9 +749,6 @@ class LiveTvPreferences @Inject constructor(
         p[Keys.guideBackdrop] = s.guideBackdrop
         p[Keys.recentInPanel] = s.recentInPanel
         p[Keys.panelRow] = s.panelRow
-        p[Keys.panelRowLists] = s.panelRowLists
-        p[Keys.panelRowLast] = s.panelRowLast
-        p[Keys.panelRowOpens] = s.panelRowOpens
         p[Keys.channelSurf] = s.channelSurf
         p[Keys.barHidden] = s.barHidden
         p[Keys.guideInfoHidden] = s.guideInfoHidden
@@ -968,15 +916,6 @@ class LiveTvPreferences @Inject constructor(
             val m = decodeStringMap(p[Keys.channelAudio]).toMutableMap()
             if (audio == null) m.remove(key) else m[key] = audio
             p[Keys.channelAudio] = encodeStringMap(m)
-        }
-    }
-
-    /** The caption choice made on a channel, used every time it plays (null forgets it). */
-    suspend fun setChannelCaptions(key: String, captions: String?) {
-        store.edit { p ->
-            val m = decodeStringMap(p[Keys.channelCaptions]).toMutableMap()
-            if (captions == null) m.remove(key) else m[key] = captions
-            p[Keys.channelCaptions] = encodeStringMap(m)
         }
     }
 
@@ -1231,91 +1170,6 @@ class LiveTvPreferences @Inject constructor(
 
     suspend fun clearFavorites() {
         store.edit { it[my(Keys.favorites)] = encodeStringList(emptyList()) }
-    }
-
-    // ---------- Channels renamed in the playlist ----------
-    // Everything kept per channel key, in every profile: favorites, recents, last channels,
-    // hidden channels, groups you made, channel order and copies, reminders, and the per-channel
-    // renames, logos, numbers, guide choices, picture shapes, audio and quality.
-
-    private val keyLists = setOf("favorites", "recent")
-    private val keySingles = setOf("last_channel", "previous_channel")
-    private val keyListMaps = setOf("channel_order", "channel_copies")
-    private val keyMaps = setOf(
-        "channel_names", "channel_logos", "channel_numbers", "epg_overrides",
-        "picture_shapes", "channel_audio", "channel_quality"
-    )
-
-    suspend fun renamedChannelsChecked(): Boolean = deviceStore.data.first()[Keys.renamedChannelsChecked] == true
-
-    suspend fun setRenamedChannelsChecked() {
-        deviceStore.edit { it[Keys.renamedChannelsChecked] = true }
-    }
-
-    /** Every channel key something is saved for (see above). */
-    suspend fun channelKeysInUse(): Set<String> {
-        val out = HashSet<String>()
-        fun collect(p: Preferences) = p.asMap().forEach { (k, v) ->
-            val base = k.name.replace(PROFILE_SUFFIX, "")
-            when (base) {
-                in keyLists -> out += decodeStringList(v as? String)
-                in keySingles -> (v as? String)?.takeIf { it.isNotEmpty() }?.let { out += it }
-                "hidden_channels" -> (v as? Set<*>)?.forEach { if (it is String) out += it }
-                "custom_groups" -> decodeCustomGroups(v as? String).forEach { out += it.channelKeys }
-                in keyListMaps -> decodeListMap(v as? String).values.forEach { out += it }
-                "reminders" -> decodeReminders(v as? String).forEach { out += it.channelKey }
-                in keyMaps -> out += decodeStringMap(v as? String).keys
-            }
-        }
-        collect(store.data.first())
-        collect(deviceStore.data.first())
-        return out
-    }
-
-    /**
-     * Moves everything saved for each old key ([moves]: old → new) to the new key, in every
-     * profile, in one save. Where the new key already has its own value, that one is kept.
-     */
-    suspend fun moveChannelKeys(moves: Map<String, String>) {
-        if (moves.isEmpty()) return
-        fun m(k: String) = moves[k] ?: k
-        fun <V> moveMap(map: Map<String, V>): Map<String, V> {
-            val out = LinkedHashMap<String, V>()
-            map.forEach { (k, v) -> if (k !in moves) out[k] = v }
-            map.forEach { (k, v) -> moves[k]?.let { nk -> if (nk !in out) out[nk] = v } }
-            return out
-        }
-        fun moveIn(p: MutablePreferences) {
-            p.asMap().toList().forEach { (k, v) ->
-                val base = k.name.replace(PROFILE_SUFFIX, "")
-                if (v is Set<*>) {
-                    if (base != "hidden_channels") return@forEach
-                    val set = v.filterIsInstance<String>()
-                    if (set.none { it in moves }) return@forEach
-                    p[stringSetPreferencesKey(k.name)] = set.mapTo(LinkedHashSet(), ::m)
-                    return@forEach
-                }
-                val raw = v as? String ?: return@forEach
-                // Only saved again when one of the moved keys is really in it.
-                val moved: String? = when (base) {
-                    in keyLists -> decodeStringList(raw).takeIf { l -> l.any { it in moves } }
-                        ?.let { l -> encodeStringList(l.map(::m).distinct()) }
-                    in keySingles -> moves[raw]
-                    "custom_groups" -> decodeCustomGroups(raw).takeIf { l -> l.any { g -> g.channelKeys.any { it in moves } } }
-                        ?.let { l -> encodeCustomGroups(l.map { g -> g.copy(channelKeys = g.channelKeys.map(::m).distinct()) }) }
-                    in keyListMaps -> decodeListMap(raw).takeIf { mp -> mp.values.any { l -> l.any { it in moves } } }
-                        ?.let { mp -> encodeListMap(mp.mapValues { (_, l) -> l.map(::m).distinct() }) }
-                    "reminders" -> decodeReminders(raw).takeIf { l -> l.any { it.channelKey in moves } }
-                        ?.let { l -> encodeReminders(l.map { it.copy(channelKey = m(it.channelKey)) }) }
-                    in keyMaps -> decodeStringMap(raw).takeIf { mp -> mp.keys.any { it in moves } }
-                        ?.let { mp -> encodeStringMap(moveMap(mp)) }
-                    else -> null
-                }
-                if (moved != null) p[stringPreferencesKey(k.name)] = moved
-            }
-        }
-        store.edit { moveIn(it) }
-        deviceStore.edit { moveIn(it) }
     }
 
     suspend fun clearRecent() {

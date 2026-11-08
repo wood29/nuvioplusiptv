@@ -146,8 +146,6 @@
 # AndroidX components referenced by extensions
 -keep class androidx.fragment.app.** { *; }
 -keep interface androidx.fragment.app.** { *; }
--keep class androidx.appcompat.app.** { *; }
--keep interface androidx.appcompat.app.** { *; }
 
 -dontwarn java.beans.ConstructorProperties
 -dontwarn java.beans.Transient

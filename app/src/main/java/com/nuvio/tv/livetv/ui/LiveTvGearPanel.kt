@@ -85,8 +85,8 @@ internal fun GearPanel(
     /** "Watch from the beginning" (live, catch-up channel), "Back to live" (replay) or "Go live" (paused). */
     timeAction: String?,
     hidden: Set<String>,
-    /** The Channel Row (the tab under the bar) is on. */
-    channelRow: Boolean,
+    /** What the row under the bar lists: "RECENT", "FAVORITES" or "OFF". */
+    channelRow: String,
     onChannelRow: () -> Unit,
     /** Cycles how dark the play bar is (Standard, Darker, Solid). */
     onBackground: () -> Unit,
@@ -312,14 +312,14 @@ internal fun GearPanel(
                         size = 13.sp, weight = FontWeight.Medium, color = gearText(focused)
                     )
                 }
-                // The Channel Row on or off (OK switches it).
+                // Which channels the row under the bar lists (OK cycles it).
                 GearRow(Modifier.fillMaxWidth(), onClick = onChannelRow) { focused ->
                     Column(Modifier.weight(1f)) {
                         LiveText("Channel row", size = 13.sp, weight = if (focused) FontWeight.Bold else FontWeight.Medium, color = gearText(focused))
-                        LiveText("Its lists are picked in Settings › Live TV", size = 10.sp, color = gearText(focused, dim = true))
+                        LiveText("What the row under the bar lists", size = 10.sp, color = gearText(focused, dim = true))
                     }
                     LiveText(
-                        if (channelRow) "On" else "Off",
+                        when (channelRow) { "FAVORITES" -> "Favorites"; "OFF" -> "Off"; else -> "Recently watched" },
                         size = 13.sp, weight = FontWeight.Medium, color = gearText(focused)
                     )
                 }

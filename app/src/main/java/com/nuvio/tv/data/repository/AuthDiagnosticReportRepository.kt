@@ -88,7 +88,7 @@ class AuthDiagnosticReportQueue(
 
     suspend fun read(): List<AuthDiagnosticReportRequestDto> = withContext(Dispatchers.IO) {
         if (!queueFile.exists()) return@withContext emptyList()
-        runCatching { queueFile.readLines() }.getOrDefault(emptyList())
+        queueFile.readLines()
             .asSequence()
             .map { it.trim() }
             .filter { it.isNotBlank() }
@@ -99,14 +99,12 @@ class AuthDiagnosticReportQueue(
     suspend fun write(reports: List<AuthDiagnosticReportRequestDto>) {
         withContext(Dispatchers.IO) {
             val bounded = reports.takeLast(maxReports)
-            runCatching {
-                if (bounded.isEmpty()) {
-                    if (queueFile.exists()) queueFile.delete()
-                } else {
-                    queueFile.parentFile?.mkdirs()
-                    queueFile.writeText(bounded.joinToString(separator = "\n") { adapter.toJson(it) } + "\n")
-                }
+            if (bounded.isEmpty()) {
+                if (queueFile.exists()) queueFile.delete()
+                return@withContext
             }
+            queueFile.parentFile?.mkdirs()
+            queueFile.writeText(bounded.joinToString(separator = "\n") { adapter.toJson(it) } + "\n")
         }
     }
 }

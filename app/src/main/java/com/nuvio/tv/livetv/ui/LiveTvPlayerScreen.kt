@@ -62,18 +62,13 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.media3.common.C
 import androidx.media3.ui.AspectRatioFrameLayout
 import com.nuvio.tv.livetv.model.LiveChannel
-import com.nuvio.tv.livetv.model.PanelRowLists
 import com.nuvio.tv.livetv.model.matchFrameRate
 import com.nuvio.tv.livetv.player.LiveTrackOption
-import com.nuvio.tv.livetv.player.LiveFrameRateStabilizer
 import com.nuvio.tv.ui.theme.NuvioTheme
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
-private enum class PlayerDialog { NONE, OPTIONS, AUDIO, SUBTITLES, SCREEN_SIZE, STREAM_INFO, SLEEP, BACKUPS, BACKUP_FLYOUT }
-
-/** Right twice within this long, in full screen: the backup channels flyout. */
-private const val DOUBLE_RIGHT_MS = 400L
+private enum class PlayerDialog { NONE, OPTIONS, AUDIO, SUBTITLES, SCREEN_SIZE, STREAM_INFO, SLEEP, BACKUPS }
 
 /** The picture size saved in settings, as one of Nuvio's own player modes. */
 internal fun aspectModeOf(name: String): com.nuvio.tv.ui.screens.player.AspectMode =
@@ -144,20 +139,14 @@ fun LiveTvPlayerScreen(
 
     // The bottom panel's controls (Down while it's showing): which one is highlighted.
     var controlFocus by remember { mutableStateOf<PanelControl?>(null) }
-    /** The highlighted tile in the full panel's Channel Row (0 TV Guide, 1… channels, then Clear), or null. */
+    /** The highlighted tile in the full panel's Recent row (0 TV Guide, 1… channels, then Clear), or null. */
     var recentFocus by remember { mutableStateOf<Int?>(null) }
-    // The Channel Row's list buttons are highlighted (Up from its channels).
-    var rowPills by remember { mutableStateOf(false) }
-    // The Channel Row's list showing (null: the one it opens on).
-    var rowListId by remember { mutableStateOf<String?>(null) }
     // TV Guide tile: opened when OK is let go, so the key's release doesn't land on the guide
     // (where it opened the channel full screen again, and the guide only flashed up).
     var guideOnOkUp by remember { mutableStateOf(false) }
     // Holding Right (live): back to the channel you were watching before.
     var rightDownAt by remember { mutableStateOf(0L) }
     var rightHoldDone by remember { mutableStateOf(false) }
-    // Right twice in a row: the backup channels flyout (when the last Right press was a moment ago).
-    var lastRightTapAt by remember { mutableStateOf(0L) }
     // The full panel (OK): timeline, buttons and options. Changing channels shows the compact one.
     var panelFull by remember { mutableStateOf(false) }
     // Opened with the bar hidden (a long press in full screen): the full bar comes up with the
@@ -169,45 +158,9 @@ fun LiveTvPlayerScreen(
         gearStart = start
         dialog = PlayerDialog.OPTIONS
     }
-    fun closeFull() {
-        panelFull = false; controlFocus = null; recentFocus = null; rowPills = false
-        // "Opens on the first list": start from the top again next time.
-        if (settings.panelRowOpens == "first") rowListId = null
-    }
+    fun closeFull() { panelFull = false; controlFocus = null; recentFocus = null }
     LaunchedEffect(dialog) {
         if (dialog == PlayerDialog.NONE && gearShowedBar) { gearShowedBar = false; closeFull(); bannerVisible = false }
-    }
-
-    // ---- the Channel Row under the full bar: its lists (switched on and still there), the one
-    // showing, and that list's channels (only worked out while the full bar is up).
-    val rowTabs: List<PanelRowTab> = remember(settings.panelRowLists, settings.panelRow, ui.groups) {
-        PanelRowLists.parse(settings).filter { it.on }.mapNotNull { l ->
-            when (l.id) {
-                PanelRowLists.RECENT -> PanelRowTab(l.id, "Recently Watched", PanelRowTab.Kind.RECENT)
-                PanelRowLists.FAVORITES -> PanelRowTab(l.id, "Favorites", PanelRowTab.Kind.FAVORITES)
-                else -> ui.groups.firstOrNull { it.id == l.id && !it.special && !it.locked }
-                    ?.let { PanelRowTab(it.id, it.title, PanelRowTab.Kind.GROUP) }
-            }
-        }
-    }
-    val rowOn = settings.panelRow != "OFF" && BarPart.RECENT !in BarPart.parse(settings.barHidden) && rowTabs.isNotEmpty()
-    val rowId: String? = rowListId?.takeIf { id -> rowTabs.any { it.id == id } }
-        ?: settings.panelRowLast.takeIf { last -> settings.panelRowOpens != "first" && rowTabs.any { it.id == last } }
-        ?: rowTabs.firstOrNull()?.id
-    val rowShowing = rowOn && (panelFull || playback.userPaused)
-    val rowChannels: List<LiveChannel> = remember(rowShowing, rowId, playback.channelKey, user, displayList) {
-        if (rowShowing && rowId != null) viewModel.rowListChannels(rowId, playback.channelKey) else emptyList()
-    }
-    // Remember the list used last, so the row opens there next time (once you've settled on one).
-    LaunchedEffect(rowListId) {
-        val id = rowListId ?: return@LaunchedEffect
-        delay(1_500)
-        if (id != settings.panelRowLast) viewModel.updateSettings { it.copy(panelRowLast = id) }
-    }
-    /** Where the highlight lands in the row: on the channel playing if it's listed, else the first channel (else TV Guide). */
-    fun rowStart(): Int {
-        val i = rowChannels.indexOfFirst { it.key == playback.channelKey }
-        return when { i >= 0 -> i + 1; rowChannels.isNotEmpty() -> 1; else -> 0 }
     }
 
     // Channel surfing (Settings → Live TV → Watching): the channel being looked at on the info
@@ -231,8 +184,6 @@ fun LiveTvPlayerScreen(
         showBanner()
     }
     val shiftStartedAt by viewModel.playback.shiftStartedAt.collectAsStateWithLifecycle()
-    // A sports addon game that can be paused and skipped through by itself (a replay, or live with a rewind window).
-    val ownTimeline by viewModel.playback.ownTimeline.collectAsStateWithLifecycle()
     var captionsOn by remember { mutableStateOf(false) }
     LaunchedEffect(playback.channelKey, bannerVisible) { captionsOn = viewModel.playback.captionsOn() }
 
@@ -240,10 +191,7 @@ fun LiveTvPlayerScreen(
     var videoFps by remember { mutableStateOf(-1f) }
     // For the info bar: this channel's frame rate (not the last channel's while it starts).
     var shownFps by remember { mutableStateOf(-1f) }
-    LaunchedEffect(playback.channelKey, playback.catchupTitle, settings.matchFrameRate) {
-        val frameRateStabilizer = LiveFrameRateStabilizer()
-        val startedAt = android.os.SystemClock.elapsedRealtime()
-        var hasMeasuredFrames = false
+    LaunchedEffect(playback.channelKey, playback.catchupTitle) {
         shownFps = -1f
         // A new channel is matched afresh (the last channel's rate never stands in for it).
         videoFps = -1f
@@ -256,20 +204,8 @@ fun LiveTvPlayerScreen(
                 // actually on screen (a stream's stated rate can be wrong, or left over from
                 // another feed). Until then, the stream's stated rate.
                 val measured = viewModel.playback.measuredFps
-                if (measured > 0f) hasMeasuredFrames = true
                 val fps = if (measured > 0f) measured else f.frameRate
-                if (fps > 0f) shownFps = fps
-                // Give timestamp measurement time to distinguish 59.94 from 60 before the first
-                // switch. Metadata remains a fallback for decoders that supply no frame callbacks.
-                val now = android.os.SystemClock.elapsedRealtime()
-                val matchingFps = when {
-                    measured > 0f -> measured
-                    !hasMeasuredFrames && now - startedAt >= 6_000L -> f.frameRate
-                    else -> -1f
-                }
-                videoFps = frameRateStabilizer.update(matchingFps, now)
-            } else {
-                videoFps = frameRateStabilizer.update(-1f, android.os.SystemClock.elapsedRealtime())
+                if (fps > 0f) { videoFps = fps; shownFps = fps }
             }
             // Match Frame Rate switches the display itself: the player's own frame rate hint to
             // the screen is turned off then, so the two don't pull against each other.
@@ -419,7 +355,7 @@ fun LiveTvPlayerScreen(
                     }
                 }
                 val archive = playback.catchupTitle != null
-                val shifting = shiftStartedAt != null || ownTimeline
+                val shifting = shiftStartedAt != null
                 // ---- the remote's Fast Forward and Rewind: 30 seconds on (or back) in catch-up
                 // and in Rewind Anytime, wherever the highlight is.
                 val mediaCode = e.nativeKeyEvent.keyCode
@@ -438,26 +374,7 @@ fun LiveTvPlayerScreen(
                     }
                     return@onPreviewKeyEvent true
                 }
-                // ---- the Channel Row's list buttons (Up from its channels): ◀ ▶ switch list
-                if (rowPills && controlFocus != null) {
-                    if (e.type == KeyEventType.KeyUp) return@onPreviewKeyEvent isOk || e.key == Key.Back
-                    showBanner()
-                    val i = rowTabs.indexOfFirst { it.id == rowId }.coerceAtLeast(0)
-                    when {
-                        e.key == Key.DirectionLeft || e.key == Key.DirectionRight -> {
-                            val j = (i + if (e.key == Key.DirectionRight) 1 else -1).coerceIn(0, rowTabs.lastIndex.coerceAtLeast(0))
-                            rowTabs.getOrNull(j)?.let { rowListId = it.id }
-                        }
-                        e.key == Key.DirectionDown || isOk -> {
-                            if (e.nativeKeyEvent.repeatCount == 0) { rowPills = false; recentFocus = rowStart() }
-                        }
-                        // Up or Back: back to the bar's buttons (the row tucks away again).
-                        e.key == Key.DirectionUp || e.key == Key.Back -> rowPills = false
-                        else -> Unit
-                    }
-                    return@onPreviewKeyEvent true
-                }
-                // ---- the Channel Row's channels (Down from the panel's buttons)
+                // ---- the Recent row (Down from the panel's buttons)
                 val rf = recentFocus
                 if (rf != null && controlFocus != null) {
                     if (e.type == KeyEventType.KeyUp) {
@@ -470,20 +387,19 @@ fun LiveTvPlayerScreen(
                         return@onPreviewKeyEvent isOk || e.key == Key.Back
                     }
                     showBanner()
-                    // Clear is only in Recently watched (favorites and groups are changed in the guide).
-                    val hasClear = rowId == PanelRowLists.RECENT
-                    val lastTile = rowChannels.size + if (hasClear) 1 else 0
+                    val recentList = viewModel.panelRowChannels(playback.channelKey)
+                    // Clear is only in Recent (favorites are cleared in the guide).
+                    val hasClear = settings.panelRow == "RECENT"
+                    val lastTile = recentList.size + if (hasClear) 1 else 0
                     when {
                         e.key == Key.DirectionLeft -> recentFocus = (rf - 1).coerceAtLeast(0)
                         e.key == Key.DirectionRight -> recentFocus = (rf + 1).coerceAtMost(lastTile)
-                        // Up: to the list buttons when there's more than one list, else back to the bar.
-                        e.key == Key.DirectionUp -> {
-                            recentFocus = null
-                            if (rowTabs.size > 1) rowPills = true
-                        }
+                        e.key == Key.DirectionUp -> recentFocus = null
                         e.key == Key.DirectionDown -> Unit
-                        // Back: the row tucks away; the bar stays (Back again closes it).
-                        e.key == Key.Back -> recentFocus = null
+                        e.key == Key.Back -> {
+                            (context as? com.nuvio.tv.MainActivity)?.longPressBackHeld?.value = true
+                            closeFull(); bannerVisible = false
+                        }
                         isOk && e.nativeKeyEvent.repeatCount == 0 -> when {
                             // TV Guide: back to the guide.
                             rf == 0 -> guideOnOkUp = true
@@ -492,13 +408,10 @@ fun LiveTvPlayerScreen(
                                 recentFocus = 0
                                 toast = "Recently watched cleared"
                             }
-                            else -> rowChannels.getOrNull(rf - 1)?.let { ch ->
+                            else -> recentList.getOrNull(rf - 1)?.let { ch ->
                                 closeFull()
-                                // Already watching it: just close the bar.
-                                if (ch.key != playback.channelKey) {
-                                    viewModel.preview(ch)
-                                    showBanner()
-                                } else bannerVisible = false
+                                viewModel.preview(ch)
+                                showBanner()
                             }
                         }
                         else -> Unit
@@ -508,9 +421,7 @@ fun LiveTvPlayerScreen(
                 // ---- the panel's controls (entered with Down while the panel shows)
                 val cf = controlFocus
                 if (cf != null) {
-                    val mode = if (archive) PanelMode.CATCHUP
-                        else if (shiftStartedAt != null || (ownTimeline && viewModel.playback.shiftIsBehind())) PanelMode.SHIFT
-                        else PanelMode.LIVE
+                    val mode = if (archive) PanelMode.CATCHUP else if (shifting) PanelMode.SHIFT else PanelMode.LIVE
                     val paused = playback.userPaused
                     val list = panelControls(mode, paused, canSkip = archive || viewModel.playback.shiftCanSeek(), bell = bellInBar, pin = pinGame != null, backups = backups.isNotEmpty())
                     if (e.type == KeyEventType.KeyUp) return@onPreviewKeyEvent isOk || e.key == Key.Back
@@ -526,16 +437,7 @@ fun LiveTvPlayerScreen(
                             if (archive) scrub(forward = forward, repeat = e.nativeKeyEvent.repeatCount)
                             else {
                                 val r = e.nativeKeyEvent.repeatCount
-                                val longReplay = viewModel.playback.ownTimelineNow()?.let { !it.live && it.durationMs >= 30 * 60_000L } == true
-                                // A long replay (a whole game) gets bigger steps the longer you hold.
-                                val step = when {
-                                    longReplay && r > 60 -> 600_000L
-                                    longReplay && r > 40 -> 300_000L
-                                    r > 20 -> 120_000L
-                                    r > 8 -> 60_000L
-                                    r > 2 -> 30_000L
-                                    else -> 10_000L
-                                }
+                                val step = when { r > 20 -> 120_000L; r > 8 -> 60_000L; r > 2 -> 30_000L; else -> 10_000L }
                                 viewModel.playback.shiftSeekBy(if (forward) step else -step)
                             }
                             return@onPreviewKeyEvent true
@@ -558,10 +460,9 @@ fun LiveTvPlayerScreen(
                             closeFull(); bannerVisible = false; return@onPreviewKeyEvent true
                         }
                         e.key == Key.DirectionDown -> {
-                            // Down from the buttons: the Channel Row opens (on the channel playing, else the first).
-                            if (rowOn && panelFull && rowId != null) {
-                                rowListId = rowId
-                                recentFocus = rowStart()
+                            // Down from the buttons: into the Recent row (first channel, else TV Guide).
+                            if (settings.panelRow != "OFF" && panelFull) {
+                                recentFocus = if (viewModel.panelRowChannels(playback.channelKey).isNotEmpty()) 1 else 0
                             }
                             return@onPreviewKeyEvent true
                         }
@@ -659,22 +560,9 @@ fun LiveTvPlayerScreen(
                                 viewModel.playback.shiftSeekBy(10_000L * (1 + minOf(e.nativeKeyEvent.repeatCount, 11))); showBanner()
                             }
                             e.nativeKeyEvent.repeatCount == 0 -> {
-                                val tapAt = System.currentTimeMillis()
-                                rightDownAt = tapAt
+                                rightDownAt = System.currentTimeMillis()
                                 rightHoldDone = false
-                                if (tapAt - lastRightTapAt <= DOUBLE_RIGHT_MS) {
-                                    // Right twice: this channel's backups from the right edge.
-                                    lastRightTapAt = 0L
-                                    rightHoldDone = true
-                                    if (backups.isNotEmpty()) {
-                                        closeFull()
-                                        bannerVisible = false
-                                        dialog = PlayerDialog.BACKUP_FLYOUT
-                                    } else toast = "No backup channels for this channel"
-                                } else {
-                                    lastRightTapAt = tapAt
-                                    showBanner()
-                                }
+                                showBanner()
                             }
                             // Held for over half a second: the previous channel (once per press).
                             !rightHoldDone && System.currentTimeMillis() - rightDownAt >= 600 -> {
@@ -899,8 +787,6 @@ fun LiveTvPlayerScreen(
                 val mode = when {
                     archive -> PanelMode.CATCHUP
                     shiftStartedAt != null -> PanelMode.SHIFT
-                    // A sports addon game: its own timeline once paused, behind live, or a replay.
-                    ownTimeline && viewModel.playback.shiftIsBehind() -> PanelMode.SHIFT
                     else -> PanelMode.LIVE
                 }
                 // 24/7 channels with no episode info: what the channel plays, from your addons.
@@ -941,34 +827,7 @@ fun LiveTvPlayerScreen(
                             statusLive = stillOn
                         )
                     }
-                    PanelMode.SHIFT -> if (ownTimeline) viewModel.playback.ownTimelineNow()?.let { o ->
-                        if (o.live) {
-                            // Its own rewind window, up to live.
-                            val start = tick - o.durationMs
-                            val pos = start + o.positionMs
-                            val behind = (tick - pos).coerceAtLeast(0L)
-                            PanelTimeline(
-                                startMs = start,
-                                endMs = tick,
-                                positionMs = pos,
-                                liveMs = tick,
-                                recordedUntilMs = tick,
-                                leftLabel = "From " + formatClock(start, use24h),
-                                rightLabel = "Live " + formatClock(tick, use24h),
-                                status = formatDuration(behind) + " behind live",
-                                statusLive = true
-                            )
-                        } else PanelTimeline(
-                            // A replay: from its start to its end.
-                            startMs = 0L,
-                            endMs = o.durationMs,
-                            positionMs = o.positionMs,
-                            recordedUntilMs = o.durationMs,
-                            leftLabel = formatDuration(0L),
-                            rightLabel = formatDuration(o.durationMs),
-                            status = formatDuration(o.positionMs) + " / " + formatDuration(o.durationMs)
-                        )
-                    } else {
+                    PanelMode.SHIFT -> {
                         // The buffer's earliest point (older parts drop off past its length).
                         val start = viewModel.playback.shiftEarliestWallMs() ?: shiftStartedAt ?: tick
                         val pos = viewModel.playback.shiftPositionWallMs() ?: start
@@ -1050,14 +909,11 @@ fun LiveTvPlayerScreen(
                     nextTitle = nextUp?.title?.let { titleMarks(it).title },
                     nextTime = nextUp?.let { formatRange(it.startMs, it.stopMs, use24h) },
                     catchupAvailable = ch.catchup != null,
-                    recentClear = rowId == PanelRowLists.RECENT,
-                    rowLists = if (rowOn) rowTabs else emptyList(),
-                    rowSelected = rowId,
-                    rowPillsFocused = rowPills,
-                    playingKey = playback.channelKey,
-                    recent = if (rowOn && (panelFull || pausedNow)) {
-                        remember(rowChannels, programs, tick / 60_000) {
-                            rowChannels.map { r ->
+                    recentTitle = if (settings.panelRow == "FAVORITES") "FAVORITES" else "RECENT",
+                    recentClear = settings.panelRow == "RECENT",
+                    recent = if (settings.panelRow != "OFF" && (panelFull || pausedNow)) {
+                        remember(playback.channelKey, user.recent, user.favorites, settings.panelRow, programs, tick / 60_000) {
+                            viewModel.panelRowChannels(playback.channelKey).map { r ->
                                 val p = programs[r.key]?.firstOrNull { tick >= it.startMs && tick < it.stopMs }
                                 PanelRecent(
                                     channel = r,
@@ -1073,25 +929,6 @@ fun LiveTvPlayerScreen(
                     pinOn = pinGame != null && pinGame.id in pinList
                 )
             }
-        }
-
-        // Right twice: backup channels from the right edge, in overlay mode's look.
-        if (dialog == PlayerDialog.BACKUP_FLYOUT && backups.isNotEmpty()) {
-            LiveTvBackupFlyout(
-                viewModel = viewModel,
-                channels = backups,
-                playingKey = playback.channelKey,
-                modifier = Modifier.align(Alignment.CenterEnd),
-                onPick = { ch ->
-                    dialog = PlayerDialog.NONE
-                    if (ch.key != playback.channelKey) {
-                        viewModel.preview(ch)
-                        showBanner()
-                    }
-                    scope.launch { delay(60); runCatching { rootFocus.requestFocus() } }
-                },
-                onClose = { dialog = PlayerDialog.NONE; scope.launch { delay(60); runCatching { rootFocus.requestFocus() } } }
-            )
         }
 
         // Overlay mode (TiviMate style): channels, groups and each channel's schedule over the video.
@@ -1152,7 +989,7 @@ fun LiveTvPlayerScreen(
         PlayerDialog.OPTIONS -> current?.let { ch ->
             val archive = playback.catchupTitle != null
             val canRestart = !archive && viewModel.canWatchFromStart(ch)
-            val shifting = shiftStartedAt != null || (ownTimeline && viewModel.playback.ownTimelineNow()?.live == true && viewModel.playback.shiftIsBehind())
+            val shifting = shiftStartedAt != null
             val timeAction = when {
                 archive -> "Back to live"
                 canRestart -> viewModel.restartLabel(ch)
@@ -1198,9 +1035,11 @@ fun LiveTvPlayerScreen(
                 sleepLabel = sleepAt?.let { "${((it - System.currentTimeMillis()) / 60_000 + 1).coerceAtLeast(1)} min left" } ?: "Off",
                 timeAction = timeAction,
                 hidden = BarPart.parse(settings.barHidden),
-                channelRow = PanelRowLists.shown(settings),
+                channelRow = settings.panelRow,
                 onChannelRow = {
-                    viewModel.updateSettings { PanelRowLists.setShown(it, !PanelRowLists.shown(it)) }
+                    viewModel.updateSettings {
+                        it.copy(panelRow = when (it.panelRow) { "RECENT" -> "FAVORITES"; "FAVORITES" -> "OFF"; else -> "RECENT" })
+                    }
                 },
                 onBackground = {
                     viewModel.updateSettings {
@@ -1318,7 +1157,6 @@ fun LiveTvPlayerScreen(
             },
             onDismiss = { dialog = PlayerDialog.NONE }
         )
-        PlayerDialog.BACKUP_FLYOUT -> if (backups.isEmpty()) dialog = PlayerDialog.NONE
         PlayerDialog.NONE -> Unit
     }
     }
@@ -1628,8 +1466,14 @@ private fun MatchFrameRate(
             "Match frame rate: this stream doesn't say its frame rate and it couldn't be measured yet, so the display wasn't switched"
         )
     }
-    // The per-channel stabilizer has already normalized and confirmed the rate.
-    val target = fps
+    // Snapped to the nearest standard rate when close (a measured 59.93 is 59.94, not 60), else
+    // rounded, so the measured rate wobbling (49.98, 50.02…) doesn't ask again and again.
+    val target = if (fps > 0f) {
+        listOf(23.976f, 24f, 25f, 29.97f, 30f, 47.952f, 48f, 50f, 59.94f, 60f, 100f, 119.88f, 120f)
+            .minBy { kotlin.math.abs(it - fps) }
+            .takeIf { kotlin.math.abs(it - fps) <= 0.04f }
+            ?: (kotlin.math.round(fps * 10f) / 10f)
+    } else -1f
     LaunchedEffect(enabled, target, channelKey) {
         if (!enabled || target <= 0f) return@LaunchedEffect
         val fps = target
