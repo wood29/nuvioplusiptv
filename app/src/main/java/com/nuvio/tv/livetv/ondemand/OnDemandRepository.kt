@@ -223,12 +223,13 @@ class OnDemandRepository @Inject constructor(
         val now = System.currentTimeMillis()
         // Nuvio Plus: films and series follow "Check Playlists for Updates Every" (was always
         // daily); 0 = only when you press Update. A provider never imported is always imported.
-        val everyHours = prefs.settings.first().playlistRefreshHours
+        val schedule = prefs.settings.first()
+        val everyHours = schedule.playlistRefreshHours
         val intervalMs = if (everyHours > 0) everyHours * 60 * 60 * 1000L else REFRESH_MS
         for (pl in playlists) {
             if (onlyId != null && pl.id != onlyId) continue
             val last = stamps[pl.id] ?: 0L
-            val due = last == 0L || (everyHours > 0 && now - last >= intervalMs)
+            val due = last == 0L || com.nuvio.tv.livetv.data.UpdateSchedule.due(now - last, everyHours, schedule.updateHour, now)
             if (!force && !due) continue
             // Automatic imports wait while a movie or episode is playing in Nuvio's player, and
             // while the guide is being built or Sports is finding channels.

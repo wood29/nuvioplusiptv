@@ -663,6 +663,23 @@ class LiveTvViewModel @Inject constructor(
      * Nuvio Plus: hides (or shows) every playlist group of one country at once, by the prefix in
      * front of the group names ("UK | …", "DE: …"). Returns how many groups were changed.
      */
+    /**
+     * Nuvio Plus: removes provider groups from this box: they're not downloaded at all any more
+     * (Xtream logins), not just hidden. Returns how many groups were removed.
+     */
+    suspend fun removeFromBox(groups: List<ChannelGroup>): Int {
+        val xtream = prefs.currentPlaylists().filter { it.isXtream }.map { it.id }.toSet()
+        val byPlaylist = groups
+            .filter { !it.special && it.sourceId != null && it.sourceId in xtream }
+            .groupBy { it.sourceId!! }
+            .mapValues { (src, gs) -> gs.map { g -> if (g.id.startsWith("$src::")) g.id.substringAfter("::") else g.id }.toSet() }
+        if (byPlaylist.isEmpty()) return 0
+        return repository.removeGroupsFromBox(byPlaylist)
+    }
+
+    suspend fun countryGroups(country: String): List<ChannelGroup> =
+        groupsWithHidden().filter { com.nuvio.tv.livetv.data.GroupCountry.of(it.title) == country }
+
     suspend fun setCountryHidden(country: String, hidden: Boolean): Int {
         val ids = groupsWithHidden()
             .filter { com.nuvio.tv.livetv.data.GroupCountry.of(it.title) == country }

@@ -546,7 +546,7 @@ class LiveTvRepository @Inject constructor(
             val file = playlistFile(pl.id)
             // Nuvio Plus: 0 = only when you press Update.
             val stale = !file.exists() ||
-                (settings.playlistRefreshHours > 0 && now - file.lastModified() > settings.playlistRefreshHours * HOUR)
+                UpdateSchedule.due(now - file.lastModified(), settings.playlistRefreshHours, settings.updateHour, now)
             if (forcePlaylists || stale || pl.id in forceIds) {
                 LIVE_REPORT.add("Checking playlist \"${pl.name}\" for updates")
                 setStatus(loading = true, message = "Updating playlist \"${pl.name}\"…")
@@ -600,7 +600,7 @@ class LiveTvRepository @Inject constructor(
             outOfTheWay()
             val file = epgFile(target.fileId)
             val stale = !file.exists() ||
-                (settings.epgRefreshHours > 0 && now - file.lastModified() > settings.epgRefreshHours * HOUR)
+                UpdateSchedule.due(now - file.lastModified(), settings.epgRefreshHours, settings.updateHour, now)
             // A playlist saved again (its login, user agent…): its own guide is downloaded again too.
             val forcedHere = target.sourceId in forceIds || target.playlistId in forceIds
             if (forceEpg || stale || forcedHere || guideHoles || (target.sourceId == null && changed && !file.exists())) {
@@ -612,7 +612,9 @@ class LiveTvRepository @Inject constructor(
                         progressLabel = "Downloading guide \"${target.name}\"",
                         // Also whole when the guide has gone stale: a provider that keeps answering
                         // "not changed" to the short check left channels without listings overnight.
-                        full = forceEpg || forcedHere || stale || guideHoles,
+                        // Nuvio Plus: a guide that's simply due asks "changed since?" first, so an
+                        // unchanged guide isn't downloaded again; whole after 3 days regardless.
+                        full = forceEpg || forcedHere || guideHoles || !file.exists() || now - file.lastModified() > 72 * HOUR,
                         reportAs = target.name
                     )
                 }
@@ -1044,8 +1046,15 @@ class LiveTvRepository @Inject constructor(
             // And once per run of the app: a provider whose guide simply lacks many channels would
             // otherwise have the whole guide downloaded and read again every few hours, which
             // makes the app crawl while it works.
-            if (!holeRefreshTried && !checkedRecently && _programs.value.isNotEmpty() && matched.size >= 20 && missing * 100 > matched.size * 15 && targets.isNotEmpty()) {
+            // Nuvio Plus: and at most once a day, remembered across restarts, with a guide at
+            // least 12 hours old. Providers whose guide simply lacks many channels had the whole
+            // guide downloaded and read again at (almost) every start, the slow start seen.
+            val holeMarker = File(context.filesDir, "livetv_guide_hole_check")
+            val holeCheckedToday = holeMarker.exists() && System.currentTimeMillis() - holeMarker.lastModified() < 24 * HOUR
+            val guideFresh = targets.none { System.currentTimeMillis() - epgFile(it.fileId).lastModified() > 12 * HOUR }
+            if (!holeRefreshTried && !checkedRecently && !holeCheckedToday && !guideFresh && _programs.value.isNotEmpty() && matched.size >= 20 && missing * 100 > matched.size * 15 && targets.isNotEmpty()) {
                 holeRefreshTried = true
+                runCatching { holeMarker.writeText(System.currentTimeMillis().toString()) }
                 guideHoles = true
                 LIVE_REPORT.add("Stored guide has no listings now for $missing of ${matched.size} matched channels: updating the guides")
                 scope.launch { runCatching { refreshStale() } }
@@ -2459,8 +2468,16 @@ class LiveTvRepository @Inject constructor(
                 }
             }
 
-            // 3. Live streams, streamed straight into an M3U file
-            writeXtreamPlaylist(pl, "$api&action=get_live_streams", categories, target)
+            // Nuvio Plus: every group the provider has, kept for bringing removed ones back.
+            runCatching { saveCategoryNames(pl.id, categories.values) }
+            // 3. Live streams, streamed straight into an M3U file. Nuvio Plus: groups removed
+            // from the box are never downloaded: only the kept groups are asked for, one by one.
+            val removed = prefs.removedLiveGroupsNow()[pl.id].orEmpty()
+            val urls = if (removed.isEmpty() || categories.isEmpty()) listOf("$api&action=get_live_streams")
+            else categories.filterValues { it !in removed }.keys.map { "$api&action=get_live_streams&category_id=$it" }
+            if (urls.isEmpty()) throw XtreamLoginError("Every group of ${pl.name} is removed from this box. Bring some back in Settings → Live TV.")
+            if (removed.isNotEmpty()) LIVE_REPORT.add("Playlist \"${pl.name}\": ${urls.size} groups downloaded, ${removed.size} removed from this box")
+            writeXtreamPlaylist(pl, urls, categories, target, skip = removed)
         }
         val error = apiResult.exceptionOrNull() ?: return@withContext
         if (error is XtreamLoginError) throw error
@@ -2482,7 +2499,40 @@ class LiveTvRepository @Inject constructor(
         else -> if (allowedFormats.isNotEmpty() && "ts" !in allowedFormats && "m3u8" in allowedFormats) "m3u8" else "ts"
     }
 
-    private fun writeXtreamPlaylist(pl: PlaylistSource, url: String, categories: Map<String, String>, target: File) {
+    // ---------------------------------------------------------------- Nuvio Plus: groups removed from the box
+
+    private fun categoryFile(playlistId: String) = File(context.filesDir, "livetv_categories_${playlistId.replace(Regex("[^A-Za-z0-9_-]"), "_")}.txt")
+
+    private fun saveCategoryNames(playlistId: String, names: Collection<String>) {
+        if (names.isEmpty()) return
+        categoryFile(playlistId).writeText(names.distinct().joinToString("\n"))
+    }
+
+    /** Every group the provider offers for a playlist (as of its last download). */
+    fun providerGroupNames(playlistId: String): List<String> =
+        runCatching { categoryFile(playlistId).readLines().filter { it.isNotBlank() } }.getOrDefault(emptyList())
+
+    /**
+     * Removes provider groups from this box: they're not downloaded any more (channels, and
+     * so their listings), not just hidden. The playlist is downloaded again without them.
+     */
+    suspend fun removeGroupsFromBox(byPlaylist: Map<String, Set<String>>): Int {
+        var n = 0
+        for ((id, names) in byPlaylist) n += prefs.addRemovedLiveGroups(id, names)
+        val ids = byPlaylist.filterValues { it.isNotEmpty() }.keys
+        if (ids.isNotEmpty()) scope.launch { refreshInternal(forcePlaylists = false, forceEpg = false, forceIds = ids) }
+        return n
+    }
+
+    /** Brings every removed group back (downloaded again with the next update, started now). */
+    fun restoreRemovedGroups() {
+        scope.launch {
+            val ids = prefs.clearRemovedLiveGroups()
+            if (ids.isNotEmpty()) refreshInternal(forcePlaylists = false, forceEpg = false, forceIds = ids)
+        }
+    }
+
+    private fun writeXtreamPlaylist(pl: PlaylistSource, urls: List<String>, categories: Map<String, String>, target: File, skip: Set<String> = emptySet()) {
         val ext = xtreamExtension(pl)
         target.parentFile?.mkdirs()
         val tmp = File(target.parentFile, target.name + ".tmp")
@@ -2490,14 +2540,17 @@ class LiveTvRepository @Inject constructor(
         val user = java.net.URLEncoder.encode(pl.xtreamUsername.trim(), "UTF-8")
         val pass = java.net.URLEncoder.encode(pl.xtreamPassword.trim(), "UTF-8")
         var count = 0
-        val request = Request.Builder().url(url).header("User-Agent", pl.userAgent.ifBlank { DEFAULT_UA }).build()
-        http.newCall(request).execute().use { response ->
-            if (!response.isSuccessful) error(httpError(response.code))
-            val body = response.body ?: error("Empty response")
-            // Written zipped straight away (like downloads), instead of saved plain and zipped
-            // again afterwards, which read and wrote the whole list a second time.
-            fastGzip(tmp.outputStream()).bufferedWriter().use { out ->
-                out.write("#EXTM3U\n")
+        // Some panels ignore category_id and send everything each time: never twice, never a removed group.
+        val seen = HashSet<String>()
+        // Written zipped straight away (like downloads), instead of saved plain and zipped
+        // again afterwards, which read and wrote the whole list a second time.
+        fastGzip(tmp.outputStream()).bufferedWriter().use { out ->
+          out.write("#EXTM3U\n")
+          for (url in urls) {
+            val request = Request.Builder().url(url).header("User-Agent", pl.userAgent.ifBlank { DEFAULT_UA }).build()
+            http.newCall(request).execute().use { response ->
+                if (!response.isSuccessful) error(httpError(response.code))
+                val body = response.body ?: error("Empty response")
                 android.util.JsonReader(body.charStream()).use { reader ->
                     // Most panels send a list; some send the channels keyed by number instead
                     // ({"0": {...}, "1": {...}}), which failed with "Expected BEGIN_ARRAY but was
@@ -2523,6 +2576,7 @@ class LiveTvRepository @Inject constructor(
                         reader.endObject()
                         val streamId = f["stream_id"]
                         if (streamId.isNullOrBlank()) continue
+                        if (urls.size > 1 && (!seen.add(streamId) || (categories[f["category_id"]] ?: "") in skip)) continue
                         val title = (f["name"] ?: "Channel $streamId").replace("\n", " ").trim()
                         val attrs = buildString {
                             fun attr(k: String, v: String?) {
@@ -2546,6 +2600,7 @@ class LiveTvRepository @Inject constructor(
                     if (keyed) reader.endObject() else reader.endArray()
                 }
             }
+          }
         }
         if (count == 0) {
             tmp.delete()

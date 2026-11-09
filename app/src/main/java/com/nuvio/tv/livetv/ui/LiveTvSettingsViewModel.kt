@@ -11,6 +11,7 @@ import com.nuvio.tv.livetv.model.LiveUserState
 import com.nuvio.tv.livetv.model.PlaylistSource
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
@@ -105,6 +106,10 @@ class LiveTvSettingsViewModel @Inject constructor(
     fun setEpgEnabled(id: String, enabled: Boolean) = viewModelScope.launch { repository.setEpgEnabled(id, enabled) }
 
     fun refreshAll() = repository.refreshAll(force = true)
+
+    // Nuvio Plus: provider groups removed from the box.
+    val removedGroupCount = prefs.removedLiveGroups.map { m -> m.values.sumOf { it.size } }
+    fun restoreRemovedGroups() = repository.restoreRemovedGroups()
 
     fun unhideChannel(key: String) = viewModelScope.launch { prefs.setChannelHidden(key, false) }
     fun unhideAllChannels() = viewModelScope.launch { prefs.clearHiddenChannels() }

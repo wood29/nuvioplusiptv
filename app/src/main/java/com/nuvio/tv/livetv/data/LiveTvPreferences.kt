@@ -80,6 +80,7 @@ class LiveTvPreferences @Inject constructor(
         val bannerSeconds = intPreferencesKey("banner_seconds")
         val playlistRefresh = intPreferencesKey("playlist_refresh_hours")
         val epgRefresh = intPreferencesKey("epg_refresh_hours")
+        val updateHour = intPreferencesKey("np_update_hour")
         val epgPast = intPreferencesKey("epg_past_hours")
         val epgFuture = intPreferencesKey("epg_future_days")
         val clock24 = booleanPreferencesKey("clock_24h")
@@ -202,6 +203,8 @@ class LiveTvPreferences @Inject constructor(
         val vodGroupOrder = stringPreferencesKey("vod_group_order")
         val vodGroupNames = stringPreferencesKey("vod_group_names")
         val onDemandImports = stringPreferencesKey("on_demand_imports")
+        // Nuvio Plus: provider groups not downloaded to this box (playlist id -> group names).
+        val removedLiveGroups = stringPreferencesKey("np_removed_live_groups")
         val channelOrder = stringPreferencesKey("channel_order")
         val channelCopies = stringPreferencesKey("channel_copies")
 
@@ -356,6 +359,7 @@ class LiveTvPreferences @Inject constructor(
             openFullscreenOnSelect = p[Keys.fullscreenOnSelect] ?: d.openFullscreenOnSelect,
             infoBannerSeconds = p[Keys.bannerSeconds] ?: d.infoBannerSeconds,
             playlistRefreshHours = p[Keys.playlistRefresh] ?: d.playlistRefreshHours,
+            updateHour = p[Keys.updateHour] ?: d.updateHour,
             epgRefreshHours = p[Keys.epgRefresh] ?: d.epgRefreshHours,
             epgPastHours = p[Keys.epgPast] ?: d.epgPastHours,
             epgFutureDays = p[Keys.epgFuture] ?: d.epgFutureDays,
@@ -642,6 +646,7 @@ class LiveTvPreferences @Inject constructor(
         p[Keys.fullscreenOnSelect] = s.openFullscreenOnSelect
         p[Keys.bannerSeconds] = s.infoBannerSeconds
         p[Keys.playlistRefresh] = s.playlistRefreshHours
+        p[Keys.updateHour] = s.updateHour
         p[Keys.epgRefresh] = s.epgRefreshHours
         p[Keys.epgPast] = s.epgPastHours
         p[Keys.epgFuture] = s.epgFutureDays
@@ -991,6 +996,43 @@ class LiveTvPreferences @Inject constructor(
     }
 
     /** When each provider's On Demand catalog was last imported (per TV, not synced). */
+    // ---------------------------------------------------------------- Nuvio Plus: groups removed from the box
+
+    /** Provider groups that aren't downloaded at all (playlist id -> group names). */
+    val removedLiveGroups: Flow<Map<String, Set<String>>> = deviceStore.data.map { decodeRemoved(it[Keys.removedLiveGroups]) }
+
+    suspend fun removedLiveGroupsNow(): Map<String, Set<String>> = decodeRemoved(deviceStore.data.first()[Keys.removedLiveGroups])
+
+    /** Adds groups to the removed list; returns how many were new. */
+    suspend fun addRemovedLiveGroups(playlistId: String, names: Set<String>): Int {
+        var added = 0
+        deviceStore.edit { p ->
+            val m = decodeRemoved(p[Keys.removedLiveGroups]).toMutableMap()
+            val before = m[playlistId].orEmpty()
+            val after = before + names
+            added = after.size - before.size
+            m[playlistId] = after
+            p[Keys.removedLiveGroups] = encodeRemoved(m)
+        }
+        return added
+    }
+
+    /** Brings every removed group back; returns the playlists that had some. */
+    suspend fun clearRemovedLiveGroups(): Set<String> {
+        var ids: Set<String> = emptySet()
+        deviceStore.edit { p ->
+            ids = decodeRemoved(p[Keys.removedLiveGroups]).filterValues { it.isNotEmpty() }.keys
+            p.remove(Keys.removedLiveGroups)
+        }
+        return ids
+    }
+
+    private fun decodeRemoved(raw: String?): Map<String, Set<String>> =
+        decodeStringMap(raw).mapValues { (_, v) -> v.split('\u0001').filter { it.isNotEmpty() }.toSet() }
+
+    private fun encodeRemoved(map: Map<String, Set<String>>): String =
+        encodeStringMap(map.filterValues { it.isNotEmpty() }.mapValues { (_, v) -> v.joinToString("\u0001") })
+
     suspend fun onDemandImportTimes(): Map<String, Long> =
         decodeStringMap(deviceStore.data.first()[Keys.onDemandImports] ?: store.data.first()[Keys.onDemandImports])
             .mapValues { it.value.toLongOrNull() ?: 0L }

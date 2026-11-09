@@ -2180,6 +2180,34 @@ fun LiveTvGuideScreen(
                             }
                         })
                     }
+                    // Nuvio Plus: not just hidden, never downloaded (Xtream logins).
+                    if (g.sourceId != null && !g.special) {
+                        add("Remove group from this box" to {
+                            groupMenu = null
+                            scope.launch {
+                                val n = viewModel.removeFromBox(listOf(g))
+                                if (n > 0 && ui.selectedGroupId == g.id) viewModel.selectGroup(ui.defaultGroupId)
+                                com.nuvio.tv.livetv.record.LiveTvNotice.show(
+                                    if (n > 0) "\"${g.title}\" removed: it won't be downloaded any more. Bring it back in Settings → Live TV."
+                                    else "Only groups from an Xtream login can be removed from the box. Hide it instead."
+                                )
+                            }
+                        })
+                        com.nuvio.tv.livetv.data.GroupCountry.of(g.title)?.let { country ->
+                            add("Remove all $country groups from this box" to {
+                                groupMenu = null
+                                scope.launch {
+                                    val n = viewModel.removeFromBox(viewModel.countryGroups(country))
+                                    val current = ui.groups.firstOrNull { it.id == ui.selectedGroupId }?.title.orEmpty()
+                                    if (n > 0 && com.nuvio.tv.livetv.data.GroupCountry.of(current) == country) viewModel.selectGroup(ui.defaultGroupId)
+                                    com.nuvio.tv.livetv.record.LiveTvNotice.show(
+                                        if (n > 0) "$n $country groups removed: they won't be downloaded any more. Bring them back in Settings → Live TV."
+                                        else "Only groups from an Xtream login can be removed from the box. Hide them instead."
+                                    )
+                                }
+                            })
+                        }
+                    }
                     add("Manage visibility" to {
                         groupMenu = null
                         scope.launch {

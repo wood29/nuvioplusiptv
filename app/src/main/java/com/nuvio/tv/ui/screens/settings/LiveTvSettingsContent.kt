@@ -39,6 +39,7 @@ import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -198,6 +199,7 @@ private sealed interface LiveDialog {
     data object BannerTime : LiveDialog
     data object PlaylistRefresh : LiveDialog
     data object EpgRefresh : LiveDialog
+    data object UpdateHour : LiveDialog
     data object FutureDays : LiveDialog
     data object PastHours : LiveDialog
     data object SortChoice : LiveDialog
@@ -223,6 +225,8 @@ private sealed interface LiveDialog {
 
 private val EPG_OFFSETS = (-24..24).map { it * 30 }
 private val REFRESH_HOURS = listOf(0, 6, 12, 24, 48, 72, 168)
+private val UPDATE_HOURS = listOf(-1, 1, 2, 3, 4, 5, 6)
+private fun updateHourLabel(h: Int): String = if (h !in 0..23) "Whenever due" else "%d:00 at night".format(h)
 private val BANNER_SECONDS = listOf(3, 5, 8, 10, 15)
 private val FUTURE_DAYS = listOf(1, 2, 3, 5, 7, 10, 14)
 private val PAST_HOURS = listOf(6, 12, 24, 48, 72, 168)
@@ -490,6 +494,19 @@ internal fun LiveTvSettingsContent(
                     SettingsActionRow(
                         "Check Guides for Updates Every", "How often TV listings are downloaded again",
                         hoursLabel(s.epgRefreshHours), onClick = { dialog = LiveDialog.EpgRefresh }
+                    )
+                    // Nuvio Plus: updates overnight, like TiviMate.
+                    SettingsActionRow(
+                        "Update At", "Automatic updates run at this time (if the box is on), so they never slow down watching",
+                        updateHourLabel(s.updateHour), onClick = { dialog = LiveDialog.UpdateHour }
+                    )
+                    // Nuvio Plus: groups removed from the box (not downloaded at all).
+                    val removedGroups by viewModel.removedGroupCount.collectAsState(0)
+                    if (removedGroups > 0) SettingsActionRow(
+                        title = "Bring Back Removed Groups",
+                        subtitle = "$removedGroups provider groups aren't downloaded to this box. Downloads them all again",
+                        leadingIcon = Icons.Default.Refresh,
+                        onClick = { viewModel.restoreRemovedGroups() }
                     )
                 }
             }
@@ -1995,6 +2012,13 @@ internal fun LiveTvSettingsContent(
             options = REFRESH_HOURS.map { SettingsPickerOption(it, hoursLabel(it)) },
             selectedValue = s.playlistRefreshHours,
             onOptionSelected = { v -> update { it.copy(playlistRefreshHours = v) }; close() },
+            onDismiss = close
+        )
+        LiveDialog.UpdateHour -> SettingsSingleChoiceDialog(
+            title = "Run automatic updates at",
+            options = UPDATE_HOURS.map { SettingsPickerOption(it, updateHourLabel(it)) },
+            selectedValue = s.updateHour,
+            onOptionSelected = { v -> update { it.copy(updateHour = v) }; close() },
             onDismiss = close
         )
         LiveDialog.EpgRefresh -> SettingsSingleChoiceDialog(
