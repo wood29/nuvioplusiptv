@@ -34,7 +34,7 @@ jobs:
 
       - name: Compile
         run: |
-          ./gradlew :app:compileFullReleaseKotlin --stacktrace -PlivetvBuildNumber=1 -PlivetvVersionName=check 2>&1 | tee compile.log
+          ./gradlew :app:compileFullReleaseKotlin :app:hiltJavaCompileFullRelease --stacktrace -PlivetvBuildNumber=1 -PlivetvVersionName=check 2>&1 | tee compile.log
           exit ${PIPESTATUS[0]}
 
       - name: Errors

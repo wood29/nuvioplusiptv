@@ -46,7 +46,7 @@ interface LoadingEntryPoint {
     fun onDemandRepository(): OnDemandRepository
     fun liveTvPlayback(): com.nuvio.tv.livetv.player.LiveTvPlaybackController
     fun liveTvPreferences(): com.nuvio.tv.livetv.data.LiveTvPreferences
-    fun channelManager(): com.nuvio.tv.livetv.manager.ChannelManager
+    fun liveTvChannelManager(): com.nuvio.tv.livetv.manager.ChannelManager
 }
 
 /**
@@ -63,7 +63,7 @@ fun LiveTvLoadingHost(navController: NavController) {
     // Live TV fork: stop Live TV's sound whenever the app leaves the front, from any screen.
     PauseLiveTvInBackground(entry.liveTvPlayback())
     // Nuvio Plus: changes sent from the Channel Manager on the PC are confirmed here, on any screen.
-    ChannelManagerConfirm(entry.channelManager())
+    ChannelManagerConfirm(entry.liveTvChannelManager())
     val live by entry.liveTvRepository().status.collectAsState()
     val vod by entry.onDemandRepository().status.collectAsState()
     val route = navController.currentBackStackEntryAsState().value?.destination?.route.orEmpty()
