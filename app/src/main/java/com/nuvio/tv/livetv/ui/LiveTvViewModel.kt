@@ -60,6 +60,8 @@ class LiveTvSession @Inject constructor() {
     val sleepAtMs = MutableStateFlow<Long?>(null)
     /** The "closed while starting" note has been shown (once per app launch). */
     var crashNoticeShown = false
+    /** Nuvio Plus: the row you were on in each group, to come back to it. */
+    val lastRows = java.util.concurrent.ConcurrentHashMap<String, Int>()
 }
 
 data class LiveTvUiState(
@@ -299,22 +301,19 @@ class LiveTvViewModel @Inject constructor(
     ): LiveTvUiState {
         // Channels you hid one by one stay out everywhere. Hiding a playlist group only hides that
         // group: its channels still show in your own groups (customPool below).
-        val notHidden = channels.filter { it.key !in user.hiddenChannels }
-        val shown = notHidden.filter { it.groupId !in user.hiddenGroups }
-        // Parental controls: channels in locked groups stay out of every list until unlocked.
-        val lockedIds = HashSet<String>()
-        notHidden.distinctBy { it.groupId }.forEach { c ->
-            if (com.nuvio.tv.livetv.parental.ParentalControls.isLocked(c.groupId, c.group, s, user.lockedGroups)) lockedIds += c.groupId
-        }
-        user.customGroups.forEach { g ->
-            if (com.nuvio.tv.livetv.parental.ParentalControls.isLocked(g.id, g.name, s, user.lockedGroups)) lockedIds += g.id
-        }
-        val visible = shown.filter { it.groupId !in lockedIds }
-        val byKey = visible.associateBy { it.key }
-        // What your own groups can show: also channels whose playlist group is hidden.
-        val customPool = notHidden.filter { it.groupId !in lockedIds }.associateBy { it.key }
-        val favorites = user.favorites.mapNotNull { byKey[it] }
-        val recent = user.recent.mapNotNull { byKey[it] }
+        // Nuvio Plus: everything that doesn't depend on the group on screen is worked out once
+        // per change of channels / your setup / settings, not again on every group switch.
+        val b = base(channels, user, s)
+        val visible = b.visible
+        val byKey = b.byKey
+        val customPool = b.customPool
+        val favorites = b.favorites
+        val recent = b.recent
+        val lockedIds = b.lockedIds
+        val groups = b.groups
+        val orderedRegular = b.orderedRegular
+        val custom = b.custom
+        val defaultGroupId = b.defaultGroupId
 
         fun sorted(list: List<LiveChannel>): List<LiveChannel> = when (s.channelSort) {
             ChannelSort.PLAYLIST -> list
@@ -351,12 +350,90 @@ class LiveTvViewModel @Inject constructor(
 
         /** A playlist group's own channels plus channels copied into it. */
         fun groupChannels(groupId: String): List<LiveChannel> {
-            val own = visible.filter { it.groupId == groupId }
+            // Nuvio Plus: from the index built once, not a pass over every channel.
+            val own = b.byGroup[groupId].orEmpty()
             val ownKeys = own.mapTo(HashSet()) { it.key }
             val copies = user.channelCopies[groupId].orEmpty().mapNotNull { byKey[it] }.filter { it.key !in ownKeys }
             return own + copies
         }
 
+        val groupId = if (exactGroup) groupIdRaw ?: "" else groupIdRaw?.takeIf { id -> groups.any { it.id == id } } ?: defaultGroupId
+        val rawList = when {
+            groupId == ChannelGroup.ALL && s.showAllChannelsGroup -> ordered(ChannelGroup.ALL, visible)
+            // "Playlist order" keeps your own order here; Number / Name sort these too.
+            // Nuvio Plus: Favorites keep your own order (Move up/down works whatever the sort is).
+            groupId == ChannelGroup.FAVORITES -> favorites
+            groupId == ChannelGroup.RECENT -> recent
+            groupId == ChannelGroup.SEARCH -> {
+                val q = query.trim()
+                if (q.isEmpty()) emptyList() else sorted(visible.filter {
+                    it.name.contains(q, ignoreCase = true) || it.number.toString() == q
+                })
+            }
+            groupId in lockedIds -> emptyList()
+            groupId.startsWith(ChannelGroup.CUSTOM_PREFIX) ->
+                // Nuvio Plus: your own groups keep the order you put the channels in.
+                user.customGroups.firstOrNull { it.id == groupId }?.channelKeys?.mapNotNull { customPool[it] }.orEmpty()
+            else -> ordered(groupId, groupChannels(groupId)).distinctBy { it.key }
+        }
+        // TiviMate's number override: 1, 2, 3… in the order the group shows them.
+        val list = if (s.sequentialNumbers && groupId != ChannelGroup.SEARCH) {
+            rawList.mapIndexed { i, c -> c.copy(number = i + 1) }
+        } else rawList
+        return LiveTvUiState(
+            groups = groups,
+            selectedGroupId = groupId,
+            channels = list,
+            allVisibleChannels = b.sortedVisible ?: sorted(visible).also { b.sortedVisible = it },
+            hasSources = hasSrc,
+            searchQuery = query,
+            orderableGroupIds = orderedRegular.map { it.id },
+            customGroups = custom,
+            defaultGroupId = defaultGroupId
+        )
+    }
+
+    private class UiBase(
+        val channels: List<LiveChannel>,
+        val user: LiveUserState,
+        val s: LiveTvSettings,
+        val unlocked: Set<String>,
+        val visible: List<LiveChannel>,
+        val byKey: Map<String, LiveChannel>,
+        val customPool: Map<String, LiveChannel>,
+        val favorites: List<LiveChannel>,
+        val recent: List<LiveChannel>,
+        val lockedIds: Set<String>,
+        val groups: List<ChannelGroup>,
+        val orderedRegular: List<ChannelGroup>,
+        val custom: List<ChannelGroup>,
+        val defaultGroupId: String,
+        val byGroup: Map<String, List<LiveChannel>>
+    ) {
+        @Volatile var sortedVisible: List<LiveChannel>? = null
+    }
+
+    @Volatile private var uiBaseCache: UiBase? = null
+
+    private fun base(channels: List<LiveChannel>, user: LiveUserState, s: LiveTvSettings): UiBase {
+        val unlocked = com.nuvio.tv.livetv.parental.ParentalControls.unlocked.value
+        uiBaseCache?.let { c -> if (c.channels === channels && c.user == user && c.s == s && c.unlocked == unlocked) return c }
+        val notHidden = channels.filter { it.key !in user.hiddenChannels }
+        val shown = notHidden.filter { it.groupId !in user.hiddenGroups }
+        // Parental controls: channels in locked groups stay out of every list until unlocked.
+        val lockedIds = HashSet<String>()
+        notHidden.distinctBy { it.groupId }.forEach { c ->
+            if (com.nuvio.tv.livetv.parental.ParentalControls.isLocked(c.groupId, c.group, s, user.lockedGroups)) lockedIds += c.groupId
+        }
+        user.customGroups.forEach { g ->
+            if (com.nuvio.tv.livetv.parental.ParentalControls.isLocked(g.id, g.name, s, user.lockedGroups)) lockedIds += g.id
+        }
+        val visible = shown.filter { it.groupId !in lockedIds }
+        val byKey = visible.associateBy { it.key }
+        // What your own groups can show: also channels whose playlist group is hidden.
+        val customPool = notHidden.filter { it.groupId !in lockedIds }.associateBy { it.key }
+        val favorites = user.favorites.mapNotNull { byKey[it] }
+        val recent = user.recent.mapNotNull { byKey[it] }
         val groups = mutableListOf<ChannelGroup>()
         groups += ChannelGroup(ChannelGroup.SEARCH, "Search", 0, special = true)
         if (s.showFavoritesGroup) groups += ChannelGroup(ChannelGroup.FAVORITES, "Favorites", favorites.size, special = true)
@@ -415,47 +492,24 @@ class LiveTvViewModel @Inject constructor(
             s.showFavoritesGroup -> ChannelGroup.FAVORITES
             else -> ChannelGroup.ALL
         }
-        val groupId = if (exactGroup) groupIdRaw ?: "" else groupIdRaw?.takeIf { id -> groups.any { it.id == id } } ?: defaultGroupId
-        val rawList = when {
-            groupId == ChannelGroup.ALL && s.showAllChannelsGroup -> ordered(ChannelGroup.ALL, visible)
-            // "Playlist order" keeps your own order here; Number / Name sort these too.
-            // Nuvio Plus: Favorites keep your own order (Move up/down works whatever the sort is).
-            groupId == ChannelGroup.FAVORITES -> favorites
-            groupId == ChannelGroup.RECENT -> recent
-            groupId == ChannelGroup.SEARCH -> {
-                val q = query.trim()
-                if (q.isEmpty()) emptyList() else sorted(visible.filter {
-                    it.name.contains(q, ignoreCase = true) || it.number.toString() == q
-                })
-            }
-            groupId in lockedIds -> emptyList()
-            groupId.startsWith(ChannelGroup.CUSTOM_PREFIX) ->
-                // Nuvio Plus: your own groups keep the order you put the channels in.
-                user.customGroups.firstOrNull { it.id == groupId }?.channelKeys?.mapNotNull { customPool[it] }.orEmpty()
-            else -> ordered(groupId, groupChannels(groupId)).distinctBy { it.key }
-        }
-        // TiviMate's number override: 1, 2, 3… in the order the group shows them.
-        val list = if (s.sequentialNumbers && groupId != ChannelGroup.SEARCH) {
-            rawList.mapIndexed { i, c -> c.copy(number = i + 1) }
-        } else rawList
-        return LiveTvUiState(
-            groups = groups,
-            selectedGroupId = groupId,
-            channels = list,
-            allVisibleChannels = sorted(visible),
-            hasSources = hasSrc,
-            searchQuery = query,
-            orderableGroupIds = orderedRegular.map { it.id },
-            customGroups = custom,
-            defaultGroupId = defaultGroupId
-        )
+        val byGroup = HashMap<String, MutableList<LiveChannel>>()
+        for (c in visible) byGroup.getOrPut(c.groupId) { ArrayList() }.add(c)
+        return UiBase(
+            channels, user, s, unlocked, visible, byKey, customPool, favorites, recent, lockedIds,
+            groups, orderedRegular, custom, defaultGroupId, byGroup
+        ).also { uiBaseCache = it }
     }
+
 
     // ------------------------------------------------------------ actions
 
     fun selectGroup(id: String) {
         session.currentGroupId.value = id
     }
+
+    /** Nuvio Plus: remembers / gives back the row you were on in a group (while the app is open). */
+    fun rememberRow(groupId: String, row: Int) { session.lastRows[groupId] = row }
+    fun savedRow(groupId: String?): Int? = groupId?.let { session.lastRows[it] }
 
     // ------------------------------------------------------------ sleep timer, quality
 

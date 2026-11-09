@@ -1,0 +1,542 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Nuvio Plus · Channel Manager</title>
+<style>
+  :root {
+    --bg: #0b0d12; --panel: #12151c; --panel2: #171b24; --line: #232836; --text: #e8eaf0;
+    --muted: #8a91a3; --accent: #7fd18b; --accent2: #2f6f3a; --warn: #f0a35e; --bad: #ef6b73; --chip: #1e2330;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; background: var(--bg); color: var(--text);
+    font: 14px/1.4 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
+  header { display: flex; align-items: center; gap: 12px; padding: 14px 20px; border-bottom: 1px solid var(--line); background: var(--panel); position: sticky; top: 0; z-index: 5; }
+  header h1 { font-size: 17px; margin: 0; font-weight: 650; letter-spacing: .2px; }
+  header .sub { color: var(--muted); font-size: 12.5px; }
+  header .grow { flex: 1; }
+  button, .btn { background: var(--chip); color: var(--text); border: 1px solid var(--line); border-radius: 8px; padding: 7px 12px; font: inherit; cursor: pointer; white-space: nowrap; }
+  button:hover, .btn:hover { border-color: #3a4256; }
+  button.primary { background: var(--accent2); border-color: #3f8c4b; color: #fff; font-weight: 600; }
+  button.primary:disabled { opacity: .45; cursor: default; }
+  button.small { padding: 3px 8px; font-size: 12.5px; border-radius: 6px; }
+  button.danger { color: var(--bad); }
+  input[type=text], input[type=search], input[type=number], select { background: var(--panel2); color: var(--text); border: 1px solid var(--line); border-radius: 7px; padding: 6px 9px; font: inherit; }
+  input[type=number] { width: 70px; }
+  main { display: grid; grid-template-columns: 380px 1fr; height: calc(100% - 59px); }
+  .col { overflow: auto; border-right: 1px solid var(--line); }
+  .tabs { display: flex; gap: 4px; padding: 10px 12px; border-bottom: 1px solid var(--line); position: sticky; top: 0; background: var(--bg); z-index: 2; flex-wrap: wrap; }
+  .tabs button.on { background: #263043; border-color: #46516b; }
+  .section { padding: 10px 12px; }
+  .row { display: flex; align-items: center; gap: 8px; padding: 6px 8px; border-radius: 8px; border: 1px solid transparent; }
+  .row:hover { background: var(--panel2); }
+  .row.sel { background: #1d2433; border-color: #33405a; }
+  .row .name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .row .count { color: var(--muted); font-size: 12px; }
+  .row.hidden .name { color: var(--muted); text-decoration: line-through; }
+  .row.removed .name { color: var(--bad); text-decoration: line-through; }
+  .row.drag-over { border-color: var(--accent); }
+  .handle { cursor: grab; color: var(--muted); user-select: none; padding: 0 2px; }
+  .country { margin: 8px 0 2px; display: flex; align-items: center; gap: 8px; color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: .8px; cursor: pointer; }
+  .country b { color: var(--text); font-size: 13px; letter-spacing: .4px; }
+  .country .grow { flex: 1; }
+  .pill { font-size: 11px; padding: 1px 7px; border-radius: 99px; background: var(--chip); color: var(--muted); border: 1px solid var(--line); }
+  .pill.bad { color: var(--bad); border-color: #5a2a30; }
+  .pill.warn { color: var(--warn); border-color: #5a4126; }
+  .right { overflow: auto; }
+  .toolbar { display: flex; gap: 8px; align-items: center; padding: 12px 16px; border-bottom: 1px solid var(--line); position: sticky; top: 0; background: var(--bg); z-index: 2; flex-wrap: wrap; }
+  .toolbar h2 { margin: 0; font-size: 16px; font-weight: 650; margin-right: 6px; }
+  .toolbar .grow { flex: 1; }
+  table { width: 100%; border-collapse: collapse; }
+  td, th { padding: 6px 10px; border-bottom: 1px solid #191d27; text-align: left; vertical-align: middle; }
+  th { color: var(--muted); font-weight: 500; font-size: 12px; position: sticky; top: 57px; background: var(--bg); z-index: 1; }
+  tr.hidden td.n { color: var(--muted); text-decoration: line-through; }
+  tr.drag-over td { border-top: 2px solid var(--accent); }
+  img.logo { width: 34px; height: 22px; object-fit: contain; background: #0e1016; border-radius: 4px; vertical-align: middle; }
+  .muted { color: var(--muted); }
+  .empty { padding: 40px 20px; color: var(--muted); text-align: center; }
+  .bar { position: fixed; left: 50%; bottom: 18px; transform: translateX(-50%); background: #1b2230; border: 1px solid #36425c; border-radius: 12px; padding: 12px 16px; display: none; gap: 12px; align-items: center; box-shadow: 0 10px 40px rgba(0,0,0,.5); z-index: 10; max-width: 90vw; }
+  .bar.show { display: flex; }
+  .modal-bg { position: fixed; inset: 0; background: rgba(0,0,0,.55); display: none; align-items: center; justify-content: center; z-index: 20; }
+  .modal-bg.show { display: flex; }
+  .modal { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 20px; width: min(560px, 92vw); max-height: 85vh; overflow: auto; }
+  .modal h3 { margin: 0 0 10px; }
+  .modal .actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 16px; }
+  .chk { width: 16px; height: 16px; accent-color: #59b867; }
+  .hint { color: var(--muted); font-size: 12.5px; padding: 0 16px 10px; }
+  @media (max-width: 900px) { main { grid-template-columns: 1fr; height: auto; } .col { border-right: 0; border-bottom: 1px solid var(--line); max-height: 50vh; } th { top: 0; } }
+</style>
+</head>
+<body>
+<header>
+  <div>
+    <h1>Channel Manager</h1>
+    <div class="sub" id="sub">Loading your channels from the TV…</div>
+  </div>
+  <div class="grow"></div>
+  <button id="btnBackup" title="Save your whole Live TV setup (playlists, folders, favorites, hidden and removed groups, numbers, names) as a file">Save setup file</button>
+  <label class="btn" title="Load a setup file saved earlier: it replaces this TV's Live TV setup">Load setup file<input id="fileIn" type="file" accept=".json,application/json" hidden></label>
+  <button class="primary" id="btnSave" disabled>Send to TV</button>
+</header>
+<main>
+  <div class="col">
+    <div class="tabs">
+      <button data-tab="groups" class="on">Provider groups</button>
+      <button data-tab="folders">My folders</button>
+      <button data-tab="countries">Countries</button>
+    </div>
+    <div id="left" class="section"></div>
+  </div>
+  <div class="right">
+    <div class="toolbar" id="toolbar"></div>
+    <div id="hintRow" class="hint"></div>
+    <div id="rightBody"></div>
+  </div>
+</main>
+
+<div class="bar" id="bar"><span id="barText"></span><button class="primary" id="barSave">Send to TV</button><button id="barUndo">Undo all</button></div>
+<div class="modal-bg" id="modalBg"><div class="modal" id="modal"></div></div>
+
+<script>
+"use strict";
+// ---------------------------------------------------------------- data
+let S = null;          // state from the TV
+let E = null;          // what's being edited
+let orig = "";         // E as loaded, to know what changed
+let groupsById = {};
+let chByKey = {};
+let tab = "groups";
+let selected = null;   // {type:"group"|"folder"|"fav"|"search"|"removed", id}
+let search = "";
+let collapsed = {};
+const NOT_COUNTRY = new Set(["HD","FHD","UHD","SD","VIP","PPV","VOD","TV","LIVE","NEW","TOP","THE","ALL","4K","24/7"]);
+const COUNTRY_RE = /^\s*[\[(|│┃▎]?\s*([A-Za-z]{2,4})\s*[\])|│┃▎:\-–—•»]/;
+function countryOf(t) { const m = COUNTRY_RE.exec(t || ""); if (!m) return null; const c = m[1].toUpperCase(); return NOT_COUNTRY.has(c) ? null : c; }
+function esc(s) { return String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[c])); }
+const $ = id => document.getElementById(id);
+
+async function load() {
+  const r = await fetch("/api/state", {cache: "no-store"});
+  if (!r.ok) throw new Error("The TV didn't answer (" + r.status + ")");
+  S = await r.json();
+  S.chans = S.channels.map(a => ({key: a[0], name: a[1], g: S.groups[a[2]].id, num: a[3], logo: a[4]}));
+  groupsById = {}; S.groups.forEach(g => { g.country = countryOf(g.title); groupsById[g.id] = g; });
+  chByKey = {}; S.chans.forEach(c => chByKey[c.key] = c);
+  const u = S.user;
+  E = {
+    favorites: [...u.favorites],
+    customGroups: u.customGroups.map(g => ({id: g.id, name: g.name, keys: [...g.keys]})),
+    groupOrder: [...u.groupOrder],
+    groupNames: {...u.groupNames},
+    channelNames: {...u.channelNames},
+    channelNumbers: {...u.channelNumbers},
+    hiddenGroups: [...u.hiddenGroups],
+    hiddenChannels: [...u.hiddenChannels],
+    removed: Object.fromEntries(Object.entries(S.removed).map(([k, v]) => [k, [...v]]))
+  };
+  orig = JSON.stringify(E);
+  $("sub").textContent = S.chans.length.toLocaleString() + " channels in " + S.groups.length + " groups · changes go to the TV only when you press Send to TV";
+  if (!selected && S.groups.length) selected = {type: "group", id: orderedGroups()[0]?.id};
+  render();
+}
+
+// ---------------------------------------------------------------- helpers
+const hiddenG = () => new Set(E.hiddenGroups);
+const hiddenC = () => new Set(E.hiddenChannels);
+function groupTitle(g) { return E.groupNames[g.id] || g.title; }
+function chName(c) { return E.channelNames[c.key] || c.name; }
+function chNum(c) { return E.channelNumbers[c.key] || c.num; }
+function isRemoved(src, name) { return (E.removed[src] || []).includes(name); }
+function rawName(g) { return g.id.startsWith(g.src + "::") ? g.id.slice(g.src.length + 2) : g.id; }
+function xtream(src) { return (S.playlists.find(p => p.id === src) || {}).xtream; }
+function orderedGroups() {
+  const idx = new Map(E.groupOrder.map((id, i) => [id, i]));
+  return [...S.groups].sort((a, b) => (idx.has(a.id) ? idx.get(a.id) : 1e9 + S.groups.indexOf(a)) - (idx.has(b.id) ? idx.get(b.id) : 1e9 + S.groups.indexOf(b)));
+}
+function removedOnly() {
+  // Groups removed from the box: no channels on the TV, only their names.
+  const out = [];
+  const present = new Set(S.groups.map(g => g.src + "|" + rawName(g)));
+  for (const pl of S.playlists) for (const name of (E.removed[pl.id] || [])) if (!present.has(pl.id + "|" + name)) out.push({src: pl.id, name, country: countryOf(name)});
+  return out;
+}
+function setGroupOrder(ids) { E.groupOrder = ids; }
+function changed() { return JSON.stringify(E) !== orig; }
+function summary() {
+  const o = JSON.parse(orig), parts = [];
+  const diff = (a, b) => { const A = new Set(a), B = new Set(b); return [...B].filter(x => !A.has(x)).length + [...A].filter(x => !B.has(x)).length; };
+  const hg = diff(o.hiddenGroups, E.hiddenGroups); if (hg) parts.push(hg + " group visibility changes");
+  const hc = diff(o.hiddenChannels, E.hiddenChannels); if (hc) parts.push(hc + " channel visibility changes");
+  const rem = (r) => Object.entries(r).flatMap(([k, v]) => v.map(n => k + "|" + n));
+  const rg = diff(rem(o.removed), rem(E.removed)); if (rg) parts.push(rg + " groups removed from / brought back to the box (channels download again)");
+  if (JSON.stringify(o.customGroups) !== JSON.stringify(E.customGroups)) parts.push("folders changed (" + E.customGroups.length + " folders)");
+  if (JSON.stringify(o.favorites) !== JSON.stringify(E.favorites)) parts.push("favorites changed (" + E.favorites.length + ")");
+  if (JSON.stringify(o.groupOrder) !== JSON.stringify(E.groupOrder)) parts.push("group order changed");
+  if (JSON.stringify(o.groupNames) !== JSON.stringify(E.groupNames) || JSON.stringify(o.channelNames) !== JSON.stringify(E.channelNames)) parts.push("names changed");
+  if (JSON.stringify(o.channelNumbers) !== JSON.stringify(E.channelNumbers)) parts.push("channel numbers changed");
+  return parts.join(" · ");
+}
+function refreshBar() {
+  const c = changed();
+  $("btnSave").disabled = !c;
+  $("bar").classList.toggle("show", c);
+  if (c) $("barText").textContent = summary();
+}
+function toggleIn(arr, v, on) { const i = arr.indexOf(v); if (on && i < 0) arr.push(v); if (!on && i >= 0) arr.splice(i, 1); }
+
+// ---------------------------------------------------------------- left column
+function render() { renderLeft(); renderRight(); refreshBar(); }
+
+function renderLeft() {
+  document.querySelectorAll(".tabs button").forEach(b => b.classList.toggle("on", b.dataset.tab === tab));
+  const L = $("left");
+  if (tab === "groups") {
+    const hg = hiddenG();
+    let html = `<div class="muted" style="margin:2px 4px 8px">Drag to change the order on the TV. Tick off to hide. ⊘ removes a group from the box (not downloaded at all).</div>`;
+    const byCountry = new Map();
+    for (const g of orderedGroups()) {
+      const c = g.country || "Other";
+      if (!byCountry.has(c)) byCountry.set(c, []);
+      byCountry.get(c).push(g);
+    }
+    for (const [c, list] of byCountry) {
+      const shown = list.filter(g => !hg.has(g.id)).length;
+      html += `<div class="country" data-country="${esc(c)}"><b>${esc(c)}</b><span>${list.length} groups · ${shown} shown</span><span class="grow"></span><span>${collapsed[c] ? "▸" : "▾"}</span></div>`;
+      if (collapsed[c]) continue;
+      for (const g of list) {
+        const sel = selected && selected.type === "group" && selected.id === g.id;
+        const gone = isRemoved(g.src, rawName(g));
+        html += `<div class="row ${hg.has(g.id) ? "hidden" : ""} ${gone ? "removed" : ""} ${sel ? "sel" : ""}" draggable="true" data-gid="${esc(g.id)}">
+          <span class="handle">⋮⋮</span>
+          <input type="checkbox" class="chk" data-vis="${esc(g.id)}" ${hg.has(g.id) ? "" : "checked"} title="Show on the TV">
+          <span class="name" data-open="${esc(g.id)}">${esc(groupTitle(g))}</span>
+          <span class="count">${g.count}</span>
+          ${gone ? `<button class="small" data-restore="${esc(g.src)}|${esc(rawName(g))}">Bring back</button>`
+            : xtream(g.src) ? `<button class="small danger" data-remove="${esc(g.id)}" title="Remove from the box (not downloaded any more)">⊘</button>` : ""}
+        </div>`;
+      }
+    }
+    const rem = removedOnly();
+    if (rem.length) {
+      html += `<div class="country" style="margin-top:16px"><b>Removed from the box</b><span>${rem.length}</span></div>`;
+      for (const r of rem) html += `<div class="row removed"><span class="name">${esc(r.name)}</span><button class="small" data-restore="${esc(r.src)}|${esc(r.name)}">Bring back</button></div>`;
+    }
+    L.innerHTML = html;
+    bindGroupDrag(L);
+  } else if (tab === "folders") {
+    let html = `<div style="display:flex;gap:8px;margin-bottom:10px"><button class="primary" id="newFolder">＋ New folder</button></div>`;
+    const favSel = selected && selected.type === "fav";
+    html += `<div class="row ${favSel ? "sel" : ""}" data-fav="1"><span>★</span><span class="name">Favorites</span><span class="count">${E.favorites.length}</span></div>`;
+    for (const f of E.customGroups) {
+      const sel = selected && selected.type === "folder" && selected.id === f.id;
+      html += `<div class="row ${sel ? "sel" : ""}" draggable="true" data-fid="${esc(f.id)}"><span class="handle">⋮⋮</span><span>📁</span><span class="name">${esc(f.name)}</span><span class="count">${f.keys.length}</span></div>`;
+    }
+    if (!E.customGroups.length) html += `<div class="empty">No folders yet. Make one (say “News”), then add channels to it from any group or from the search.</div>`;
+    L.innerHTML = html;
+    bindFolderDrag(L);
+  } else {
+    const hg = hiddenG();
+    const map = new Map();
+    for (const g of S.groups) {
+      const c = g.country || "Other";
+      const m = map.get(c) || {groups: 0, shown: 0, chans: 0, ids: [], removable: 0};
+      m.groups++; if (!hg.has(g.id)) m.shown++; m.chans += g.count; m.ids.push(g.id); if (xtream(g.src)) m.removable++;
+      map.set(c, m);
+    }
+    const remByC = new Map();
+    for (const r of removedOnly()) { const c = r.country || "Other"; remByC.set(c, (remByC.get(c) || 0) + 1); }
+    let html = `<div class="muted" style="margin:2px 4px 10px">Whole countries in one go. <b>Hide</b> keeps them downloaded but out of sight; <b>Remove</b> stops downloading them altogether (lighter and faster).</div>`;
+    const keys = [...new Set([...map.keys(), ...remByC.keys()])].sort((a, b) => a === "Other" ? 1 : b === "Other" ? -1 : a.localeCompare(b));
+    for (const c of keys) {
+      const m = map.get(c) || {groups: 0, shown: 0, chans: 0, ids: [], removable: 0};
+      const r = remByC.get(c) || 0;
+      html += `<div class="row"><span class="name"><b>${esc(c)}</b> <span class="muted">· ${m.groups} groups · ${m.chans.toLocaleString()} channels</span>
+          ${m.groups && m.shown === 0 ? `<span class="pill warn">hidden</span>` : ""} ${r ? `<span class="pill bad">${r} removed</span>` : ""}</span>
+        ${m.groups ? (m.shown ? `<button class="small" data-chide="${esc(c)}">Hide</button>` : `<button class="small" data-cshow="${esc(c)}">Show</button>`) : ""}
+        ${m.removable ? `<button class="small danger" data-cremove="${esc(c)}">Remove</button>` : ""}
+        ${r ? `<button class="small" data-crestore="${esc(c)}">Bring back</button>` : ""}
+      </div>`;
+    }
+    L.innerHTML = html;
+  }
+}
+
+function bindGroupDrag(L) {
+  let dragId = null;
+  L.querySelectorAll(".row[data-gid]").forEach(row => {
+    row.addEventListener("dragstart", e => { dragId = row.dataset.gid; e.dataTransfer.effectAllowed = "move"; });
+    row.addEventListener("dragover", e => { e.preventDefault(); row.classList.add("drag-over"); });
+    row.addEventListener("dragleave", () => row.classList.remove("drag-over"));
+    row.addEventListener("drop", e => {
+      e.preventDefault(); row.classList.remove("drag-over");
+      const target = row.dataset.gid;
+      if (!dragId || dragId === target) return;
+      const ids = orderedGroups().map(g => g.id).filter(id => id !== dragId);
+      ids.splice(ids.indexOf(target), 0, dragId);
+      // Your folders keep their place among the groups.
+      const custom = E.groupOrder.filter(id => !groupsById[id]);
+      setGroupOrder([...custom, ...ids]);
+      render();
+    });
+  });
+}
+function bindFolderDrag(L) {
+  let dragId = null;
+  L.querySelectorAll(".row[data-fid]").forEach(row => {
+    row.addEventListener("dragstart", () => dragId = row.dataset.fid);
+    row.addEventListener("dragover", e => { e.preventDefault(); row.classList.add("drag-over"); });
+    row.addEventListener("dragleave", () => row.classList.remove("drag-over"));
+    row.addEventListener("drop", e => {
+      e.preventDefault(); row.classList.remove("drag-over");
+      const target = row.dataset.fid;
+      if (!dragId || dragId === target) return;
+      const list = E.customGroups;
+      const from = list.findIndex(f => f.id === dragId), to = list.findIndex(f => f.id === target);
+      const [f] = list.splice(from, 1); list.splice(to, 0, f);
+      // Folders come first on the TV, in this order.
+      const others = E.groupOrder.filter(id => !list.some(x => x.id === id));
+      E.groupOrder = [...list.map(x => x.id), ...others];
+      render();
+    });
+  });
+}
+
+// ---------------------------------------------------------------- right side
+function folderOptions(exclude) {
+  return `<option value="">Add to…</option><option value="__fav">★ Favorites</option>` +
+    E.customGroups.filter(f => f.id !== exclude).map(f => `<option value="${esc(f.id)}">📁 ${esc(f.name)}</option>`).join("") +
+    `<option value="__new">＋ New folder…</option>`;
+}
+function channelRows(list, opts) {
+  const hc = hiddenC(), favs = new Set(E.favorites);
+  return `<table><thead><tr>${opts.drag ? "<th></th>" : ""}<th>Show</th><th>No.</th><th></th><th>Channel</th>${opts.group ? "<th>Group</th>" : ""}<th>Folders</th><th></th></tr></thead><tbody>` +
+    list.map(c => {
+      const inFolders = E.customGroups.filter(f => f.keys.includes(c.key)).map(f => f.name);
+      if (favs.has(c.key)) inFolders.unshift("★");
+      return `<tr class="${hc.has(c.key) ? "hidden" : ""}" data-key="${esc(c.key)}" ${opts.drag ? 'draggable="true"' : ""}>
+        ${opts.drag ? `<td class="handle">⋮⋮</td>` : ""}
+        <td><input type="checkbox" class="chk" data-cvis="${esc(c.key)}" ${hc.has(c.key) ? "" : "checked"}></td>
+        <td><input type="number" min="1" data-num="${esc(c.key)}" value="${esc(chNum(c) || "")}" placeholder="—"></td>
+        <td>${c.logo ? `<img class="logo" loading="lazy" src="${esc(c.logo)}" onerror="this.style.visibility='hidden'">` : ""}</td>
+        <td class="n"><span data-rename="${esc(c.key)}" title="Click to rename" style="cursor:text">${esc(chName(c))}</span>${E.channelNames[c.key] ? ` <span class="muted" title="Provider name">(${esc(c.name)})</span>` : ""}</td>
+        ${opts.group ? `<td class="muted">${esc(groupTitle(groupsById[c.g] || {title: ""}))}</td>` : ""}
+        <td class="muted">${esc(inFolders.join(", "))}</td>
+        <td style="white-space:nowrap">${opts.folder ? `<button class="small" data-out="${esc(c.key)}">Remove</button>` : ""}
+          <select data-add="${esc(c.key)}">${folderOptions(opts.folderId)}</select></td>
+      </tr>`;
+    }).join("") + `</tbody></table>`;
+}
+
+function renderRight() {
+  const T = $("toolbar"), B = $("rightBody"), H = $("hintRow");
+  const searchBox = `<input type="search" id="search" placeholder="Search all channels…" value="${esc(search)}" style="min-width:240px">`;
+  H.textContent = "";
+  if (search.trim().length >= 2) {
+    const q = search.trim().toLowerCase();
+    const res = S.chans.filter(c => chName(c).toLowerCase().includes(q) || c.name.toLowerCase().includes(q)).slice(0, 400);
+    T.innerHTML = `<h2>Search</h2><span class="muted">${res.length >= 400 ? "first 400" : res.length} results</span><span class="grow"></span>${searchBox}`;
+    B.innerHTML = res.length ? channelRows(res, {group: true}) : `<div class="empty">No channel called “${esc(search)}”.</div>`;
+  } else if (!selected) {
+    T.innerHTML = `<h2>Pick a group or folder</h2><span class="grow"></span>${searchBox}`;
+    B.innerHTML = `<div class="empty">Choose a group on the left, or search for channels to add to your folders.</div>`;
+  } else if (selected.type === "group") {
+    const g = groupsById[selected.id];
+    if (!g) { selected = null; return renderRight(); }
+    const list = S.chans.filter(c => c.g === g.id);
+    const hg = hiddenG();
+    T.innerHTML = `<h2>${esc(groupTitle(g))}</h2><span class="pill">${list.length} channels</span>${hg.has(g.id) ? `<span class="pill warn">hidden</span>` : ""}
+      <button class="small" id="renameGroup">Rename</button><button class="small" id="allShow">Show all</button><button class="small" id="allHide">Hide all</button>
+      <select id="allAdd">${folderOptions()}</select><span class="grow"></span>${searchBox}`;
+    H.textContent = "Tip: “Add to…” at the top adds every channel shown here; on a row, just that channel. Click a name to rename it.";
+    B.innerHTML = channelRows(list, {});
+  } else if (selected.type === "fav" || selected.type === "folder") {
+    const fav = selected.type === "fav";
+    const f = fav ? null : E.customGroups.find(x => x.id === selected.id);
+    if (!fav && !f) { selected = null; return renderRight(); }
+    const keys = fav ? E.favorites : f.keys;
+    const list = keys.map(k => chByKey[k]).filter(Boolean);
+    const missing = keys.length - list.length;
+    T.innerHTML = `<h2>${fav ? "★ Favorites" : "📁 " + esc(f.name)}</h2><span class="pill">${list.length} channels</span>
+      ${missing ? `<span class="pill warn" title="Channels not on the TV right now (removed group or provider change)">${missing} not on the TV</span>` : ""}
+      ${fav ? "" : `<button class="small" id="renameFolder">Rename</button><button class="small danger" id="deleteFolder">Delete folder</button>`}
+      <button class="small" id="sortAZ">Sort A–Z</button><span class="grow"></span>${searchBox}`;
+    H.textContent = "Drag rows to set the order on the TV. To add channels, open a group or search, then use “Add to…”.";
+    B.innerHTML = list.length ? channelRows(list, {drag: true, folder: true, folderId: fav ? "__fav" : f.id, group: true})
+      : `<div class="empty">Empty. Open a group on the left or search, then use “Add to…”.</div>`;
+    bindRowDrag(keys);
+  }
+  const s = $("search");
+  if (s) { s.oninput = () => { search = s.value; const pos = s.selectionStart; renderRight(); const n = $("search"); n.focus(); n.setSelectionRange(pos, pos); }; }
+}
+
+function bindRowDrag(keys) {
+  let drag = null;
+  document.querySelectorAll("#rightBody tr[draggable]").forEach(tr => {
+    tr.addEventListener("dragstart", () => drag = tr.dataset.key);
+    tr.addEventListener("dragover", e => { e.preventDefault(); tr.classList.add("drag-over"); });
+    tr.addEventListener("dragleave", () => tr.classList.remove("drag-over"));
+    tr.addEventListener("drop", e => {
+      e.preventDefault(); tr.classList.remove("drag-over");
+      const to = tr.dataset.key; if (!drag || drag === to) return;
+      const from = keys.indexOf(drag); keys.splice(from, 1); keys.splice(keys.indexOf(to), 0, drag);
+      render();
+    });
+  });
+}
+
+// ---------------------------------------------------------------- actions
+function addTo(target, keysToAdd) {
+  if (!target) return;
+  if (target === "__new") {
+    const name = prompt("Name of the new folder (e.g. News)");
+    if (!name || !name.trim()) return;
+    const f = {id: "custom:np" + Math.random().toString(36).slice(2, 10), name: name.trim(), keys: []};
+    E.customGroups.push(f);
+    E.groupOrder = [...E.customGroups.map(x => x.id), ...E.groupOrder.filter(id => !E.customGroups.some(x => x.id === id))];
+    target = f.id;
+  }
+  const arr = target === "__fav" ? E.favorites : (E.customGroups.find(f => f.id === target) || {}).keys;
+  if (!arr) return;
+  for (const k of keysToAdd) if (!arr.includes(k)) arr.push(k);
+  render();
+}
+
+document.addEventListener("click", e => {
+  const t = e.target.closest("[data-tab],[data-open],[data-country],[data-remove],[data-restore],[data-fav],[data-fid],[data-chide],[data-cshow],[data-cremove],[data-crestore],[data-out],[data-rename],#newFolder,#renameGroup,#allShow,#allHide,#renameFolder,#deleteFolder,#sortAZ");
+  if (!t) return;
+  const d = t.dataset;
+  if (d.tab) { tab = d.tab; search = ""; renderLeft(); return; }
+  if (d.open) { selected = {type: "group", id: d.open}; search = ""; render(); return; }
+  if (d.country !== undefined && t.classList.contains("country")) { collapsed[d.country] = !collapsed[d.country]; renderLeft(); return; }
+  if (d.remove) {
+    const g = groupsById[d.remove];
+    const arr = E.removed[g.src] || (E.removed[g.src] = []);
+    toggleIn(arr, rawName(g), true);
+    render(); return;
+  }
+  if (d.restore) { const [src, ...rest] = d.restore.split("|"); toggleIn(E.removed[src] || [], rest.join("|"), false); render(); return; }
+  if (d.fav) { selected = {type: "fav"}; search = ""; render(); return; }
+  if (d.fid) { selected = {type: "folder", id: d.fid}; search = ""; render(); return; }
+  if (d.chide || d.cshow) {
+    const c = d.chide || d.cshow;
+    for (const g of S.groups) if ((g.country || "Other") === c) toggleIn(E.hiddenGroups, g.id, !!d.chide);
+    render(); return;
+  }
+  if (d.cremove) {
+    const list = S.groups.filter(g => (g.country || "Other") === d.cremove && xtream(g.src));
+    if (!confirm(`Remove all ${list.length} ${d.cremove} groups from the box? They won't be downloaded any more (you can bring them back here or in the TV's settings).`)) return;
+    for (const g of list) { const arr = E.removed[g.src] || (E.removed[g.src] = []); toggleIn(arr, rawName(g), true); }
+    render(); return;
+  }
+  if (d.crestore) {
+    for (const pl of S.playlists) E.removed[pl.id] = (E.removed[pl.id] || []).filter(n => (countryOf(n) || "Other") !== d.crestore);
+    render(); return;
+  }
+  if (d.out) {
+    const arr = selected.type === "fav" ? E.favorites : E.customGroups.find(f => f.id === selected.id).keys;
+    toggleIn(arr, d.out, false); render(); return;
+  }
+  if (d.rename) {
+    const c = chByKey[d.rename];
+    const n = prompt("Channel name (empty: the provider's name)", chName(c));
+    if (n === null) return;
+    if (!n.trim() || n.trim() === c.name) delete E.channelNames[c.key]; else E.channelNames[c.key] = n.trim();
+    render(); return;
+  }
+  if (t.id === "newFolder") { addTo("__new", []); tab = "folders"; selected = {type: "folder", id: E.customGroups[E.customGroups.length - 1]?.id}; render(); return; }
+  if (t.id === "renameGroup") {
+    const g = groupsById[selected.id];
+    const n = prompt("Group name (empty: the provider's name)", groupTitle(g));
+    if (n === null) return;
+    if (!n.trim() || n.trim() === g.title) delete E.groupNames[g.id]; else E.groupNames[g.id] = n.trim();
+    render(); return;
+  }
+  if (t.id === "allShow" || t.id === "allHide") {
+    for (const c of S.chans) if (c.g === selected.id) toggleIn(E.hiddenChannels, c.key, t.id === "allHide");
+    render(); return;
+  }
+  if (t.id === "renameFolder") {
+    const f = E.customGroups.find(x => x.id === selected.id);
+    const n = prompt("Folder name", f.name); if (n && n.trim()) { f.name = n.trim(); render(); } return;
+  }
+  if (t.id === "deleteFolder") {
+    const f = E.customGroups.find(x => x.id === selected.id);
+    if (!confirm(`Delete the folder “${f.name}”? The channels stay where they are.`)) return;
+    E.customGroups = E.customGroups.filter(x => x.id !== f.id);
+    E.groupOrder = E.groupOrder.filter(id => id !== f.id);
+    selected = {type: "fav"}; render(); return;
+  }
+  if (t.id === "sortAZ") {
+    const arr = selected.type === "fav" ? E.favorites : E.customGroups.find(f => f.id === selected.id).keys;
+    arr.sort((a, b) => chName(chByKey[a] || {name: a}).localeCompare(chName(chByKey[b] || {name: b})));
+    render(); return;
+  }
+});
+
+document.addEventListener("change", e => {
+  const t = e.target, d = t.dataset;
+  if (d.vis) { toggleIn(E.hiddenGroups, d.vis, !t.checked); render(); }
+  else if (d.cvis) { toggleIn(E.hiddenChannels, d.cvis, !t.checked); render(); }
+  else if (d.num) { const v = parseInt(t.value, 10); if (v > 0) E.channelNumbers[d.num] = v; else delete E.channelNumbers[d.num]; refreshBar(); }
+  else if (d.add) { const v = t.value; t.value = ""; addTo(v, [d.add]); }
+  else if (t.id === "allAdd") { const v = t.value; t.value = ""; addTo(v, S.chans.filter(c => c.g === selected.id).map(c => c.key)); }
+});
+document.querySelectorAll(".tabs button").forEach(b => b.onclick = () => { tab = b.dataset.tab; renderLeft(); });
+
+// ---------------------------------------------------------------- send to the TV
+function modal(html) { $("modal").innerHTML = html; $("modalBg").classList.add("show"); }
+function closeModal() { $("modalBg").classList.remove("show"); }
+
+async function waitForTv(id, what) {
+  modal(`<h3>Check your TV</h3><p>${esc(what)}</p><p class="muted">The TV is asking whether to apply this. Press <b>OK</b> on the remote to accept.</p>`);
+  for (let i = 0; i < 300; i++) {
+    await new Promise(r => setTimeout(r, 1000));
+    const r = await fetch("/api/status/" + id, {cache: "no-store"}).then(r => r.json()).catch(() => null);
+    if (r && r.status === "confirmed") return true;
+    if (r && r.status === "rejected") return false;
+  }
+  return false;
+}
+
+async function send() {
+  if (!changed()) return;
+  const what = summary();
+  const r = await fetch("/api/apply", {method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify({summary: what, edit: E})});
+  if (!r.ok) { alert("The TV didn't accept it: " + (await r.text())); return; }
+  const {id} = await r.json();
+  const ok = await waitForTv(id, what);
+  if (ok) {
+    modal(`<h3>Done</h3><p>Your changes are on the TV.${what.includes("download again") ? " The TV is downloading your channels again without the removed groups; give it a minute." : ""}</p><div class="actions"><button class="primary" onclick="closeModal()">OK</button></div>`);
+    setTimeout(() => load().catch(() => {}), 1500);
+  } else {
+    modal(`<h3>Not applied</h3><p>The TV said no (or nobody answered). Your changes are still here; press Send to TV again.</p><div class="actions"><button onclick="closeModal()">OK</button></div>`);
+  }
+}
+$("btnSave").onclick = send; $("barSave").onclick = send;
+$("barUndo").onclick = () => { if (confirm("Undo every change since the page was loaded?")) { E = JSON.parse(orig); render(); } };
+
+$("btnBackup").onclick = () => { window.location.href = "/api/backup"; };
+$("fileIn").onchange = async e => {
+  const f = e.target.files[0]; e.target.value = "";
+  if (!f) return;
+  let data;
+  try { data = JSON.parse(await f.text()); } catch (_) { alert("That file isn't a Nuvio Plus setup file."); return; }
+  if (!data || !data.setup) { alert("That file isn't a Nuvio Plus setup file."); return; }
+  const when = data.savedAt ? new Date(data.savedAt).toLocaleString() : "an unknown date";
+  if (!confirm(`Load the setup saved on ${when}? It replaces this TV's Live TV setup: playlists and logins, folders, favorites, hidden and removed groups, numbers and names.`)) return;
+  const r = await fetch("/api/restore", {method: "POST", headers: {"Content-Type": "application/json"},
+    body: JSON.stringify({summary: "Replace this TV's Live TV setup with the file saved on " + when + ".", file: data})});
+  if (!r.ok) { alert("The TV didn't accept it: " + (await r.text())); return; }
+  const {id} = await r.json();
+  const ok = await waitForTv(id, "Load the setup file saved on " + when);
+  modal(ok ? `<h3>Setup loaded</h3><p>The TV is loading it now (channels and guide may download again).</p><div class="actions"><button class="primary" onclick="closeModal()">OK</button></div>`
+           : `<h3>Not loaded</h3><p>The TV said no (or nobody answered).</p><div class="actions"><button onclick="closeModal()">OK</button></div>`);
+  if (ok) setTimeout(() => load().catch(() => {}), 3000);
+};
+window.addEventListener("beforeunload", e => { if (E && changed()) { e.preventDefault(); e.returnValue = ""; } });
+
+load().catch(err => { $("sub").textContent = "Couldn't load: " + err.message + ". Is the Channel Manager still open on the TV?"; });
+</script>
+</body>
+</html>

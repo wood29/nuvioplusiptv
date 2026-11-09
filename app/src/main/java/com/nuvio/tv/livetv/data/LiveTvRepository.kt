@@ -1220,13 +1220,24 @@ class LiveTvRepository @Inject constructor(
             val from = now - HOUR
             val to = now + settings.epgFutureDays.coerceAtLeast(1) * 24 * HOUR
             // A batch at a time, so the first channels fill in quickly and a group change
-            // stops the rest.
-            for (batch in todo.chunked(60)) {
+            // stops the rest. Nuvio Plus: the first batch (the rows on screen) shows straight
+            // away, the rest is published in one go: every publish copied the whole guide map
+            // and redrew the guide (about 7 times per group you stopped on).
+            val batches = todo.chunked(60)
+            val pending = HashMap<String, List<EpgProgram>>()
+            val pendingKeys = ArrayList<String>()
+            for ((bi, batch) in batches.withIndex()) {
                 kotlinx.coroutines.currentCoroutineContext().ensureActive()
-                val got = runCatching { guideDb.range(from, to, light = lightPrograms, channels = batch) }.getOrNull() ?: return@launch
+                val fetched = runCatching { guideDb.range(from, to, light = lightPrograms, channels = batch) }.getOrNull() ?: return@launch
+                pending.putAll(fetched)
+                pendingKeys += batch
+                if (bi != 0 && bi != batches.lastIndex) continue
+                val got = HashMap(pending)
+                val publishKeys = ArrayList(pendingKeys)
+                pending.clear(); pendingKeys.clear()
                 rangeMutex.withLock {
                     val merged = HashMap(_programs.value)
-                    batch.forEach { ch ->
+                    publishKeys.forEach { ch ->
                         val list = got[ch].orEmpty()
                         val cur = merged[ch]
                         merged[ch] = when {
@@ -1241,7 +1252,7 @@ class LiveTvRepository @Inject constructor(
                     }
                     _programs.value = merged
                 }
-                fullRangeChannels += batch
+                fullRangeChannels += publishKeys
             }
         }
     }
@@ -2535,6 +2546,12 @@ class LiveTvRepository @Inject constructor(
 
     private var pendingRemoveIds: Set<String> = emptySet()
     private var removeJob: kotlinx.coroutines.Job? = null
+
+    /** Downloads these playlists again now (groups removed from or brought back to the box). */
+    fun downloadAgain(playlistIds: Set<String>) {
+        if (playlistIds.isEmpty()) return
+        scope.launch { refreshInternal(forcePlaylists = false, forceEpg = false, forceIds = playlistIds) }
+    }
 
     /** Brings every removed group back (downloaded again with the next update, started now). */
     fun restoreRemovedGroups() {

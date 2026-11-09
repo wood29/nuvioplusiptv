@@ -421,11 +421,22 @@ fun LiveTvGuideScreen(
             listState.scrollToItem(0)
         } else if (first) {
             val playingIdx = channels.indexOfFirst { it.key == playback.channelKey }
-            row = if (playingIdx >= 0) playingIdx else row.coerceIn(0, (channels.size - 1).coerceAtLeast(0))
+            // Nuvio Plus: nothing playing here: back to the row you were on in this group.
+            val saved = viewModel.savedRow(ui.selectedGroupId)
+            row = when {
+                playingIdx >= 0 -> playingIdx
+                saved != null -> saved.coerceIn(0, (channels.size - 1).coerceAtLeast(0))
+                else -> row.coerceIn(0, (channels.size - 1).coerceAtLeast(0))
+            }
             listState.scrollToItem((row - 2).coerceAtLeast(0))
         } else {
             row = row.coerceIn(0, (channels.size - 1).coerceAtLeast(0))
         }
+    }
+    // Nuvio Plus: the row you're on, kept per group for coming back to Live TV.
+    LaunchedEffect(row, cursorGroupId) {
+        val g = cursorGroupId ?: return@LaunchedEffect
+        if (channels.isNotEmpty()) viewModel.rememberRow(g, row)
     }
     // Keep the window anchored on "now" while the user is not browsing ahead.
     LaunchedEffect(now) {

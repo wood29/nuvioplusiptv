@@ -49,6 +49,10 @@ class LiveTvTimeshift(private val context: Context) {
     @Volatile var session: Session? = null
         private set
     @Volatile private var recording = false
+    // Nuvio Plus: which recording is the current one. A stopped recording's worker can still be
+    // finishing when the next one starts: it mustn't switch the new one's "recording" off.
+    @Volatile private var generation = 0L
+    private fun alive(gen: Long) = recording && gen == generation
 
     /** Time dropped from the start of an HLS recording (past the time limit). */
     @Volatile var trimmedMs: Long = 0L
@@ -93,12 +97,13 @@ class LiveTvTimeshift(private val context: Context) {
         trimmedMs = 0L
         firstBatchMs = 0L
         recording = true
+        val gen = ++generation
         val s = if (isHls) {
             val local = File(dir, "index.m3u8")
-            Session(Kind.HLS, now, Uri.fromFile(local), dir).also { job = scope.launch { recordHls(url, headers, dir, local, keepMinutes ?: 24 * 60) } }
+            Session(Kind.HLS, now, Uri.fromFile(local), dir).also { job = scope.launch { recordHls(gen, url, headers, dir, local, keepMinutes ?: 24 * 60) } }
         } else {
             val local = File(dir, "index.m3u8")
-            Session(Kind.TS, now, Uri.fromFile(local), dir).also { job = scope.launch { recordTs(url, headers, dir, keepMinutes, reconnect, label) } }
+            Session(Kind.TS, now, Uri.fromFile(local), dir).also { job = scope.launch { recordTs(gen, url, headers, dir, keepMinutes, reconnect, label) } }
         }
         session = s
         ACTIVE += s.dir
@@ -108,6 +113,7 @@ class LiveTvTimeshift(private val context: Context) {
     /** Stops recording and deletes it. */
     fun stop() {
         recording = false
+        generation++
         job?.cancel()
         job = null
         session?.dir?.let { d -> ACTIVE -= d; scope.launch { runCatching { d.deleteRecursively() } } }
@@ -141,6 +147,7 @@ class LiveTvTimeshift(private val context: Context) {
     // ------------------------------------------------------------------ TS
 
     private suspend fun recordTs(
+        gen: Long,
         url: String,
         headers: Map<String, String>,
         dir: File,
@@ -160,7 +167,7 @@ class LiveTvTimeshift(private val context: Context) {
             // Keeps going until you go live or change channel: a dropped connection is opened
             // again, with the gap marked, instead of ending the buffer (which sent you back to
             // live after half a minute or so).
-            while (scope.isActive && recording) {
+            while (scope.isActive && alive(gen)) {
                 if (attempt > 0) {
                     segmenter.reconnected()
                     delay((attempt * 2_000L).coerceAtMost(8_000L))
@@ -175,14 +182,14 @@ class LiveTvTimeshift(private val context: Context) {
                     else c.inputStream.use { input ->
                         val buf = ByteArray(64 * 1024)
                         var end = "the provider ended the stream"
-                        while (scope.isActive && recording) {
+                        while (scope.isActive && alive(gen)) {
                             val n = input.read(buf)
                             if (n < 0) break
                             bytes += n
                             segmenter.write(buf, 0, n)
-                            trimmedMs = (segmenter.trimmedSec * 1000).toLong()
+                            if (gen == generation) trimmedMs = (segmenter.trimmedSec * 1000).toLong()
                         }
-                        if (!recording) end = "stopped"
+                        if (!alive(gen)) end = "stopped"
                         end
                     }
                 } catch (e: kotlinx.coroutines.CancellationException) {
@@ -190,7 +197,7 @@ class LiveTvTimeshift(private val context: Context) {
                 } catch (e: Exception) {
                     e.message ?: e.javaClass.simpleName
                 }
-                if (!recording) break
+                if (!alive(gen)) break
                 // A replay that came in and ended: it's all saved (no reconnecting, which would
                 // start the replay again from its beginning).
                 if (!reconnect && (bytes > 0 || attempt >= 2)) {
@@ -205,7 +212,7 @@ class LiveTvTimeshift(private val context: Context) {
         } finally {
             report.add("$label finished after ${(System.currentTimeMillis() - began) / 1000}s (${segmenter.totalSec.toInt()}s recorded)")
             runCatching { segmenter.finish(ended = true) }
-            recording = false
+            if (gen == generation) recording = false
         }
     }
 
@@ -213,7 +220,7 @@ class LiveTvTimeshift(private val context: Context) {
 
     private data class Seg(val seq: Long, val durationSec: Double, val url: String)
 
-    private suspend fun recordHls(url: String, headers: Map<String, String>, dir: File, local: File, keepMinutes: Int) {
+    private suspend fun recordHls(gen: Long, url: String, headers: Map<String, String>, dir: File, local: File, keepMinutes: Int) {
         try {
             var mediaUrl = url
             var text = LiveHttp.fetch(mediaUrl, headers).let { (t, u) -> mediaUrl = u; t }
@@ -235,14 +242,14 @@ class LiveTvTimeshift(private val context: Context) {
             // Encrypted streams aren't recorded (the keys would have to be saved too).
             if (text.contains("#EXT-X-KEY") && !text.contains("METHOD=NONE")) {
                 Log.w(TAG, "Encrypted HLS: not recorded")
-                recording = false
+                if (gen == generation) recording = false
                 return
             }
             val saved = ArrayList<Seg>()
             var lastSeq = -1L
             var mapLine: String? = null
             var target = 6
-            while (scope.isActive && recording) {
+            while (scope.isActive && alive(gen)) {
                 val lines = text.lines()
                 var seq = Regex("""#EXT-X-MEDIA-SEQUENCE:(\d+)""").find(text)?.groupValues?.get(1)?.toLongOrNull() ?: 0L
                 target = Regex("""#EXT-X-TARGETDURATION:(\d+)""").find(text)?.groupValues?.get(1)?.toIntOrNull() ?: target
@@ -273,11 +280,11 @@ class LiveTvTimeshift(private val context: Context) {
                 var total = saved.sumOf { it.durationSec }
                 while (saved.size > 3 && total > keepMinutes * 60.0) {
                     val first = saved.removeAt(0)
-                    trimmedMs += (first.durationSec * 1000).toLong()
+                    if (gen == generation) trimmedMs += (first.durationSec * 1000).toLong()
                     total -= first.durationSec
                     runCatching { File(dir, first.url).delete() }
                 }
-                if (firstBatchMs == 0L && saved.isNotEmpty()) firstBatchMs = (saved.sumOf { it.durationSec } * 1000).toLong()
+                if (gen == generation && firstBatchMs == 0L && saved.isNotEmpty()) firstBatchMs = (saved.sumOf { it.durationSec } * 1000).toLong()
                 writeLocalPlaylist(local, saved, target, mapLine)
                 delay((target * 1000L / 2).coerceIn(1_000L, 6_000L))
                 text = runCatching { LiveHttp.fetch(mediaUrl, headers).let { (t, u) -> mediaUrl = u; t } }.getOrElse { delay(2_000); continue }
@@ -285,7 +292,7 @@ class LiveTvTimeshift(private val context: Context) {
         } catch (e: Exception) {
             Log.w(TAG, "HLS recording stopped: ${e.message}")
         } finally {
-            recording = false
+            if (gen == generation) recording = false
         }
     }
 

@@ -1137,6 +1137,44 @@ class LiveTvPreferences @Inject constructor(
         store.edit { p -> p[my(Keys.customGroups)] = encodeCustomGroups(transform(decodeCustomGroups(p[my(Keys.customGroups)]))) }
     }
 
+    // ---------- Nuvio Plus: Channel Manager (PC) ----------
+
+    /**
+     * Saves what was arranged in the Channel Manager on the PC in one go. Null: left as it is.
+     * Returns the playlists whose removed groups changed (they need downloading again).
+     */
+    suspend fun applyChannelManager(
+        favorites: List<String>? = null,
+        customGroups: List<CustomGroup>? = null,
+        groupOrder: List<String>? = null,
+        groupNames: Map<String, String>? = null,
+        channelNames: Map<String, String>? = null,
+        channelNumbers: Map<String, Int>? = null,
+        hiddenGroups: Set<String>? = null,
+        hiddenChannels: Set<String>? = null,
+        removed: Map<String, Set<String>>? = null
+    ): Set<String> {
+        store.edit { p ->
+            favorites?.let { p[my(Keys.favorites)] = encodeStringList(it.distinct()) }
+            customGroups?.let { p[my(Keys.customGroups)] = encodeCustomGroups(it) }
+            groupOrder?.let { p[my(Keys.groupOrder)] = encodeStringList(it.distinct()) }
+            groupNames?.let { p[Keys.groupNames] = encodeStringMap(it.filterValues { v -> v.isNotBlank() }) }
+            channelNames?.let { p[Keys.channelNames] = encodeStringMap(it.filterValues { v -> v.isNotBlank() }) }
+            channelNumbers?.let { p[Keys.channelNumbers] = encodeStringMap(it.filterValues { v -> v > 0 }.mapValues { (_, v) -> v.toString() }) }
+            hiddenGroups?.let { p[my(Keys.hiddenGroups)] = it }
+            hiddenChannels?.let { p[my(Keys.hiddenChannels)] = it }
+        }
+        if (removed == null) return emptySet()
+        var changed: Set<String> = emptySet()
+        deviceStore.edit { p ->
+            val before = decodeRemoved(p[Keys.removedLiveGroups])
+            val after = removed.filterValues { it.isNotEmpty() }
+            changed = (before.keys + after.keys).filter { before[it].orEmpty() != after[it].orEmpty() }.toSet()
+            p[Keys.removedLiveGroups] = encodeRemoved(after)
+        }
+        return changed
+    }
+
     // ---------- per-channel state ----------
 
     suspend fun setChannelHidden(key: String, hidden: Boolean) {

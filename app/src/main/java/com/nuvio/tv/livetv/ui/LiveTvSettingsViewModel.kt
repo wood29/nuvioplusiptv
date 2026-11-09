@@ -25,8 +25,16 @@ class LiveTvSettingsViewModel @Inject constructor(
     val cloudSync: com.nuvio.tv.livetv.sync.LiveTvCloudSync,
     val onDemand: com.nuvio.tv.livetv.ondemand.OnDemandRepository,
     private val posterResolver: com.nuvio.tv.livetv.data.LiveTvPosterResolver,
-    private val matcher247: com.nuvio.tv.livetv.data.LiveTv247Matcher
+    private val matcher247: com.nuvio.tv.livetv.data.LiveTv247Matcher,
+    /** Nuvio Plus: the Channel Manager page for the PC. */
+    val channelManager: com.nuvio.tv.livetv.manager.ChannelManager
 ) : ViewModel() {
+
+    override fun onCleared() {
+        channelManager.stop()
+        super.onCleared()
+    }
+
 
     val playlists: StateFlow<List<PlaylistSource>> =
         prefs.playlists.stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())

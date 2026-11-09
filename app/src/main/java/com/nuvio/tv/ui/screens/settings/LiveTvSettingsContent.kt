@@ -526,6 +526,14 @@ internal fun LiveTvSettingsContent(
                         color = NuvioTheme.colors.TextSecondary,
                         modifier = Modifier.padding(horizontal = NuvioTheme.spacing.lg, vertical = NuvioTheme.spacing.sm)
                     )
+                    // Nuvio Plus: arrange everything on the PC.
+                    SubHeading("Channel Manager")
+                    SettingsActionRow(
+                        title = "Manage Channels on Your PC",
+                        subtitle = "Folders, order, numbers, names, hiding and removing whole countries, with a mouse. Also saves and loads your setup as a file",
+                        leadingIcon = Icons.Default.LiveTv,
+                        onClick = { viewModel.channelManager.start() }
+                    )
                     SubHeading("Channel Names")
                     SettingsActionRow(
                         title = "Channel Name Cleanup",
@@ -1636,6 +1644,20 @@ internal fun LiveTvSettingsContent(
         DriveSignInDialog(prompt = prompt, onCancel = { viewModel.driveSync.cancelSignIn() })
     }
 
+    // Nuvio Plus: Channel Manager (QR / address while it's open, and OK for changes from the PC).
+    val manager by viewModel.channelManager.state.collectAsStateWithLifecycle()
+    if (manager.pending != null) {
+        ConfirmDeleteDialog(
+            title = "Apply changes from your PC?",
+            message = manager.pending!!.summary,
+            onDismiss = { viewModel.channelManager.resolve(false) },
+            onConfirm = { viewModel.channelManager.resolve(true) },
+            confirmLabel = "Apply"
+        )
+    } else if (manager.active || manager.error != null) {
+        ChannelManagerDialog(manager, onClose = { viewModel.channelManager.stop() })
+    }
+
     // ---------------------------------------------------------------- dialogs
     val close = { dialog = null }
     when (val d = dialog) {
@@ -2283,6 +2305,55 @@ private fun DriveSignInDialog(prompt: com.nuvio.tv.livetv.sync.SignInPrompt, onC
         SettingsDialogActionRow(horizontalAlignment = Alignment.CenterHorizontally) {
             androidx.compose.foundation.layout.Box(Modifier.focusRequester(cancelFocus)) {
                 SettingsDialogActionButton(text = "Cancel", onClick = onCancel)
+            }
+        }
+    }
+}
+
+@Composable
+private fun ChannelManagerDialog(state: com.nuvio.tv.livetv.manager.ChannelManager.State, onClose: () -> Unit) {
+    val closeFocus = remember { FocusRequester() }
+    LaunchedEffect(Unit) {
+        delay(80)
+        runCatching { closeFocus.requestFocus() }
+    }
+    NuvioDialog(onDismiss = onClose, title = "Channel Manager", width = 600.dp) {
+        if (state.error != null) {
+            Text(text = state.error, style = MaterialTheme.typography.bodyMedium, color = NuvioTheme.colors.TextSecondary)
+        } else {
+            Text(
+                text = "On your PC, tablet or phone (same home network), open this address in the browser, or scan the code:",
+                style = MaterialTheme.typography.bodyMedium,
+                color = NuvioTheme.colors.TextSecondary,
+                textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                modifier = Modifier.fillMaxWidth()
+            )
+            Text(
+                text = state.url.orEmpty().removePrefix("http://"),
+                style = MaterialTheme.typography.displaySmall,
+                color = NuvioTheme.colors.Secondary,
+                textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                modifier = Modifier.fillMaxWidth()
+            )
+            state.qr?.let { bmp ->
+                androidx.compose.foundation.Image(
+                    bitmap = bmp.asImageBitmap(),
+                    contentDescription = "QR code",
+                    modifier = Modifier.align(Alignment.CenterHorizontally).size(180.dp),
+                    contentScale = androidx.compose.ui.layout.ContentScale.Fit
+                )
+            }
+            Text(
+                text = state.lastResult ?: "Keep this open while you work. When you press Send to TV, the TV asks you to confirm.",
+                style = MaterialTheme.typography.bodySmall,
+                color = NuvioTheme.colors.TextSecondary,
+                textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                modifier = Modifier.fillMaxWidth()
+            )
+        }
+        SettingsDialogActionRow(horizontalAlignment = Alignment.CenterHorizontally) {
+            androidx.compose.foundation.layout.Box(Modifier.focusRequester(closeFocus)) {
+                SettingsDialogActionButton(text = "Close", onClick = onClose)
             }
         }
     }

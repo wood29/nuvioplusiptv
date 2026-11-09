@@ -1,0 +1,40 @@
+name: Compile check
+
+# Quick check for work in progress: pushing to the "wip" branch only compiles the app's code
+# (no signing, no release), so mistakes show up before anything is released.
+on:
+  push:
+    branches: [ wip ]
+
+concurrency:
+  group: check
+  cancel-in-progress: true
+
+jobs:
+  compile:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.27.3"
+          cache-dependency-path: vpn-android/native/go.sum
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+          cache: gradle
+
+      - name: Placeholder keys
+        run: |
+          echo "TMDB_API_KEY=x" > local.properties
+          cp local.properties local.dev.properties
+
+      - name: Compile
+        run: ./gradlew :app:compileFullReleaseKotlin --stacktrace -PlivetvBuildNumber=1 -PlivetvVersionName=check 2>&1 | tee compile.log; exit ${PIPESTATUS[0]}
+
+      - name: Errors
+        if: failure()
+        run: grep -E "^e: |error:" compile.log | head -60 || true
