@@ -1948,6 +1948,18 @@ fun LiveTvGuideScreen(
                 },
                 isFavorite = target.channel.key in user.favorites,
                 inFavoritesGroup = ui.selectedGroupId == ChannelGroup.FAVORITES,
+                // Nuvio Plus: tidy up Recently watched from the long-press menu.
+                inRecent = target.channel.key in user.recent,
+                onRemoveRecent = {
+                    menuTarget = null
+                    viewModel.removeFromRecent(target.channel.key)
+                    com.nuvio.tv.livetv.record.LiveTvNotice.show("Removed from Recently watched")
+                },
+                onClearRecent = {
+                    menuTarget = null
+                    viewModel.clearRecent()
+                    com.nuvio.tv.livetv.record.LiveTvNotice.show("Recently watched cleared")
+                },
                 now = now,
                 onDismiss = { menuTarget = null },
                 onWatch = { menuTarget = null; viewModel.preview(target.channel); goFullscreen() },
@@ -2173,6 +2185,13 @@ fun LiveTvGuideScreen(
                             if (ui.selectedGroupId == g.id) viewModel.selectGroup(ui.defaultGroupId)
                         })
                     }
+                    // Nuvio Plus: long-press Recently watched to empty it.
+                    if (g.id == ChannelGroup.RECENT) add("Clear Recently watched" to {
+                        groupMenu = null
+                        viewModel.clearRecent()
+                        if (ui.selectedGroupId == g.id) viewModel.selectGroup(ui.defaultGroupId)
+                        com.nuvio.tv.livetv.record.LiveTvNotice.show("Recently watched cleared")
+                    })
                     if (g.id != ChannelGroup.FAVORITES && g.id != ChannelGroup.RECENT && g.id != ChannelGroup.SEARCH) add("Pick favorites…" to {
                         groupMenu = null
                         scope.launch {
@@ -3479,6 +3498,9 @@ private fun ChannelContextMenu(
     target: MenuTarget,
     isFavorite: Boolean,
     inFavoritesGroup: Boolean,
+    inRecent: Boolean = false,
+    onRemoveRecent: () -> Unit = {},
+    onClearRecent: () -> Unit = {},
     now: Long,
     onDismiss: () -> Unit,
     onWatch: () -> Unit,
@@ -3580,6 +3602,10 @@ private fun ChannelContextMenu(
             item { MenuItem("Assign EPG", onClick = onChangeEpg) }
             item { MenuItem("Change logo", onClick = onChangeLogo) }
             item { MenuHeader("Hide & arrange") }
+            if (inRecent) {
+                item { MenuItem("Remove from Recently watched", onClick = onRemoveRecent) }
+                item { MenuItem("Clear all Recently watched", onClick = onClearRecent) }
+            }
             item { MenuItem("Hide channel", onClick = onHide) }
             item { MenuItem("Hide group \"${ch.group}\"", onClick = onHideGroup) }
             item { MenuItem("Manage visibility", onClick = onManageVisibility) }

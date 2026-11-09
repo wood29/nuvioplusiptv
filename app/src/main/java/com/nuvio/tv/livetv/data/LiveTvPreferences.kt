@@ -1218,6 +1218,11 @@ class LiveTvPreferences @Inject constructor(
         store.edit { it[my(Keys.recent)] = encodeStringList(emptyList()) }
     }
 
+    /** Nuvio Plus: takes one channel out of Recently watched. */
+    suspend fun removeRecent(key: String) {
+        store.edit { p -> p[my(Keys.recent)] = encodeStringList(decodeStringList(p[my(Keys.recent)]).filter { it != key }) }
+    }
+
     /** [addToRecent] false: adult channels, which never go in Recently watched. */
     suspend fun recordWatched(key: String, addToRecent: Boolean = true) {
         store.edit { p ->

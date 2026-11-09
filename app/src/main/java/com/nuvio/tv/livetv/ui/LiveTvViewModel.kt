@@ -623,6 +623,7 @@ class LiveTvViewModel @Inject constructor(
     }
 
     fun clearRecent() { viewModelScope.launch { prefs.clearRecent() } }
+    fun removeFromRecent(key: String) { viewModelScope.launch { prefs.removeRecent(key) } }
 
     /**
      * The channels in the info panel's row, as set in Settings: recently watched, or your
