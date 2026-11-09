@@ -191,6 +191,8 @@ fun LiveTvGuideScreen(
     // preview window to the whole screen and back. The picture never moves to a different
     // view, which is what froze it (or left it loading) on some TVs.
     var fullscreen by remember { mutableStateOf(false) }
+    /** Nuvio Plus: the channels in multi-view (null: not in multi-view). */
+    var multiView by remember { mutableStateOf<List<LiveChannel>?>(null) }
     // For the smoothness line in the start-up report: guide and full screen counted apart.
     val perfView = androidx.compose.ui.platform.LocalView.current
     LaunchedEffect(fullscreen) {
@@ -1969,6 +1971,19 @@ fun LiveTvGuideScreen(
                 }
             )
         }
+        multiView?.let { start ->
+            LiveMultiView(
+                start = start,
+                pickFrom = ui.channels,
+                playback = viewModel.playback,
+                onFullScreen = { ch -> multiView = null; viewModel.preview(ch); goFullscreen() },
+                onClose = { last ->
+                    multiView = null
+                    last?.let { viewModel.preview(it) }
+                    scope.launch { delay(60); runCatching { gridFocus.requestFocus() } }
+                }
+            )
+        }
         menuTarget?.let { target ->
             ChannelContextMenu(
                 target = target,
@@ -2002,6 +2017,11 @@ fun LiveTvGuideScreen(
                 now = now,
                 onDismiss = { menuTarget = null },
                 onWatch = { menuTarget = null; viewModel.preview(target.channel); goFullscreen() },
+                onMultiView = {
+                    menuTarget = null
+                    val playing = playback.channelKey?.let { k -> ui.channels.firstOrNull { it.key == k } ?: channels.firstOrNull { it.key == k } }
+                    multiView = listOfNotNull(playing, target.channel).distinctBy { it.key }.reversed()
+                },
                 onCatchup = { program ->
                     menuTarget = null
                     if (viewModel.playCatchup(target.channel, program)) goFullscreen()
@@ -3607,7 +3627,9 @@ private fun ChannelContextMenu(
     onSearch: () -> Unit,
     onRefresh: () -> Unit,
     onGuideDisplay: () -> Unit,
-    onSettings: () -> Unit
+    onSettings: () -> Unit,
+    /** Nuvio Plus: this channel (and the one playing) side by side. */
+    onMultiView: () -> Unit = {}
 ) {
     val first = remember { FocusRequester() }
     val ch = target.channel
@@ -3622,6 +3644,7 @@ private fun ChannelContextMenu(
         LazyColumn(verticalArrangement = Arrangement.spacedBy(4.dp)) {
             item { MenuHeader("Watch", first = true) }
             item { MenuItem("Watch full screen", Modifier.focusRequester(first), onWatch) }
+            item { MenuItem("Watch in multi-view (up to 4)", onClick = onMultiView) }
             // On now, with catch-up or a recording running: start it over (right under Watch).
             if (canRestart && (program == null || (now >= program.startMs && now < program.stopMs))) item {
                 MenuItem(restartLabel, onClick = onRestart)

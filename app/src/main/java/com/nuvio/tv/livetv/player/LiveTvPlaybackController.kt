@@ -304,6 +304,24 @@ class LiveTvPlaybackController @Inject constructor(
         p.stop()
     }
 
+    /**
+     * Nuvio Plus multi-view: a separate, plain player for one tile (live only: no catch-up,
+     * timeshift or DRM), with small buffers so several fit at once. The caller releases it.
+     */
+    fun multiViewPlayer(channel: LiveChannel): ExoPlayer {
+        val headers = channel.headers
+        val http = com.nuvio.tv.core.vpn.protectHttpFactory(liveHttpFactory(headers), headers, headers["User-Agent"] ?: LiveTvRepository.DEFAULT_UA)
+        val source = DefaultMediaSourceFactory(http).createMediaSource(buildMediaItem(channel.url, isLive = true))
+        val load = androidx.media3.exoplayer.DefaultLoadControl.Builder()
+            .setBufferDurationsMs(1_500, 6_000, 1_000, 1_500)
+            .build()
+        return ExoPlayer.Builder(context).setLoadControl(load).build().apply {
+            setMediaSource(source)
+            prepare()
+            playWhenReady = true
+        }
+    }
+
     /** The live link the player is using for [channel] (its own link if something else is on). */
     fun liveUrlFor(channel: LiveChannel): String =
         currentUrl?.takeIf { currentChannel?.key == channel.key && _state.value.catchupTitle == null } ?: channel.url
