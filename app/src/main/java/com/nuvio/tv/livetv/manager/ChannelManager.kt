@@ -14,6 +14,8 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
@@ -47,32 +49,60 @@ class ChannelManager @Inject constructor(
     val state: StateFlow<State> = _state.asStateFlow()
     private var server: ChannelManagerServer? = null
 
+    @Volatile private var dialogOpen = false
+    @Volatile private var alwaysOn = false
+
+    init {
+        // "Allow the Channel Manager App": the page stays reachable while Nuvio Plus runs.
+        scope.launch {
+            prefs.settings.map { it.channelManagerOnNetwork }.distinctUntilChanged().collect { on ->
+                alwaysOn = on
+                if (on) ensureServer() else if (!dialogOpen) stopServer()
+            }
+        }
+    }
+
+    /** Opened from the TV's settings: shows the address and QR code. */
     fun start() {
+        dialogOpen = true
         val ip = DeviceIpAddress.get(context)
         if (ip == null) {
-            _state.value = State(error = "The box isn't connected to a network.")
+            _state.value = _state.value.copy(error = "The box isn't connected to a network.", active = false)
             return
         }
-        stop()
+        val s = ensureServer()
+        if (s == null) {
+            _state.value = _state.value.copy(error = "Couldn't open the Channel Manager (no free network port).", active = false)
+            return
+        }
+        val url = "http://$ip:${s.listeningPort}"
+        _state.value = _state.value.copy(active = true, qr = QrCodeGenerator.generate(url, 512), url = url, error = null, lastResult = null)
+    }
+
+    /** The TV's Channel Manager screen closed (the page keeps running if allowed on the network). */
+    fun stop() {
+        dialogOpen = false
+        if (!alwaysOn) stopServer()
+        _state.value = _state.value.copy(active = false, qr = null, url = null, error = null)
+    }
+
+    @Synchronized
+    private fun ensureServer(): ChannelManagerServer? {
+        server?.let { return it }
         val s = ChannelManagerServer.start(
             context = context,
             stateJson = { runBlocking { buildState() } },
             backupJson = { runBlocking { buildBackup() } },
             onProposed = { change -> _state.value = _state.value.copy(pending = change) }
         )
-        if (s == null) {
-            _state.value = State(error = "Couldn't open the Channel Manager (no free network port).")
-            return
-        }
         server = s
-        val url = "http://$ip:${s.listeningPort}"
-        _state.value = State(active = true, qr = QrCodeGenerator.generate(url, 512), url = url)
+        return s
     }
 
-    fun stop() {
+    @Synchronized
+    private fun stopServer() {
         server?.stop()
         server = null
-        _state.value = State()
     }
 
     /** OK or Cancel on the TV for the change sent from the PC. */

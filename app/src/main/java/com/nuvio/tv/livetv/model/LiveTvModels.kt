@@ -289,6 +289,8 @@ data class LiveTvSettings(
     val epgRefreshHours: Int = 24, // Nuvio Plus: daily (was 12 h); 0 = only when you press Update
     /** Nuvio Plus: the hour automatic updates run at, like TiviMate overnight (-1 = whenever due). */
     val updateHour: Int = 4,
+    /** Nuvio Plus: the Channel Manager can be reached from the PC app whenever Nuvio Plus runs. */
+    val channelManagerOnNetwork: Boolean = false,
     val epgPastHours: Int = 24,
     val epgFutureDays: Int = 3,
     val use24HourClock: Boolean = false,

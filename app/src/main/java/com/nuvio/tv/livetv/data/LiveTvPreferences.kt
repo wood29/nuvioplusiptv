@@ -81,6 +81,7 @@ class LiveTvPreferences @Inject constructor(
         val playlistRefresh = intPreferencesKey("playlist_refresh_hours")
         val epgRefresh = intPreferencesKey("epg_refresh_hours")
         val updateHour = intPreferencesKey("np_update_hour")
+        val managerOnNetwork = booleanPreferencesKey("np_manager_on_network")
         val epgPast = intPreferencesKey("epg_past_hours")
         val epgFuture = intPreferencesKey("epg_future_days")
         val clock24 = booleanPreferencesKey("clock_24h")
@@ -360,6 +361,7 @@ class LiveTvPreferences @Inject constructor(
             infoBannerSeconds = p[Keys.bannerSeconds] ?: d.infoBannerSeconds,
             playlistRefreshHours = p[Keys.playlistRefresh] ?: d.playlistRefreshHours,
             updateHour = p[Keys.updateHour] ?: d.updateHour,
+            channelManagerOnNetwork = p[Keys.managerOnNetwork] ?: d.channelManagerOnNetwork,
             epgRefreshHours = p[Keys.epgRefresh] ?: d.epgRefreshHours,
             epgPastHours = p[Keys.epgPast] ?: d.epgPastHours,
             epgFutureDays = p[Keys.epgFuture] ?: d.epgFutureDays,
@@ -647,6 +649,7 @@ class LiveTvPreferences @Inject constructor(
         p[Keys.bannerSeconds] = s.infoBannerSeconds
         p[Keys.playlistRefresh] = s.playlistRefreshHours
         p[Keys.updateHour] = s.updateHour
+        p[Keys.managerOnNetwork] = s.channelManagerOnNetwork
         p[Keys.epgRefresh] = s.epgRefreshHours
         p[Keys.epgPast] = s.epgPastHours
         p[Keys.epgFuture] = s.epgFutureDays

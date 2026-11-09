@@ -209,3 +209,14 @@ jobs:
               --latest=false --prerelease
           fi
           gh release upload downloader dl/NuvioPlusIPTV.apk -R "$GITHUB_REPOSITORY" --clobber
+
+      # The Channel Manager for Windows (portable, one file), on the same "downloader" release:
+      # https://github.com/<you>/<repo>/releases/download/downloader/NuvioPlusChannelManager.exe
+      - name: Build the Windows Channel Manager
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          cp app/src/main/assets/channel_manager.html tools/channel-manager-win/
+          cd tools/channel-manager-win
+          GOOS=windows GOARCH=amd64 CGO_ENABLED=0 go build -trimpath -ldflags "-H windowsgui -s -w" -o NuvioPlusChannelManager.exe .
+          gh release upload downloader NuvioPlusChannelManager.exe -R "$GITHUB_REPOSITORY" --clobber

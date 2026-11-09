@@ -82,6 +82,8 @@
     <div class="sub" id="sub">Loading your channels from the TV…</div>
   </div>
   <div class="grow"></div>
+  <span id="conn" class="pill" style="display:none"></span>
+  <button id="btnFind" style="display:none" title="Look for the TV on your home network again">Find TV</button>
   <button id="btnBackup" title="Save your whole Live TV setup (playlists, folders, favorites, hidden and removed groups, numbers, names) as a file">Save setup file</button>
   <label class="btn" title="Load a setup file saved earlier: it replaces this TV's Live TV setup">Load setup file<input id="fileIn" type="file" accept=".json,application/json" hidden></label>
   <button class="primary" id="btnSave" disabled>Send to TV</button>
@@ -147,7 +149,7 @@ const $ = id => document.getElementById(id);
 
 async function load() {
   const r = await fetch("/api/state", {cache: "no-store"});
-  if (!r.ok) throw new Error("The TV didn't answer (" + r.status + ")");
+  if (!r.ok) throw new Error(r.status === 503 ? (await r.text()) : "The TV didn't answer (" + r.status + ")");
   S = await r.json();
   S.chans = S.channels.map(a => ({key: a[0], name: a[1], g: S.groups[a[2]].id, num: a[3], logo: a[4]}));
   groupsById = {}; S.groups.forEach(g => { g.country = countryOf(g.title); groupsById[g.id] = g; });
@@ -561,6 +563,12 @@ function modal(html) { $("modal").innerHTML = html; $("modalBg").classList.add("
 function closeModal() { $("modalBg").classList.remove("show"); }
 
 async function waitForTv(id, what) {
+  if (id === "queued") {
+    modal(`<h3>Saved on this PC</h3><p>The TV isn't reachable right now, so your changes are kept on this PC.</p>
+      <p class="muted">Next time, open this app while Nuvio Plus is running on the TV (with “Allow the Channel Manager App” on): it offers to send them.</p>
+      <div class="actions"><button class="primary" onclick="closeModal()">OK</button></div>`);
+    return null;
+  }
   modal(`<h3>Check your TV</h3><p>${esc(what)}</p><p class="muted">The TV is asking whether to apply this. Press <b>OK</b> on the remote to accept.</p>`);
   for (let i = 0; i < 300; i++) {
     await new Promise(r => setTimeout(r, 1000));
@@ -578,6 +586,7 @@ async function send() {
   if (!r.ok) { alert("The TV didn't accept it: " + (await r.text())); return; }
   const {id} = await r.json();
   const ok = await waitForTv(id, what);
+  if (ok === null) { orig = JSON.stringify(E); refreshBar(); return; }
   if (ok) {
     modal(`<h3>Done</h3><p>Your changes are on the TV.${what.includes("download again") ? " The TV is downloading your channels again without the removed groups; give it a minute." : ""}</p><div class="actions"><button class="primary" onclick="closeModal()">OK</button></div>`);
     setTimeout(() => load().catch(() => {}), 1500);
@@ -602,13 +611,57 @@ $("fileIn").onchange = async e => {
   if (!r.ok) { alert("The TV didn't accept it: " + (await r.text())); return; }
   const {id} = await r.json();
   const ok = await waitForTv(id, "Load the setup file saved on " + when);
+  if (ok === null) return;
   modal(ok ? `<h3>Setup loaded</h3><p>The TV is loading it now (channels and guide may download again).</p><div class="actions"><button class="primary" onclick="closeModal()">OK</button></div>`
            : `<h3>Not loaded</h3><p>The TV said no (or nobody answered).</p><div class="actions"><button onclick="closeModal()">OK</button></div>`);
   if (ok) setTimeout(() => load().catch(() => {}), 3000);
 };
 window.addEventListener("beforeunload", e => { if (E && changed()) { e.preventDefault(); e.returnValue = ""; } });
 
-load().catch(err => { $("sub").textContent = "Couldn't load: " + err.message + ". Is the Channel Manager still open on the TV?"; });
+// ---------------------------------------------------------------- the Windows app
+let appMode = false;
+async function localInfo() {
+  try { const r = await fetch("/api/local", {cache: "no-store"}); if (!r.ok) return null; return await r.json(); } catch (_) { return null; }
+}
+function showConn(info) {
+  const c = $("conn");
+  c.style.display = ""; $("btnFind").style.display = "";
+  if (info.online) { c.textContent = "● Connected to " + (info.device || "TV") + " (" + info.box.split(":")[0] + ")"; c.className = "pill"; c.style.color = "var(--accent)"; }
+  else { c.textContent = "○ TV not found · working on this PC"; c.className = "pill warn"; c.style.color = ""; }
+}
+async function offerQueued(info) {
+  if (!info || !info.queued || !info.online) return;
+  modal(`<h3>Changes waiting on this PC</h3><p>You made changes while the TV wasn't reachable. Send them to ${esc(info.device || "the TV")} now?</p>
+    <div class="actions"><button id="qDrop">Discard them</button><button class="primary" id="qSend">Send to TV</button></div>`);
+  $("qDrop").onclick = async () => { await fetch("/api/dropQueued", {method: "POST"}); closeModal(); };
+  $("qSend").onclick = async () => {
+    const r = await fetch("/api/sendQueued", {method: "POST"});
+    if (!r.ok) { modal(`<h3>Not sent</h3><p>${esc(await r.text())}</p><div class="actions"><button onclick="closeModal()">OK</button></div>`); return; }
+    const {id} = await r.json();
+    const ok = await waitForTv(id, "The changes you saved on this PC earlier");
+    modal(ok ? `<h3>Done</h3><p>Your saved changes are on the TV.</p><div class="actions"><button class="primary" onclick="closeModal()">OK</button></div>`
+             : `<h3>Not applied</h3><p>The TV said no (or nobody answered). They're no longer kept here.</p><div class="actions"><button onclick="closeModal()">OK</button></div>`);
+    if (ok) setTimeout(() => load().catch(() => {}), 1500);
+  };
+}
+async function start() {
+  const info = await localInfo();
+  if (info) {
+    appMode = true;
+    document.title = "Nuvio Plus Channel Manager";
+    setInterval(() => fetch("/api/ping").catch(() => {}), 15000); fetch("/api/ping").catch(() => {});
+    // The search for the TV can take a few seconds at the start.
+    let i = info;
+    for (let n = 0; n < 12 && !i.online; n++) { showConn(i); await new Promise(r => setTimeout(r, 1000)); i = (await localInfo()) || i; }
+    showConn(i);
+    $("btnFind").onclick = async () => { $("conn").textContent = "Looking for the TV…"; const r = await fetch("/api/rescan", {method: "POST"}).then(r => r.json()).catch(() => ({online: false})); showConn({...r, queued: false}); if (r.online) load().catch(() => {}); };
+    await load();
+    offerQueued(i);
+  } else {
+    await load();
+  }
+}
+start().catch(err => { $("sub").textContent = "Couldn't load: " + err.message + (appMode ? "" : ". Is the Channel Manager still open on the TV?"); });
 </script>
 </body>
 </html>

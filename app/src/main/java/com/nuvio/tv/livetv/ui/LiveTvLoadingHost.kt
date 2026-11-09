@@ -20,6 +20,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
@@ -45,6 +46,7 @@ interface LoadingEntryPoint {
     fun onDemandRepository(): OnDemandRepository
     fun liveTvPlayback(): com.nuvio.tv.livetv.player.LiveTvPlaybackController
     fun liveTvPreferences(): com.nuvio.tv.livetv.data.LiveTvPreferences
+    fun channelManager(): com.nuvio.tv.livetv.manager.ChannelManager
 }
 
 /**
@@ -60,6 +62,8 @@ fun LiveTvLoadingHost(navController: NavController) {
     } ?: return
     // Live TV fork: stop Live TV's sound whenever the app leaves the front, from any screen.
     PauseLiveTvInBackground(entry.liveTvPlayback())
+    // Nuvio Plus: changes sent from the Channel Manager on the PC are confirmed here, on any screen.
+    ChannelManagerConfirm(entry.channelManager())
     val live by entry.liveTvRepository().status.collectAsState()
     val vod by entry.onDemandRepository().status.collectAsState()
     val route = navController.currentBackStackEntryAsState().value?.destination?.route.orEmpty()
@@ -159,4 +163,29 @@ fun LiveTvLoadingHost(navController: NavController) {
 @Composable
 internal fun LoadingSpinner(modifier: Modifier = Modifier) {
     CircularProgressIndicator(modifier = modifier.size(16.dp), color = NuvioTheme.colors.Secondary, strokeWidth = 2.dp)
+}
+
+/** Nuvio Plus: "Apply changes from your PC?" wherever you are in the app. */
+@Composable
+private fun ChannelManagerConfirm(manager: com.nuvio.tv.livetv.manager.ChannelManager) {
+    val state by manager.state.collectAsState()
+    val pending = state.pending ?: return
+    val cancelFocus = remember { androidx.compose.ui.focus.FocusRequester() }
+    androidx.compose.runtime.LaunchedEffect(pending.id) {
+        kotlinx.coroutines.delay(80)
+        runCatching { cancelFocus.requestFocus() }
+    }
+    com.nuvio.tv.ui.components.NuvioDialog(
+        onDismiss = { manager.resolve(false) },
+        title = if (pending.kind == com.nuvio.tv.livetv.manager.ChannelManagerServer.Kind.RESTORE) "Load setup from your PC?" else "Apply changes from your PC?",
+        subtitle = pending.summary,
+        width = 560.dp
+    ) {
+        com.nuvio.tv.ui.screens.settings.SettingsDialogActionRow {
+            Box(Modifier.focusRequester(cancelFocus)) {
+                com.nuvio.tv.ui.screens.settings.SettingsDialogActionButton(text = "Cancel", onClick = { manager.resolve(false) })
+            }
+            com.nuvio.tv.ui.screens.settings.SettingsDialogActionButton(text = "Apply", onClick = { manager.resolve(true) }, primary = true)
+        }
+    }
 }

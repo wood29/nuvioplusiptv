@@ -534,6 +534,12 @@ internal fun LiveTvSettingsContent(
                         leadingIcon = Icons.Default.LiveTv,
                         onClick = { viewModel.channelManager.start() }
                     )
+                    SettingsToggleRow(
+                        "Allow the Channel Manager App",
+                        "The Nuvio Plus Channel Manager on your Windows PC finds this box by itself while Nuvio Plus is open. Changes still need your OK here",
+                        s.channelManagerOnNetwork,
+                        { update { it.copy(channelManagerOnNetwork = !it.channelManagerOnNetwork) } }
+                    )
                     SubHeading("Channel Names")
                     SettingsActionRow(
                         title = "Channel Name Cleanup",
@@ -1646,15 +1652,7 @@ internal fun LiveTvSettingsContent(
 
     // Nuvio Plus: Channel Manager (QR / address while it's open, and OK for changes from the PC).
     val manager by viewModel.channelManager.state.collectAsStateWithLifecycle()
-    if (manager.pending != null) {
-        ConfirmDeleteDialog(
-            title = "Apply changes from your PC?",
-            message = manager.pending!!.summary,
-            onDismiss = { viewModel.channelManager.resolve(false) },
-            onConfirm = { viewModel.channelManager.resolve(true) },
-            confirmLabel = "Apply"
-        )
-    } else if (manager.active || manager.error != null) {
+    if (manager.pending == null && (manager.active || manager.error != null)) {
         ChannelManagerDialog(manager, onClose = { viewModel.channelManager.stop() })
     }
 

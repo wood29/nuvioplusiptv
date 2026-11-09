@@ -41,6 +41,9 @@ class ChannelManagerServer(
         val post = session.method == Method.POST
         when {
             get && (uri == "/" || uri == "/index.html") -> page()
+            get && uri == "/api/hello" -> json(
+                JSONObject().put("app", "Nuvio Plus").put("device", android.os.Build.MODEL ?: "TV box").toString()
+            )
             get && uri == "/api/state" -> json(stateJson())
             get && uri == "/api/backup" -> json(backupJson()).apply {
                 addHeader("Content-Disposition", "attachment; filename=\"nuvio-plus-live-tv-setup.json\"")
