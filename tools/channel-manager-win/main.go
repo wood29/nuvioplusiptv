@@ -246,6 +246,22 @@ func main() {
 		mu.Unlock()
 		writeJSON(w, map[string]any{"online": b != "", "box": b, "device": d})
 	})
+	// The address the TV shows (Settings → Live TV → Channels → Manage Channels on Your PC),
+	// typed in by hand when the automatic search doesn't find it.
+	mux.HandleFunc("/api/setBox", func(w http.ResponseWriter, r *http.Request) {
+		addr := strings.TrimSpace(r.URL.Query().Get("addr"))
+		addr = strings.TrimPrefix(strings.TrimPrefix(addr, "http://"), "https://")
+		addr = strings.TrimSuffix(addr, "/")
+		if addr != "" && !strings.Contains(addr, ":") {
+			addr += fmt.Sprintf(":%d", firstPort)
+		}
+		if d, ok := probe(addr, 3*time.Second); ok {
+			setBox(addr, d)
+			writeJSON(w, map[string]any{"online": true, "box": addr, "device": d})
+			return
+		}
+		writeJSON(w, map[string]any{"online": false, "box": "", "device": ""})
+	})
 	mux.HandleFunc("/api/state", func(w http.ResponseWriter, r *http.Request) {
 		if data, code, err := proxy(w, r, nil); err == nil && code == 200 {
 			_ = os.WriteFile(file("NuvioPlus-channels.json"), data, 0o644)

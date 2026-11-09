@@ -191,7 +191,9 @@ class ChannelManager @Inject constructor(
             .put("savedAt", System.currentTimeMillis())
             .put("setup", prefs.exportForSync())
             .put("removed", removed)
-            .toString(1)
+            // The channel list too, so the file can be opened and edited on a PC without the TV.
+            .put("state", JSONObject(buildState()))
+            .toString()
     }
 
     // ---------------------------------------------------------------- applying

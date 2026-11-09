@@ -150,7 +150,11 @@ const $ = id => document.getElementById(id);
 async function load() {
   const r = await fetch("/api/state", {cache: "no-store"});
   if (!r.ok) throw new Error(r.status === 503 ? (await r.text()) : "The TV didn't answer (" + r.status + ")");
-  S = await r.json();
+  useState(await r.json());
+}
+
+function useState(state) {
+  S = state;
   S.chans = S.channels.map(a => ({key: a[0], name: a[1], g: S.groups[a[2]].id, num: a[3], logo: a[4]}));
   groupsById = {}; S.groups.forEach(g => { g.country = countryOf(g.title); groupsById[g.id] = g; });
   chByKey = {}; S.chans.forEach(c => chByKey[c.key] = c);
@@ -168,7 +172,8 @@ async function load() {
   };
   orig = JSON.stringify(E);
   $("sub").textContent = S.chans.length.toLocaleString() + " channels in " + S.groups.length + " groups · changes go to the TV only when you press Send to TV";
-  if (!selected && S.groups.length) selected = {type: "group", id: orderedGroups()[0]?.id};
+  if (!selected || (selected.type === "group" && !groupsById[selected.id])) selected = S.groups.length ? {type: "group", id: orderedGroups()[0]?.id} : null;
+  picked = new Set();
   render();
 }
 
@@ -605,16 +610,32 @@ $("fileIn").onchange = async e => {
   try { data = JSON.parse(await f.text()); } catch (_) { alert("That file isn't a Nuvio Plus setup file."); return; }
   if (!data || !data.setup) { alert("That file isn't a Nuvio Plus setup file."); return; }
   const when = data.savedAt ? new Date(data.savedAt).toLocaleString() : "an unknown date";
-  if (!confirm(`Load the setup saved on ${when}? It replaces this TV's Live TV setup: playlists and logins, folders, favorites, hidden and removed groups, numbers and names.`)) return;
-  const r = await fetch("/api/restore", {method: "POST", headers: {"Content-Type": "application/json"},
-    body: JSON.stringify({summary: "Replace this TV's Live TV setup with the file saved on " + when + ".", file: data})});
-  if (!r.ok) { alert("The TV didn't accept it: " + (await r.text())); return; }
-  const {id} = await r.json();
-  const ok = await waitForTv(id, "Load the setup file saved on " + when);
-  if (ok === null) return;
-  modal(ok ? `<h3>Setup loaded</h3><p>The TV is loading it now (channels and guide may download again).</p><div class="actions"><button class="primary" onclick="closeModal()">OK</button></div>`
-           : `<h3>Not loaded</h3><p>The TV said no (or nobody answered).</p><div class="actions"><button onclick="closeModal()">OK</button></div>`);
-  if (ok) setTimeout(() => load().catch(() => {}), 3000);
+  const canEdit = !!(data.state && data.state.channels);
+  modal(`<h3>Setup file saved ${esc(when)}</h3>
+    <p><b>Edit this file</b>: open it here to change folders, order, hiding and so on (works without the TV); “Send to TV” then applies your changes.</p>
+    ${canEdit ? "" : `<p class="muted">This file is from before setup files included the channel list, so it can't be edited on its own. Connect to the TV once and save a new setup file.</p>`}
+    <p><b>Replace the TV's setup</b>: puts everything from the file back on the TV (playlists and logins too).</p>
+    <div class="actions"><button onclick="closeModal()">Cancel</button><button id="fReplace">Replace the TV's setup</button>
+    <button class="primary" id="fEdit" ${canEdit ? "" : "disabled"}>Edit this file</button></div>`);
+  $("fEdit").onclick = () => {
+    if (E && changed() && !confirm("Drop the changes you haven't sent yet and open the file instead?")) return;
+    closeModal();
+    useState(data.state);
+    $("sub").textContent = "Editing the setup file saved " + when + " · " + S.chans.length.toLocaleString() + " channels · Send to TV applies your changes";
+  };
+  $("fReplace").onclick = async () => {
+    closeModal();
+    if (!confirm(`Replace this TV's Live TV setup with the file saved on ${when}? Playlists and logins, folders, favorites, hidden and removed groups, numbers and names all come from the file.`)) return;
+    const r = await fetch("/api/restore", {method: "POST", headers: {"Content-Type": "application/json"},
+      body: JSON.stringify({summary: "Replace this TV's Live TV setup with the file saved on " + when + ".", file: data})});
+    if (!r.ok) { alert("The TV didn't accept it: " + (await r.text())); return; }
+    const {id} = await r.json();
+    const ok = await waitForTv(id, "Load the setup file saved on " + when);
+    if (ok === null) return;
+    modal(ok ? `<h3>Setup loaded</h3><p>The TV is loading it now (channels and guide may download again).</p><div class="actions"><button class="primary" onclick="closeModal()">OK</button></div>`
+             : `<h3>Not loaded</h3><p>The TV said no (or nobody answered).</p><div class="actions"><button onclick="closeModal()">OK</button></div>`);
+    if (ok) setTimeout(() => load().catch(() => {}), 3000);
+  };
 };
 window.addEventListener("beforeunload", e => { if (E && changed()) { e.preventDefault(); e.returnValue = ""; } });
 
@@ -654,7 +675,17 @@ async function start() {
     let i = info;
     for (let n = 0; n < 12 && !i.online; n++) { showConn(i); await new Promise(r => setTimeout(r, 1000)); i = (await localInfo()) || i; }
     showConn(i);
-    $("btnFind").onclick = async () => { $("conn").textContent = "Looking for the TV…"; const r = await fetch("/api/rescan", {method: "POST"}).then(r => r.json()).catch(() => ({online: false})); showConn({...r, queued: false}); if (r.online) load().catch(() => {}); };
+    $("btnFind").onclick = async () => {
+      $("conn").textContent = "Looking for the TV…";
+      let r = await fetch("/api/rescan", {method: "POST"}).then(r => r.json()).catch(() => ({online: false}));
+      if (!r.online) {
+        const addr = prompt("The TV wasn't found automatically. Type the address it shows under Settings → Live TV → Channels → Manage Channels on Your PC (for example 192.168.178.45:8096):");
+        if (addr && addr.trim()) r = await fetch("/api/setBox?addr=" + encodeURIComponent(addr.trim())).then(r => r.json()).catch(() => ({online: false}));
+        if (addr && addr.trim() && !r.online) alert("Nothing answered at " + addr + ". Is Nuvio Plus open on the TV, with “Allow the Channel Manager App” on?");
+      }
+      showConn({...r, queued: false});
+      if (r.online) { await load().catch(() => {}); offerQueued(await localInfo()); }
+    };
     await load();
     offerQueued(i);
   } else {
