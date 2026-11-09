@@ -1139,7 +1139,7 @@ fun LiveTvGuideScreen(
                             scope.launch { delay(60); runCatching { gridFocus.requestFocus() } }
                         }
                     },
-                    onGroupMenu = { g -> if (!g.special) groupMenu = g },
+                    onGroupMenu = { g -> if (!g.special || g.id == ChannelGroup.RECENT) groupMenu = g },
                     searchFocusRequester = groupSearchFocus,
                     onRight = {
                         column = GuideColumn.CHANNEL
@@ -2163,7 +2163,14 @@ fun LiveTvGuideScreen(
             val isCustom = g.id.startsWith(ChannelGroup.CUSTOM_PREFIX)
             ActionMenuDialog(
                 title = g.title,
-                actions = buildList {
+                // Nuvio Plus: Recently watched only offers clearing it.
+                actions = if (g.id == ChannelGroup.RECENT) listOf("Clear Recently watched" to {
+                    groupMenu = null
+                    viewModel.clearRecent()
+                    if (ui.selectedGroupId == g.id) viewModel.selectGroup(ui.defaultGroupId)
+                    com.nuvio.tv.livetv.record.LiveTvNotice.show("Recently watched cleared")
+                    Unit
+                }) else buildList {
                     add("Rename group" to {
                         groupMenu = null
                         textPrompt = TextPrompt(
@@ -2185,13 +2192,6 @@ fun LiveTvGuideScreen(
                             if (ui.selectedGroupId == g.id) viewModel.selectGroup(ui.defaultGroupId)
                         })
                     }
-                    // Nuvio Plus: long-press Recently watched to empty it.
-                    if (g.id == ChannelGroup.RECENT) add("Clear Recently watched" to {
-                        groupMenu = null
-                        viewModel.clearRecent()
-                        if (ui.selectedGroupId == g.id) viewModel.selectGroup(ui.defaultGroupId)
-                        com.nuvio.tv.livetv.record.LiveTvNotice.show("Recently watched cleared")
-                    })
                     if (g.id != ChannelGroup.FAVORITES && g.id != ChannelGroup.RECENT && g.id != ChannelGroup.SEARCH) add("Pick favorites…" to {
                         groupMenu = null
                         scope.launch {
@@ -3277,7 +3277,7 @@ private fun GroupColumn(
                             if (!reorderMode && hiddenPending == null) onFocusGroup(g)
                         },
                         onClick = { onSelect(g) },
-                        onLongClick = if (g.special) null else ({ onGroupMenu(g) })
+                        onLongClick = if (g.special && g.id != ChannelGroup.RECENT) null else ({ onGroupMenu(g) })
                     )
                 }
             }
