@@ -33,8 +33,11 @@ jobs:
           cp local.properties local.dev.properties
 
       - name: Compile
-        run: ./gradlew :app:compileFullReleaseKotlin --stacktrace -PlivetvBuildNumber=1 -PlivetvVersionName=check 2>&1 | tee compile.log; exit ${PIPESTATUS[0]}
+        run: |
+          ./gradlew :app:compileFullReleaseKotlin --stacktrace -PlivetvBuildNumber=1 -PlivetvVersionName=check 2>&1 | tee compile.log
+          exit ${PIPESTATUS[0]}
 
       - name: Errors
         if: failure()
-        run: grep -E "^e: |error:" compile.log | head -60 || true
+        run: |
+          grep -E '^e: |error:' compile.log | head -60 || true
