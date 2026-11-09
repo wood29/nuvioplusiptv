@@ -185,7 +185,15 @@ class OnDemandViewModel @Inject constructor(
 
     init {
         repository.start()
-        viewModelScope.launch { repository.version.collect { reload() } }
+        // Nuvio Plus: the category / genre lists (counts, the All page) are read a moment after
+        // the page opens, so the home rows get the device to themselves first.
+        viewModelScope.launch {
+            var first = true
+            repository.version.collect {
+                if (first) { first = false; kotlinx.coroutines.delay(1_500) }
+                reload()
+            }
+        }
         // New genres from the background fill: refresh the lists, keep your place.
         viewModelScope.launch { repository.genreUpdates.drop(1).collect { refreshGenres() } }
         // Only reload when hidden or locked categories actually change (not on every saved setting).
@@ -629,10 +637,10 @@ class OnDemandViewModel @Inject constructor(
 
     /** Posters already found in earlier visits (saved on the device): shown straight away. */
     private suspend fun primePosters(items: List<VodItem>) {
-        for (item in items) {
-            if (posters[item.uid] != null) continue
-            repository.cachedPoster(item)?.first?.takeIf { it.isNotBlank() }?.let { posters[item.uid] = it }
-        }
+        // Nuvio Plus: one query for the whole list (it was one per title, ~30 per row).
+        val missing = items.filter { posters[it.uid] == null }
+        if (missing.isEmpty()) return
+        repository.cachedPosters(missing).forEach { (uid, p) -> posters[uid] = p }
     }
 
     /** The rows rebuilt off the main thread, then shown. */

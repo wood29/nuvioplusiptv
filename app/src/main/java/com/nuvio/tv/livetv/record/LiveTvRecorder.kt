@@ -16,6 +16,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.isActive
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import org.json.JSONObject
 import java.io.File
@@ -157,6 +158,20 @@ class LiveTvRecorder @Inject constructor(
         jobs[id] = scope.launch {
             // Accounts with one connection can refuse a new one while the old is still closing.
             if (startDelayMs > 0) delay(startDelayMs)
+            // Nuvio Plus: never more recordings at once than the provider allows connections
+            // (going over can get the account blocked, and the extra one fails anyway).
+            val max = runCatching { prefs.playlistAccounts.first()[channel.sourceId]?.maxConnections ?: 0 }.getOrDefault(0)
+            val running = _recordings.value.count { it.isRecording && it.id != id }
+            if (max in 1..running) {
+                val failed = rec.copy(
+                    status = RecordingStatus.FAILED, endedAtMs = System.currentTimeMillis(),
+                    problem = "Your provider allows $max connection${if (max == 1) "" else "s"} at a time, and $running recording${if (running == 1) " is" else "s are"} already running"
+                )
+                save(failed); update(failed)
+                LiveTvNotice.show("\"$title\" not recorded: your provider allows only $max connection${if (max == 1) "" else "s"} at a time")
+                runCatching { onFinished(failed) }
+                return@launch
+            }
             record(rec, url, channel.headers, finite, fallbacks, onFinished, channel.sourceId, resumeFrom)
         }
         com.nuvio.tv.livetv.model.LiveTvLoadReport.add("Recording \"$title\" on ${channel.name} until ${java.util.Date(stopAtMs)}")

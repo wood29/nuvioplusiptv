@@ -329,6 +329,22 @@ class OnDemandDatabase @Inject constructor(@ApplicationContext private val appCo
             if (c.moveToFirst()) (c.getString(0) ?: "") to c.getLong(1) else null
         }
 
+    /** Nuvio Plus: the saved posters of many titles in one query (a row at a time). */
+    fun cachedPosters(uids: Collection<String>): Map<String, String> {
+        if (uids.isEmpty()) return emptyMap()
+        val out = HashMap<String, String>()
+        for (chunk in uids.distinct().chunked(400)) {
+            val marks = chunk.joinToString(",") { "?" }
+            readableDatabase.rawQuery("SELECT uid, poster FROM posters WHERE uid IN ($marks)", chunk.toTypedArray()).use { c ->
+                while (c.moveToNext()) {
+                    val p = c.getString(1)
+                    if (!p.isNullOrBlank()) out[c.getString(0)] = p
+                }
+            }
+        }
+        return out
+    }
+
     fun cachePoster(uid: String, poster: String?, title: String? = null) {
         writableDatabase.insertWithOnConflict("posters", null, ContentValues().apply {
             put("uid", uid); put("poster", poster ?: ""); put("checked", System.currentTimeMillis())

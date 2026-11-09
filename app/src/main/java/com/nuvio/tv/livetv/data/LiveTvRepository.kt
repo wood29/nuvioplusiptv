@@ -62,6 +62,8 @@ class LiveTvRepository @Inject constructor(
 
     private val mutex = Mutex()
 
+    init { ForgivingTls.init(context) }
+
     private val http: OkHttpClient = OkHttpClient.Builder()
         .connectTimeout(20, TimeUnit.SECONDS)
         .readTimeout(90, TimeUnit.SECONDS)

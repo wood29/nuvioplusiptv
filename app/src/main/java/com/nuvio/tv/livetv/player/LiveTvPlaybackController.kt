@@ -1904,12 +1904,7 @@ class LiveTvPlaybackController @Inject constructor(
     private fun buildMediaSource(url: String, headers: Map<String, String>, isLive: Boolean): androidx.media3.exoplayer.source.MediaSource {
         // Protected (DRM) streams, e.g. MPEG-DASH with a ClearKey or Widevine license.
         currentChannel?.drm?.let { drm -> buildDrmMediaSource(url, headers, isLive, drm)?.let { return it } }
-        val http = com.nuvio.tv.core.vpn.protectHttpFactory(DefaultHttpDataSource.Factory()
-            .setUserAgent(headers["User-Agent"] ?: LiveTvRepository.DEFAULT_UA)
-            .setDefaultRequestProperties(headers.filterKeys { it != "User-Agent" })
-            .setAllowCrossProtocolRedirects(true)
-            .setConnectTimeoutMs(8_000)
-            .setReadTimeoutMs(10_000), headers, headers["User-Agent"] ?: LiveTvRepository.DEFAULT_UA)
+        val http = com.nuvio.tv.core.vpn.protectHttpFactory(liveHttpFactory(headers), headers, headers["User-Agent"] ?: LiveTvRepository.DEFAULT_UA)
         val item = buildMediaItem(url, isLive)
         // Closed captions: TV channels usually carry them inside the video (CEA-608/708) without
         // announcing them, so the player never offered them and Subtitles only showed "Off".
@@ -1948,12 +1943,7 @@ class LiveTvPlaybackController @Inject constructor(
         isLive: Boolean,
         drm: com.nuvio.tv.livetv.model.DrmInfo
     ): androidx.media3.exoplayer.source.MediaSource? = runCatching {
-        val http = com.nuvio.tv.core.vpn.protectHttpFactory(DefaultHttpDataSource.Factory()
-            .setUserAgent(headers["User-Agent"] ?: LiveTvRepository.DEFAULT_UA)
-            .setDefaultRequestProperties(headers.filterKeys { it != "User-Agent" })
-            .setAllowCrossProtocolRedirects(true)
-            .setConnectTimeoutMs(8_000)
-            .setReadTimeoutMs(10_000), headers, headers["User-Agent"] ?: LiveTvRepository.DEFAULT_UA)
+        val http = com.nuvio.tv.core.vpn.protectHttpFactory(liveHttpFactory(headers), headers, headers["User-Agent"] ?: LiveTvRepository.DEFAULT_UA)
         val itemBuilder = buildMediaItem(url, isLive).buildUpon()
         if (drm.manifestType == "mpd" || url.lowercase().contains(".mpd")) itemBuilder.setMimeType(MimeTypes.APPLICATION_MPD)
         if (drm.manifestType == "hls") itemBuilder.setMimeType(MimeTypes.APPLICATION_M3U8)
@@ -2135,3 +2125,24 @@ object LiveWatching {
         get() = active.value
         set(value) { active.value = value }
 }
+
+/**
+ * Nuvio Plus: one HTTP client for every channel (its connections and address lookups are reused),
+ * instead of a new connection set up from scratch on each channel change: Xtream links usually
+ * redirect to a stream server, so every zap paid the name lookup, the connection and the redirect
+ * again. Same timeouts as before.
+ */
+private val LIVE_HTTP_CLIENT: okhttp3.OkHttpClient by lazy {
+    okhttp3.OkHttpClient.Builder()
+        .connectTimeout(8, java.util.concurrent.TimeUnit.SECONDS)
+        .readTimeout(10, java.util.concurrent.TimeUnit.SECONDS)
+        .followRedirects(true)
+        .followSslRedirects(true)
+        .connectionPool(okhttp3.ConnectionPool(4, 2, java.util.concurrent.TimeUnit.MINUTES))
+        .build()
+}
+
+private fun liveHttpFactory(headers: Map<String, String>): androidx.media3.datasource.HttpDataSource.Factory =
+    androidx.media3.datasource.okhttp.OkHttpDataSource.Factory(com.nuvio.vpn.android.VpnHttpClient.wrap(LIVE_HTTP_CLIENT))
+        .setUserAgent(headers["User-Agent"] ?: LiveTvRepository.DEFAULT_UA)
+        .setDefaultRequestProperties(headers.filterKeys { it != "User-Agent" })
