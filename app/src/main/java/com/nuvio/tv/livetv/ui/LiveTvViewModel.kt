@@ -677,6 +677,12 @@ class LiveTvViewModel @Inject constructor(
         return repository.removeGroupsFromBox(byPlaylist)
     }
 
+    /** Groups that can be removed from the box (from Xtream logins), hidden ones included. */
+    suspend fun removableGroups(): List<ChannelGroup> {
+        val xtream = prefs.currentPlaylists().filter { it.isXtream }.map { it.id }.toSet()
+        return groupsWithHidden().filter { !it.special && it.sourceId != null && it.sourceId in xtream }
+    }
+
     suspend fun countryGroups(country: String): List<ChannelGroup> =
         groupsWithHidden().filter { com.nuvio.tv.livetv.data.GroupCountry.of(it.title) == country }
 

@@ -2520,9 +2520,21 @@ class LiveTvRepository @Inject constructor(
         var n = 0
         for ((id, names) in byPlaylist) n += prefs.addRemovedLiveGroups(id, names)
         val ids = byPlaylist.filterValues { it.isNotEmpty() }.keys
-        if (ids.isNotEmpty()) scope.launch { refreshInternal(forcePlaylists = false, forceEpg = false, forceIds = ids) }
+        if (ids.isNotEmpty()) synchronized(this) {
+            // Removing several groups one after another: one download after the last one.
+            pendingRemoveIds = pendingRemoveIds + ids
+            removeJob?.cancel()
+            removeJob = scope.launch {
+                delay(20_000)
+                val todo = synchronized(this@LiveTvRepository) { pendingRemoveIds.also { pendingRemoveIds = emptySet() } }
+                if (todo.isNotEmpty()) refreshInternal(forcePlaylists = false, forceEpg = false, forceIds = todo)
+            }
+        }
         return n
     }
+
+    private var pendingRemoveIds: Set<String> = emptySet()
+    private var removeJob: kotlinx.coroutines.Job? = null
 
     /** Brings every removed group back (downloaded again with the next update, started now). */
     fun restoreRemovedGroups() {

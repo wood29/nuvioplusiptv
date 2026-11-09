@@ -341,6 +341,8 @@ fun LiveTvGuideScreen(
     var groupWorking by remember { mutableStateOf<List<ChannelGroup>>(emptyList()) }
     // Manage visibility for groups: every group (hidden ones too) and which ones are hidden.
     var groupVisibilityList by remember { mutableStateOf<List<ChannelGroup>?>(null) }
+    // Nuvio Plus: the same list used to choose groups removed from the box (ticked off = removed).
+    var groupRemoveMode by remember { mutableStateOf(false) }
     var groupHiddenPending by remember { mutableStateOf<Set<String>>(emptySet()) }
     // Parental controls: the group waiting for its PIN (and whether that removes the lock).
     var pinGroup by remember { mutableStateOf<ChannelGroup?>(null) }
@@ -1038,10 +1040,24 @@ fun LiveTvGuideScreen(
                     onShowAllGroups = { groupHiddenPending = emptySet() },
                     onVisibilityDone = {
                         val list = groupVisibilityList.orEmpty()
+                        if (groupRemoveMode) {
+                            // Nuvio Plus: everything chosen is removed in one go (one download).
+                            val chosen = list.filter { it.id in groupHiddenPending }
+                            groupRemoveMode = false
+                            groupVisibilityList = null
+                            if (ui.selectedGroupId in groupHiddenPending) viewModel.selectGroup(ui.defaultGroupId)
+                            if (chosen.isNotEmpty()) scope.launch {
+                                val n = viewModel.removeFromBox(chosen)
+                                com.nuvio.tv.livetv.record.LiveTvNotice.show(
+                                    "$n groups removed from this box. Your channels download again without them in a moment. Bring them back in Settings → Live TV."
+                                )
+                            }
+                        } else {
                         viewModel.saveGroupVisibility(list, groupHiddenPending)
                         // If the group on screen was just hidden, move to the main group.
                         if (ui.selectedGroupId in groupHiddenPending) viewModel.selectGroup(ui.defaultGroupId)
                         groupVisibilityList = null
+                        }
                     },
                     playlistNames = playlistNames,
                     showPlaylistHeadings = settings.groupPlaylistHeadings,
@@ -1721,12 +1737,21 @@ fun LiveTvGuideScreen(
                     .glass(guideInfoGlass(settings.guideInfoBackground), RoundedCornerShape(10.dp))
                     .padding(horizontal = 16.dp, vertical = 12.dp)
             ) {
+                if (groupRemoveMode) {
+                    LiveText("Choose groups to remove from this box", size = 15.sp, weight = FontWeight.Bold)
+                    Spacer(Modifier.height(4.dp))
+                    LiveText("OK: mark or unmark a group for removal", color = NuvioTheme.colors.TextSecondary, size = 13.sp)
+                    LiveText("Left: mark all · Right: unmark all", color = NuvioTheme.colors.TextSecondary, size = 13.sp)
+                    LiveText("Back: remove the marked groups (one download)", color = NuvioTheme.colors.TextSecondary, size = 13.sp)
+                    LiveText("${groupHiddenPending.size} marked", color = NuvioTheme.colors.TextSecondary, size = 13.sp)
+                } else {
                 LiveText("Manage group visibility", size = 15.sp, weight = FontWeight.Bold)
                 Spacer(Modifier.height(4.dp))
                 LiveText("OK: show or hide group", color = NuvioTheme.colors.TextSecondary, size = 13.sp)
                 LiveText("Left: hide all", color = NuvioTheme.colors.TextSecondary, size = 13.sp)
                 LiveText("Right: show all", color = NuvioTheme.colors.TextSecondary, size = 13.sp)
                 LiveText("Back: save and return", color = NuvioTheme.colors.TextSecondary, size = 13.sp)
+                }
             }
         }
         if (groupReorderMode) {
@@ -2208,8 +2233,19 @@ fun LiveTvGuideScreen(
                             })
                         }
                     }
+                    // Nuvio Plus: tick several groups / countries, then one download.
+                    add("Remove groups from this box…" to {
+                        groupMenu = null
+                        scope.launch {
+                            groupVisibilityList = viewModel.removableGroups()
+                            groupHiddenPending = emptySet()
+                            groupRemoveMode = true
+                            delay(80); runCatching { groupsFocus.requestFocus() }
+                        }
+                    })
                     add("Manage visibility" to {
                         groupMenu = null
+                        groupRemoveMode = false
                         scope.launch {
                             val all = viewModel.groupsWithHidden()
                             groupVisibilityList = all
