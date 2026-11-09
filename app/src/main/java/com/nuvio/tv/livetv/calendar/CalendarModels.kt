@@ -308,7 +308,8 @@ object SideMenuPages {
     const val ON_DEMAND = "ondemand"
     const val DISCOVER = "discover"
 
-    val DEFAULT_ORDER = listOf(HOME, DISCOVER, SEARCH, LIBRARY, CALENDAR, LIVE_TV, SPORTS, ON_DEMAND, RECORDINGS)
+    // Nuvio Plus: Live TV and On Demand straight after Library, then Calendar and Sports.
+    val DEFAULT_ORDER = listOf(HOME, DISCOVER, SEARCH, LIBRARY, LIVE_TV, ON_DEMAND, CALENDAR, SPORTS, RECORDINGS)
 
     val NAMES = mapOf(
         HOME to "Home", SEARCH to "Search", LIBRARY to "Library", CALENDAR to "Calendar", LIVE_TV to "Live TV",

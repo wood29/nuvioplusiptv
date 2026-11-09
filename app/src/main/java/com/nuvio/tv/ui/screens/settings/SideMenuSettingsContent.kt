@@ -230,7 +230,7 @@ fun SideMenuSettingsContent(initialFocusRequester: FocusRequester? = null) {
                 SettingsGroupCard {
                     SettingsActionRow(
                         title = "Put Back the Usual Order",
-                        subtitle = "Home, Discover, Search, Library, Calendar, Live TV, Sports, On Demand, Recordings",
+                        subtitle = "Home, Discover, Search, Library, Live TV, On Demand, Calendar, Sports, Recordings",
                         onClick = {
                             update { it.copy(sideMenuOrder = "") }
                             LiveTvNotice.show("Menu order put back")
