@@ -2557,10 +2557,21 @@ private fun GuideHeader(
             }
         }
         // Recordings (●) and the ⚙ for the guide's display settings, in the corner of the panel.
-        Row {
-            GuideRecordingsButton(onOpen = onRecordings, onDown = onGearDown)
-            Spacer(Modifier.width(6.dp))
-            GuideGearButton(Modifier.focusRequester(gearFocus), onOpen = onGear, onDown = onGearDown)
+        // Nuvio Plus: with the time above them (On-Screen Clock "Never" hides it here too).
+        Column(horizontalAlignment = Alignment.End) {
+            if (settings.clockMode != "never") {
+                LiveText(
+                    formatClock(now, settings.use24HourClock),
+                    size = if (small) 18.sp else 22.sp,
+                    weight = FontWeight.SemiBold,
+                    modifier = Modifier.padding(end = 4.dp, bottom = if (small) 4.dp else 8.dp)
+                )
+            }
+            Row {
+                GuideRecordingsButton(onOpen = onRecordings, onDown = onGearDown)
+                Spacer(Modifier.width(6.dp))
+                GuideGearButton(Modifier.focusRequester(gearFocus), onOpen = onGear, onDown = onGearDown)
+            }
         }
         // Preview only (info panel off): keep it at the right, as usual.
         if (showPreview) {
