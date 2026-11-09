@@ -62,6 +62,12 @@ jobs:
           echo "Nuvio base $BASE -> fork release $VERSION (build $N)"
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
           echo "number=$N" >> "$GITHUB_OUTPUT"
+          # What's new since the last release, for the update prompt: the first line of each change.
+          PREV="${PREFIX}${LAST}"
+          if [ -n "$LAST" ] && git rev-parse -q --verify "refs/tags/$PREV" >/dev/null; then
+            git log --no-merges --pretty='- %s' "$PREV..HEAD" | grep -v -i -E 'compile check|workflow' | head -20 > notes.txt || true
+          fi
+          [ -s notes.txt ] || git log -1 --pretty='- %s' > notes.txt
 
       - uses: actions/setup-go@v5
         with:
@@ -184,10 +190,7 @@ jobs:
           name: Nuvio Plus ${{ steps.version.outputs.version }}
           prerelease: true
           files: out/*.apk
-          body: |
-            Nuvio Plus update ${{ steps.version.outputs.version }}.
-
-            ${{ inputs.notes || github.event.head_commit.message }}
+          body_path: notes.txt
 
       # One link that always gives the newest APK (for a Downloader code):
       # https://github.com/<you>/<repo>/releases/download/downloader/NuvioPlusIPTV.apk

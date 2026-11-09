@@ -1555,7 +1555,7 @@ fun LiveTvGuideScreen(
                                     contentPadding = PaddingValues(bottom = endPadding),
                                     userScrollEnabled = false
                                 ) {
-                                    itemsIndexed(channels, key = { _, c -> c.key }) { index, ch ->
+                                    itemsIndexed(channels, key = { _, c -> c.key }, contentType = { _, _ -> "channel" }) { index, ch ->
                                         androidx.compose.runtime.CompositionLocalProvider(LocalGuideScale provides guideScale(settings)) { GuideRow(
                                             channel = ch,
                                             programs = remember(ch.key, programs[ch.key], now / HOUR_BLOCK_MS) { withHourlyPlaceholders(ch, programs[ch.key].orEmpty(), now, settings.epgPastHours) },
