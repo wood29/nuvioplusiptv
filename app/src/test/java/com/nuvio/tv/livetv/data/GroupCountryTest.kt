@@ -14,6 +14,14 @@ class GroupCountryTest {
         assertEquals("EXYU", GroupCountry.of("EXYU ▎ Sport"))
     }
 
+    @Test fun aRegionPrefixGivesWayToTheCountry() {
+        assertEquals("AT", GroupCountry.of("EU | AUSTRIA"))
+        assertEquals("UK", GroupCountry.of("EU | UK CINEMA"))
+        assertEquals("DE", GroupCountry.of("EU | GERMANY PPV"))
+        assertEquals("CH", GroupCountry.of("EU | SWITZERLAND BLUE SPORT [FR]"))
+        assertEquals("DE", GroupCountry.of("GERMANY | Kino"))
+    }
+
     @Test fun noCountryWhenThereIsNoPrefix() {
         assertNull(GroupCountry.of("Al Jazeera"))
         assertNull(GroupCountry.of("Sport"))

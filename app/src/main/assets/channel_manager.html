@@ -50,7 +50,7 @@
   .toolbar .grow { flex: 1; }
   table { width: 100%; border-collapse: collapse; }
   td, th { padding: 6px 10px; border-bottom: 1px solid #191d27; text-align: left; vertical-align: middle; }
-  th { color: var(--muted); font-weight: 500; font-size: 12px; position: sticky; top: 57px; background: var(--bg); z-index: 1; }
+  th { color: var(--muted); font-weight: 500; font-size: 12px; background: var(--bg); }
   tr.hidden td.n { color: var(--muted); text-decoration: line-through; }
   tr.drag-over td { border-top: 2px solid var(--accent); }
   img.logo { width: 34px; height: 22px; object-fit: contain; background: #0e1016; border-radius: 4px; vertical-align: middle; }
@@ -65,6 +65,13 @@
   .modal .actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 16px; }
   .chk { width: 16px; height: 16px; accent-color: #59b867; }
   .hint { color: var(--muted); font-size: 12.5px; padding: 0 16px 10px; }
+  .dock { display: flex; gap: 8px; flex-wrap: wrap; padding: 8px 16px 10px; border-bottom: 1px solid var(--line); background: var(--bg); position: sticky; top: 57px; z-index: 2; align-items: center; }
+  .dock .lbl { color: var(--muted); font-size: 12px; margin-right: 4px; }
+  .drop { padding: 6px 12px; border-radius: 99px; border: 1px dashed #3a4256; background: var(--panel2); font-size: 13px; cursor: copy; user-select: none; }
+  .drop.over { border-style: solid; border-color: var(--accent); background: #1d3324; }
+  .drop.flash { border-color: var(--accent); background: #1d3324; }
+  tr.picked td { background: #1b2436; }
+  tr[draggable] { cursor: grab; }
   @media (max-width: 900px) { main { grid-template-columns: 1fr; height: auto; } .col { border-right: 0; border-bottom: 1px solid var(--line); max-height: 50vh; } th { top: 0; } }
 </style>
 </head>
@@ -90,6 +97,7 @@
   </div>
   <div class="right">
     <div class="toolbar" id="toolbar"></div>
+    <div class="dock" id="dock"></div>
     <div id="hintRow" class="hint"></div>
     <div id="rightBody"></div>
   </div>
@@ -110,9 +118,30 @@ let tab = "groups";
 let selected = null;   // {type:"group"|"folder"|"fav"|"search"|"removed", id}
 let search = "";
 let collapsed = {};
+let picked = new Set();   // channels ticked for dragging several at once
 const NOT_COUNTRY = new Set(["HD","FHD","UHD","SD","VIP","PPV","VOD","TV","LIVE","NEW","TOP","THE","ALL","4K","24/7"]);
-const COUNTRY_RE = /^\s*[\[(|│┃▎]?\s*([A-Za-z]{2,4})\s*[\])|│┃▎:\-–—•»]/;
-function countryOf(t) { const m = COUNTRY_RE.exec(t || ""); if (!m) return null; const c = m[1].toUpperCase(); return NOT_COUNTRY.has(c) ? null : c; }
+const COUNTRY_RE = /^\s*[\[(|│┃▎]?\s*([A-Za-z]{2,4})\s*[\])|│┃▎:\-–—•»]\s*(.*)$/;
+const REGIONS = new Set(["EU","EUR","AF","AFR","AS","ASIA","AM","LAT","LATM","ARB","INT","WW","MENA"]);
+const NAMES = {GERMANY:"DE",DEUTSCHLAND:"DE",AUSTRIA:"AT",OSTERREICH:"AT",SWITZERLAND:"CH",FRANCE:"FR",ITALY:"IT",ITALIA:"IT",SPAIN:"ES",ESPANA:"ES",
+  PORTUGAL:"PT",NETHERLANDS:"NL",HOLLAND:"NL",BELGIUM:"BE",POLAND:"PL",IRELAND:"IE",TURKEY:"TR",GREECE:"GR",SWEDEN:"SE",NORWAY:"NO",DENMARK:"DK",
+  FINLAND:"FI",USA:"US",CANADA:"CA",ENGLAND:"UK",BRITAIN:"UK",SCOTLAND:"UK",ALBANIA:"AL",ROMANIA:"RO",HUNGARY:"HU",CZECH:"CZ",CROATIA:"HR",SERBIA:"RS"};
+const COUNTRY_NAMES = {UK:"United Kingdom",DE:"Germany",AT:"Austria",CH:"Switzerland",FR:"France",IT:"Italy",ES:"Spain",PT:"Portugal",NL:"Netherlands",
+  BE:"Belgium",PL:"Poland",IE:"Ireland",TR:"Turkey",GR:"Greece",SE:"Sweden",NO:"Norway",DK:"Denmark",FI:"Finland",US:"USA",CA:"Canada",AL:"Albania",
+  RO:"Romania",HU:"Hungary",CZ:"Czechia",HR:"Croatia",RS:"Serbia",EXYU:"Ex-Yugoslavia",AR:"Arabic",IN:"India",PK:"Pakistan",AU:"Australia",NZ:"New Zealand"};
+function countryLabel(c) { return COUNTRY_NAMES[c] ? c + " · " + COUNTRY_NAMES[c] : c; }
+function countryOf(t) {
+  const m = COUNTRY_RE.exec(t || ""); if (!m) return null;
+  const p = m[1].toUpperCase();
+  if (REGIONS.has(p)) {
+    const w = (/^[\[(|│┃▎\s]*([A-Za-z]+)/.exec(m[2] || "") || [])[1];
+    if (!w) return p;
+    const W = w.toUpperCase();
+    if (NAMES[W]) return NAMES[W];
+    if (W.length >= 2 && W.length <= 3 && !NOT_COUNTRY.has(W)) return W;
+    return p;
+  }
+  return NOT_COUNTRY.has(p) ? null : (NAMES[p] || p);
+}
 function esc(s) { return String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[c])); }
 const $ = id => document.getElementById(id);
 
@@ -202,7 +231,7 @@ function renderLeft() {
     }
     for (const [c, list] of byCountry) {
       const shown = list.filter(g => !hg.has(g.id)).length;
-      html += `<div class="country" data-country="${esc(c)}"><b>${esc(c)}</b><span>${list.length} groups · ${shown} shown</span><span class="grow"></span><span>${collapsed[c] ? "▸" : "▾"}</span></div>`;
+      html += `<div class="country" data-country="${esc(c)}"><b>${esc(countryLabel(c))}</b><span>${list.length} groups · ${shown} shown</span><span class="grow"></span><span>${collapsed[c] ? "▸" : "▾"}</span></div>`;
       if (collapsed[c]) continue;
       for (const g of list) {
         const sel = selected && selected.type === "group" && selected.id === g.id;
@@ -251,7 +280,7 @@ function renderLeft() {
     for (const c of keys) {
       const m = map.get(c) || {groups: 0, shown: 0, chans: 0, ids: [], removable: 0};
       const r = remByC.get(c) || 0;
-      html += `<div class="row"><span class="name"><b>${esc(c)}</b> <span class="muted">· ${m.groups} groups · ${m.chans.toLocaleString()} channels</span>
+      html += `<div class="row"><span class="name"><b>${esc(countryLabel(c))}</b> <span class="muted">· ${m.groups} groups · ${m.chans.toLocaleString()} channels</span>
           ${m.groups && m.shown === 0 ? `<span class="pill warn">hidden</span>` : ""} ${r ? `<span class="pill bad">${r} removed</span>` : ""}</span>
         ${m.groups ? (m.shown ? `<button class="small" data-chide="${esc(c)}">Hide</button>` : `<button class="small" data-cshow="${esc(c)}">Show</button>`) : ""}
         ${m.removable ? `<button class="small danger" data-cremove="${esc(c)}">Remove</button>` : ""}
@@ -310,11 +339,12 @@ function folderOptions(exclude) {
 }
 function channelRows(list, opts) {
   const hc = hiddenC(), favs = new Set(E.favorites);
-  return `<table><thead><tr>${opts.drag ? "<th></th>" : ""}<th>Show</th><th>No.</th><th></th><th>Channel</th>${opts.group ? "<th>Group</th>" : ""}<th>Folders</th><th></th></tr></thead><tbody>` +
+  return `<table><thead><tr><th title="Tick several, then drag one of them onto a folder">Pick</th>${opts.drag ? "<th></th>" : ""}<th>Show</th><th>No.</th><th></th><th>Channel</th>${opts.group ? "<th>Group</th>" : ""}<th>Folders</th><th></th></tr></thead><tbody>` +
     list.map(c => {
       const inFolders = E.customGroups.filter(f => f.keys.includes(c.key)).map(f => f.name);
       if (favs.has(c.key)) inFolders.unshift("★");
-      return `<tr class="${hc.has(c.key) ? "hidden" : ""}" data-key="${esc(c.key)}" ${opts.drag ? 'draggable="true"' : ""}>
+      return `<tr class="${hc.has(c.key) ? "hidden" : ""} ${picked.has(c.key) ? "picked" : ""}" data-key="${esc(c.key)}" draggable="true">
+        <td><input type="checkbox" class="chk" data-pick="${esc(c.key)}" ${picked.has(c.key) ? "checked" : ""}></td>
         ${opts.drag ? `<td class="handle">⋮⋮</td>` : ""}
         <td><input type="checkbox" class="chk" data-cvis="${esc(c.key)}" ${hc.has(c.key) ? "" : "checked"}></td>
         <td><input type="number" min="1" data-num="${esc(c.key)}" value="${esc(chNum(c) || "")}" placeholder="—"></td>
@@ -328,8 +358,46 @@ function channelRows(list, opts) {
     }).join("") + `</tbody></table>`;
 }
 
+function renderDock() {
+  const D = $("dock");
+  const n = picked.size;
+  D.innerHTML = `<span class="lbl">${n ? n + " picked · drag onto a folder:" : "Drag channels onto a folder:"}</span>
+    <span class="drop" data-drop="__fav">★ Favorites</span>` +
+    E.customGroups.map(f => `<span class="drop" data-drop="${esc(f.id)}">📁 ${esc(f.name)} <span class="muted">${f.keys.length}</span></span>`).join("") +
+    `<span class="drop" data-drop="__new">＋ New folder</span>` +
+    (n ? `<button class="small" id="clearPicked">Clear picks</button>` : "");
+  D.querySelectorAll("[data-drop]").forEach(el => {
+    el.addEventListener("dragover", e => { e.preventDefault(); e.dataTransfer.dropEffect = "copy"; el.classList.add("over"); });
+    el.addEventListener("dragleave", () => el.classList.remove("over"));
+    el.addEventListener("drop", e => {
+      e.preventDefault(); el.classList.remove("over");
+      let keys = [];
+      try { keys = JSON.parse(e.dataTransfer.getData("application/x-nuvio-keys") || "[]"); } catch (_) {}
+      if (!keys.length) return;
+      addTo(el.dataset.drop, keys);
+      picked.clear();
+      render();
+      const again = document.querySelector(`#dock [data-drop="${CSS.escape(el.dataset.drop === "__new" ? (E.customGroups[E.customGroups.length - 1] || {}).id || "" : el.dataset.drop)}"]`);
+      if (again) { again.classList.add("flash"); setTimeout(() => again.classList.remove("flash"), 700); }
+    });
+  });
+}
+
+function bindChannelDrag() {
+  document.querySelectorAll("#rightBody tr[data-key]").forEach(tr => {
+    tr.addEventListener("dragstart", e => {
+      const k = tr.dataset.key;
+      const keys = picked.has(k) ? [...picked] : [k];
+      e.dataTransfer.setData("application/x-nuvio-keys", JSON.stringify(keys));
+      e.dataTransfer.setData("text/plain", keys.join(","));
+      e.dataTransfer.effectAllowed = "copyMove";
+    });
+  });
+}
+
 function renderRight() {
   const T = $("toolbar"), B = $("rightBody"), H = $("hintRow");
+  renderDock();
   const searchBox = `<input type="search" id="search" placeholder="Search all channels…" value="${esc(search)}" style="min-width:240px">`;
   H.textContent = "";
   if (search.trim().length >= 2) {
@@ -348,7 +416,7 @@ function renderRight() {
     T.innerHTML = `<h2>${esc(groupTitle(g))}</h2><span class="pill">${list.length} channels</span>${hg.has(g.id) ? `<span class="pill warn">hidden</span>` : ""}
       <button class="small" id="renameGroup">Rename</button><button class="small" id="allShow">Show all</button><button class="small" id="allHide">Hide all</button>
       <select id="allAdd">${folderOptions()}</select><span class="grow"></span>${searchBox}`;
-    H.textContent = "Tip: “Add to…” at the top adds every channel shown here; on a row, just that channel. Click a name to rename it.";
+    H.textContent = "Drag a channel onto a folder above (tick “Pick” on several to drag them together). “Add to…” at the top adds the whole group. Click a name to rename it.";
     B.innerHTML = channelRows(list, {});
   } else if (selected.type === "fav" || selected.type === "folder") {
     const fav = selected.type === "fav";
@@ -366,6 +434,7 @@ function renderRight() {
       : `<div class="empty">Empty. Open a group on the left or search, then use “Add to…”.</div>`;
     bindRowDrag(keys);
   }
+  bindChannelDrag();
   const s = $("search");
   if (s) { s.oninput = () => { search = s.value; const pos = s.selectionStart; renderRight(); const n = $("search"); n.focus(); n.setSelectionRange(pos, pos); }; }
 }
@@ -374,6 +443,7 @@ function bindRowDrag(keys) {
   let drag = null;
   document.querySelectorAll("#rightBody tr[draggable]").forEach(tr => {
     tr.addEventListener("dragstart", () => drag = tr.dataset.key);
+    tr.addEventListener("dragend", () => drag = null);
     tr.addEventListener("dragover", e => { e.preventDefault(); tr.classList.add("drag-over"); });
     tr.addEventListener("dragleave", () => tr.classList.remove("drag-over"));
     tr.addEventListener("drop", e => {
@@ -403,6 +473,7 @@ function addTo(target, keysToAdd) {
 }
 
 document.addEventListener("click", e => {
+  if (e.target.id === "clearPicked") { picked.clear(); render(); return; }
   const t = e.target.closest("[data-tab],[data-open],[data-country],[data-remove],[data-restore],[data-fav],[data-fid],[data-chide],[data-cshow],[data-cremove],[data-crestore],[data-out],[data-rename],#newFolder,#renameGroup,#allShow,#allHide,#renameFolder,#deleteFolder,#sortAZ");
   if (!t) return;
   const d = t.dataset;
@@ -478,6 +549,7 @@ document.addEventListener("change", e => {
   const t = e.target, d = t.dataset;
   if (d.vis) { toggleIn(E.hiddenGroups, d.vis, !t.checked); render(); }
   else if (d.cvis) { toggleIn(E.hiddenChannels, d.cvis, !t.checked); render(); }
+  else if (d.pick) { if (t.checked) picked.add(d.pick); else picked.delete(d.pick); t.closest("tr").classList.toggle("picked", t.checked); renderDock(); }
   else if (d.num) { const v = parseInt(t.value, 10); if (v > 0) E.channelNumbers[d.num] = v; else delete E.channelNumbers[d.num]; refreshBar(); }
   else if (d.add) { const v = t.value; t.value = ""; addTo(v, [d.add]); }
   else if (t.id === "allAdd") { const v = t.value; t.value = ""; addTo(v, S.chans.filter(c => c.g === selected.id).map(c => c.key)); }
