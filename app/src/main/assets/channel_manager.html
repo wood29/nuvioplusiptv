@@ -86,6 +86,7 @@
   <button id="btnFind" style="display:none" title="Look for the TV on your home network again">Find TV</button>
   <button id="btnBackup" title="Save your whole Live TV setup (playlists, folders, favorites, hidden and removed groups, numbers, names) as a file">Save setup file</button>
   <label class="btn" title="Load a setup file saved earlier: it replaces this TV's Live TV setup">Load setup file<input id="fileIn" type="file" accept=".json,application/json" hidden></label>
+  <label class="btn" title="Bring your favourites (and your own groups) over from a TiviMate backup (.tmb)">Import from TiviMate<input id="tmIn" type="file" accept=".tmb,.zip" hidden></label>
   <button class="primary" id="btnSave" disabled>Send to TV</button>
 </header>
 <main>
@@ -637,6 +638,79 @@ $("fileIn").onchange = async e => {
     if (ok) setTimeout(() => load().catch(() => {}), 3000);
   };
 };
+// ---------------------------------------------------------------- TiviMate import
+// The TV reads the backup (TiviMate's database inside it) and sends back channel names; they're
+// matched to this TV's channels here, and you see the result before anything goes to the TV.
+function tmNorm(n) {
+  return String(n || "").toLowerCase()
+    .replace(/^\s*[a-z]{2,3}\s*[:|\-–]\s*/, "")                // "DE: ", "AT | ", "UK - "
+    .replace(/\b(uhd|fhd|hd|sd|4k|hevc|h265|raw|50fps|60fps)\b/g, "")
+    .replace(/[^a-z0-9äöüß]+/g, "");
+}
+function tmMatch(items) {
+  const byNorm = {};
+  S.chans.forEach(c => { const k = tmNorm(c.name); (byNorm[k] = byNorm[k] || []).push(c); });
+  const keys = [], missing = [], used = new Set();
+  items.forEach(it => {
+    const k = tmNorm(it.name);
+    let list = byNorm[k] || [];
+    if (!list.length && k.length >= 4) list = S.chans.filter(c => { const n = tmNorm(c.name); return n.length >= 4 && (n.startsWith(k) || k.startsWith(n)); });
+    list = list.filter(c => !used.has(c.key));
+    if (!list.length) { missing.push(it.name); return; }
+    // Several with that name: the one whose group is most like TiviMate's.
+    const g = String(it.group || "").toLowerCase();
+    const best = g ? (list.find(c => (groupsById[c.g]?.title || "").toLowerCase() === g) || list.find(c => (groupsById[c.g]?.title || "").toLowerCase().includes(g.slice(0, 4))) || list[0]) : list[0];
+    used.add(best.key); keys.push(best.key);
+  });
+  return {keys, missing};
+}
+$("tmIn").onchange = async e => {
+  const f = e.target.files[0]; e.target.value = "";
+  if (!f) return;
+  if (!S) { alert("Connect to the TV first: it reads the backup."); return; }
+  modal(`<h3>Reading the TiviMate backup…</h3><p class="muted">The TV is opening it.</p>`);
+  let res;
+  try {
+    const b64 = await new Promise((ok, bad) => { const rd = new FileReader(); rd.onload = () => ok(String(rd.result).split(",")[1] || ""); rd.onerror = bad; rd.readAsDataURL(f); });
+    const r = await fetch("/api/tivimate", {method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify({data: b64})});
+    const text = await r.text();
+    if (!r.ok) { let m = text; try { m = JSON.parse(text).error || text; } catch (_) {} throw new Error(m); }
+    res = JSON.parse(text);
+  } catch (err) {
+    modal(`<h3>Couldn't read it</h3><p>${esc(err.message || err)}</p><div class="actions"><button class="primary" onclick="closeModal()">OK</button></div>`);
+    return;
+  }
+  const fav = tmMatch(res.favorites || []);
+  const groups = (res.groups || []).map(g => ({name: g.name, ...tmMatch(g.channels || [])})).filter(g => g.keys.length);
+  if (!(res.favorites || []).length && !groups.length) {
+    modal(`<h3>No favourites found</h3><p>The backup opened, but no favourites or own groups were recognised. Copy the text below and send it to Claude, so the import can learn this TiviMate version.</p>
+      <textarea readonly style="width:100%;height:160px">${esc((res.tables || []).join("\n"))}</textarea>
+      <div class="actions"><button class="primary" onclick="closeModal()">OK</button></div>`);
+    return;
+  }
+  const miss = fav.missing.slice(0, 25).map(esc).join(", ") + (fav.missing.length > 25 ? " …" : "");
+  modal(`<h3>From your TiviMate backup</h3>
+    <p><b>${(res.favorites || []).length}</b> favourites, <b>${fav.keys.length}</b> of them found on this TV.${groups.length ? ` Plus ${groups.length} own group${groups.length > 1 ? "s" : ""}: ${groups.map(g => esc(g.name) + " (" + g.keys.length + ")").join(", ")}.` : ""}</p>
+    ${fav.missing.length ? `<p class="muted">Not found here: ${miss}</p>` : ""}
+    <p class="muted">Nothing goes to the TV yet: check it here, then press Send to TV.</p>
+    <div class="actions"><button onclick="closeModal()">Cancel</button>
+    <button id="tmAdd">Add to my favourites</button>
+    <button class="primary" id="tmReplace">Use TiviMate's favourites</button></div>`);
+  function take(replace) {
+    E.favorites = replace ? [...fav.keys] : [...E.favorites, ...fav.keys.filter(k => !E.favorites.includes(k))];
+    groups.forEach(g => {
+      const have = E.customGroups.find(x => x.name === g.name);
+      if (have) have.keys = [...have.keys, ...g.keys.filter(k => !have.keys.includes(k))];
+      else E.customGroups.push({id: "custom:np" + Math.random().toString(36).slice(2, 10), name: g.name, keys: [...g.keys]});
+    });
+    closeModal();
+    selected = {type: "fav"};
+    render();
+  }
+  $("tmAdd").onclick = () => take(false);
+  $("tmReplace").onclick = () => take(true);
+};
+
 window.addEventListener("beforeunload", e => { if (E && changed()) { e.preventDefault(); e.returnValue = ""; } });
 
 // ---------------------------------------------------------------- the Windows app

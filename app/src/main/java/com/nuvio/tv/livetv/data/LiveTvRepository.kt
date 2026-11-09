@@ -587,6 +587,10 @@ class LiveTvRepository @Inject constructor(
             }
         }
 
+        // Nuvio Plus: the channels as they were before this update, to tell "only channels went
+        // away" (the stored guide just loses theirs) from new channels that need the guide read.
+        val keysBefore: Set<String>? = if (changed && _channels.value.isNotEmpty()) _channels.value.mapTo(HashSet()) { it.key } else null
+        val playlistChanged = changed
         // Build channels first so EPG matching knows which channels exist.
         if (changed || _channels.value.isEmpty()) {
             outOfTheWay()
@@ -596,6 +600,7 @@ class LiveTvRepository @Inject constructor(
         }
 
         val epgTargets = collectEpgTargets()
+        var epgDownloadedNew = false
         // Files saved by earlier versions, unzipped: zipped once (see download()).
         (epgTargets.map { epgFile(it.fileId) } + playlists.map { playlistFile(it.id) }).forEach { zipInPlace(it) }
         for (target in epgTargets) {
@@ -620,7 +625,7 @@ class LiveTvRepository @Inject constructor(
                         reportAs = target.name
                     )
                 }
-                if (result.getOrNull() == true) changed = true
+                if (result.getOrNull() == true) { changed = true; epgDownloadedNew = true }
                 val err = result.exceptionOrNull()?.let { it.message ?: it.javaClass.simpleName }
                 if (target.sourceId != null) {
                     prefs.updateEpgSources { list ->
@@ -639,7 +644,12 @@ class LiveTvRepository @Inject constructor(
         // "Update guide now" always matches the guides again, even when the files came back
         // unchanged: a guide matched wrong or stored empty was otherwise kept until a file
         // changed, so pressing Update did nothing for it.
-        if (changed || forceEpg || guideHoles || (_programs.value.isEmpty() && (!guideInDb || storedGuideEmpty))) {
+        val guideFilesChanged = changed && !playlistChanged || epgDownloadedNew
+        if (playlistChanged && !guideFilesChanged && !forceEpg && !guideHoles && keysBefore != null &&
+            keepGuideAfterChannelChange(settings, epgTargets, keysBefore)
+        ) {
+            // Nothing to read: the stored guide already has every channel's listings.
+        } else if (changed || forceEpg || guideHoles || (_programs.value.isEmpty() && (!guideInDb || storedGuideEmpty))) {
             storedGuideEmpty = false
             guideHoles = false
             outOfTheWay()
@@ -1428,6 +1438,39 @@ class LiveTvRepository @Inject constructor(
             .put("targets", org.json.JSONArray(targets.map { targetStamp(it) }))
             .put("playlists", playlists)
             .toString()
+    }
+
+    /**
+     * Nuvio Plus: a playlist update that only took channels away (or changed their stream links)
+     * doesn't need the guide files read again: each channel's listings depend only on that
+     * channel and the guides. The gone channels' listings are deleted and the stored guide is
+     * re-stamped. New channels (or anything else changed) → false: read the guides as before.
+     */
+    private suspend fun keepGuideAfterChannelChange(settings: LiveTvSettings, targets: List<EpgTarget>, keysBefore: Set<String>): Boolean = withContext(Dispatchers.IO) {
+        val channels = _channels.value
+        if (channels.isEmpty() || !guideInDb) return@withContext false
+        val keys = channels.mapTo(HashSet()) { it.key }
+        if (keys.any { it !in keysBefore }) return@withContext false
+        val stored = runCatching { guideDb.fingerprint() }.getOrNull() ?: return@withContext false
+        val old = runCatching { guideDb.parts()?.let { JSONObject(it) } }.getOrNull() ?: return@withContext false
+        if (old.optString("fp") != stored) return@withContext false
+        val fingerprint = guideFingerprint(settings, targets)
+        val partsText = guideParts(settings, targets, fingerprint)
+        val now = JSONObject(partsText)
+        if (old.optString("base") != now.optString("base")) return@withContext false
+        if (old.optJSONArray("targets")?.toString() != now.optJSONArray("targets")?.toString()) return@withContext false
+        val hidden = prefs.currentHiddenEverywhere()
+        val nowHidden = channels.filter { hidden.hides(it.key, it.groupId) }.mapTo(HashSet()) { it.key }
+        val skipped = (loadSkipped() ?: emptySet()).filterTo(HashSet()) { it in keys }
+        if (keys.any { it in skipped && it !in nowHidden }) return@withContext false
+        val gone = keysBefore - keys
+        val newlyHidden = nowHidden - skipped
+        runCatching { guideDb.dropPlaylists(emptySet(), gone + newlyHidden, fingerprint, partsText) }
+            .onFailure { Log.w(TAG, "Couldn't keep the guide after a channel change", it); return@withContext false }
+        saveSkipped(skipped + newlyHidden)
+        LIVE_REPORT.add("Guide kept after the playlist update: ${gone.size} channels gone, nothing re-read")
+        if (gone.size + newlyHidden.size > 200) scheduleCompact()
+        loadGuideFromDb(settings, targets, preReadGuide())
     }
 
     /**

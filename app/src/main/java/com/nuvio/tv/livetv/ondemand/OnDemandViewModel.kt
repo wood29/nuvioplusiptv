@@ -466,24 +466,55 @@ class OnDemandViewModel @Inject constructor(
             if (focusedPlaylist.value == null) focusedPlaylist.value = homeGroups.firstOrNull()?.first?.playlistId
             homeItems.clear(); homeEnded.clear(); homeRead.clear()
             homeSorts = user.vodSorts
-            // The first page of every group (each a quick read from the device's catalog).
-            // Nuvio Plus: the page shows after the first few groups; the rest follow.
+            // The first page of the first groups (each a quick read from the device's catalog).
+            // Nuvio Plus: the page shows after the first few groups; further groups are read
+            // only as you scroll down to them (see readMoreGroups), not all up front.
+            homeReadUpTo = 0
             var shown = false
             for ((index, pair) in homeGroups.withIndex()) {
-                val c = pair.first
+                if (index >= GROUP_BATCH) break
                 if (!shown && index == FIRST_ROWS) {
                     _home.value = VodHomeState(rows = buildHomeRows(), groups = entries, loading = false)
                     shown = true
                 }
-                val (sort, seed) = sortOf(c.uid)
-                val raw = repository.items(c.kind, c, emptySet(), false, HOME_PAGE, 0, sort, merge = settings.value.vodMergeDuplicates, seed = seed)
-                val page = dedupe(emptyList(), raw)
-                primePosters(page)
-                homeItems[c.uid] = page
-                homeRead[c.uid] = raw.size
-                if (raw.size < HOME_PAGE) homeEnded += c.uid
+                readFirstPage(pair.first)
+                homeReadUpTo = index + 1
             }
             _home.value = VodHomeState(rows = buildHomeRows(), groups = entries, loading = false)
+            enrichHome()
+        }
+    }
+
+    /** Nuvio Plus: how many of [homeGroups] have had their first page read (the rest wait until you scroll near them). */
+    @Volatile private var homeReadUpTo = 0
+    private var groupsJob: kotlinx.coroutines.Job? = null
+
+    private suspend fun readFirstPage(c: VodCategory) {
+        val (sort, seed) = sortOf(c.uid)
+        val raw = repository.items(c.kind, c, emptySet(), false, HOME_PAGE, 0, sort, merge = settings.value.vodMergeDuplicates, seed = seed)
+        val page = dedupe(emptyList(), raw)
+        primePosters(page)
+        homeItems[c.uid] = page
+        homeRead[c.uid] = raw.size
+        if (raw.size < HOME_PAGE) homeEnded += c.uid
+    }
+
+    /** The next groups down the page, read when you get near the last row shown. */
+    private fun readMoreGroups() {
+        if (homeReadUpTo >= homeGroups.size || groupsJob?.isActive == true) return
+        groupsJob = viewModelScope.launch {
+            val before = homeItems.count { it.value.isNotEmpty() }
+            // Read on until at least one more row shows (empty groups make no row), or the end.
+            while (homeReadUpTo < homeGroups.size) {
+                val end = (homeReadUpTo + GROUP_BATCH).coerceAtMost(homeGroups.size)
+                for (i in homeReadUpTo until end) {
+                    val c = homeGroups[i].first
+                    if (!homeItems.containsKey(c.uid)) readFirstPage(c)
+                }
+                homeReadUpTo = end
+                if (homeItems.count { it.value.isNotEmpty() } > before) break
+            }
+            updateHomeRows()
             enrichHome()
         }
     }
@@ -762,6 +793,12 @@ class OnDemandViewModel @Inject constructor(
     fun focusHome(metaId: String) {
         val uid = VodHomeIds.uidOf(metaId) ?: return
         uid.split(':').getOrNull(1)?.let { focusedPlaylist.value = it }
+        // Nuvio Plus: near the last rows read so far, read the next groups.
+        if (homeReadUpTo < homeGroups.size) {
+            val shownRows = homeGroups.take(homeReadUpTo).filter { homeItems[it.first.uid].orEmpty().isNotEmpty() }
+            val rowIndex = shownRows.indexOfFirst { g -> homeItems[g.first.uid].orEmpty().any { it.uid == uid } }
+            if (rowIndex >= 0 && rowIndex >= shownRows.size - 4) readMoreGroups()
+        }
         if (uid in homeDetailed) return
         val item = homeItems.values.asSequence().flatten().firstOrNull { it.uid == uid } ?: return
         homeTried += uid
@@ -937,6 +974,7 @@ class OnDemandViewModel @Inject constructor(
         homeItems.clear(); homeItems.putAll(snap.items)
         homeEnded.clear(); homeEnded.addAll(snap.ended)
         homeRead.clear(); homeRead.putAll(snap.read)
+        homeReadUpTo = homeGroups.indexOfLast { homeItems.containsKey(it.first.uid) } + 1
         homeSorts = snap.sorts
         homeMatched.putAll(snap.matched)
         posters.putAll(snap.posters)
@@ -968,6 +1006,8 @@ class OnDemandViewModel @Inject constructor(
 
     private companion object {
         const val FIRST_ROWS = 6
+        /** Nuvio Plus: groups read at a time as you scroll down the page. */
+        const val GROUP_BATCH = 12
         const val HOME_PAGE = 30
         private val AFTER_SEPARATOR = Regex("""^.{1,40}?\s(?:-|–|—|:)\s+(.+)$""")
         /** A season at the end of a series name: "Loki S02", "Dark Season 1", "Casa Temporada 3". */

@@ -50,6 +50,12 @@ class ChannelManagerServer(
             }
             post && uri == "/api/apply" -> propose(Kind.APPLY, session)
             post && uri == "/api/restore" -> propose(Kind.RESTORE, session)
+            // A TiviMate backup (.tmb, sent as base64): its favourites and groups, by channel name.
+            post && uri == "/api/tivimate" -> {
+                val b64 = JSONObject(readBody(session)).optString("data")
+                val bytes = android.util.Base64.decode(b64, android.util.Base64.DEFAULT)
+                json(TiviMateBackup.read(context, bytes).toString())
+            }
             get && uri.startsWith("/api/status/") -> {
                 val c = changes[uri.removePrefix("/api/status/")]
                 json(JSONObject().put("status", (c?.status ?: Status.REJECTED).name.lowercase()).toString())

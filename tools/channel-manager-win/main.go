@@ -298,6 +298,16 @@ func main() {
 		}
 		writeJSON(w, map[string]any{"id": "queued"})
 	}
+	// A TiviMate backup: read on the TV (it has the database reader), needs the TV online.
+	mux.HandleFunc("/api/tivimate", func(w http.ResponseWriter, r *http.Request) {
+		body, _ := io.ReadAll(r.Body)
+		data, code, err := proxy(w, r, body)
+		if err != nil {
+			http.Error(w, "The TV isn't reachable right now. Reading a TiviMate backup needs the TV on.", 503)
+			return
+		}
+		pass(w, data, code, "")
+	})
 	mux.HandleFunc("/api/apply", propose)
 	mux.HandleFunc("/api/restore", propose)
 	mux.HandleFunc("/api/sendQueued", func(w http.ResponseWriter, r *http.Request) {
