@@ -346,7 +346,7 @@ fun LiveTvPlayerScreen(
 
     BackHandler(enabled = listVisible) { listVisible = false }
 
-    CompositionLocalProvider(LocalLiveSolidHighlight provides settings.solidHighlight) {
+    CompositionLocalProvider(LocalLiveSolidHighlight provides (settings.solidHighlight || nowSeenLook())) {
     Box(
         modifier = Modifier
             .fillMaxSize()

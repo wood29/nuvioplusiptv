@@ -29,6 +29,13 @@ class ThemeDataStore @Inject constructor(
         factory.get(profileId, FEATURE)
 
     private val themeKey = stringPreferencesKey("selected_theme")
+    /** Nuvio Plus: set once a theme is picked in this version; until then the NowSeen look is used. */
+    private val nowSeenPickedKey = booleanPreferencesKey("np_theme_picked")
+
+    private fun readTheme(prefs: androidx.datastore.preferences.core.Preferences): AppTheme? =
+        if (prefs[nowSeenPickedKey] != true) AppTheme.NOWSEEN
+        else prefs[themeKey]?.let { name -> AppTheme.entries.firstOrNull { it.name == name } }
+
     private val customThemeColorsKey = stringPreferencesKey("custom_theme_colors")
     private val fontKey = stringPreferencesKey("selected_font")
     private val amoledModeKey = booleanPreferencesKey("amoled_mode")
@@ -38,7 +45,7 @@ class ThemeDataStore @Inject constructor(
     val themeSelection: Flow<ThemeSelection> = profileManager.activeProfileId.flatMapLatest { pid ->
         factory.get(pid, FEATURE).data.map { prefs ->
             ThemeSelection(
-                theme = prefs[themeKey]?.let { name -> AppTheme.entries.firstOrNull { it.name == name } },
+                theme = readTheme(prefs),
                 customColors = CustomThemeColors.decode(prefs[customThemeColorsKey])
             )
         }
@@ -81,6 +88,7 @@ class ThemeDataStore @Inject constructor(
     suspend fun setTheme(theme: AppTheme) {
         store().edit { prefs ->
             prefs[themeKey] = theme.name
+            prefs[nowSeenPickedKey] = true
         }
     }
 
@@ -88,6 +96,7 @@ class ThemeDataStore @Inject constructor(
         store().edit { prefs ->
             prefs[customThemeColorsKey] = colors.encode()
             prefs[themeKey] = AppTheme.CUSTOM.name
+            prefs[nowSeenPickedKey] = true
         }
     }
 
@@ -120,11 +129,11 @@ class ThemeDataStore @Inject constructor(
 
     suspend fun getThemeForProfile(profileId: Int): AppTheme? {
         val prefs = factory.get(profileId, FEATURE).data.first()
-        return prefs[themeKey]?.let { name -> AppTheme.entries.firstOrNull { it.name == name } }
+        return readTheme(prefs)
     }
 
     fun observeThemeForProfile(profileId: Int): Flow<AppTheme?> =
         factory.get(profileId, FEATURE).data.map { prefs ->
-            prefs[themeKey]?.let { name -> AppTheme.entries.firstOrNull { it.name == name } }
+            readTheme(prefs)
         }
 }

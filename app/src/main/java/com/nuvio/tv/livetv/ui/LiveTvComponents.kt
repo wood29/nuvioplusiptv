@@ -75,6 +75,14 @@ import java.util.Locale
 /** True = focused items are filled with the accent color; false = tinted fill with an accent outline. */
 internal val LocalLiveSolidHighlight = staticCompositionLocalOf { false }
 
+/** Nuvio Plus: the NowSeen theme is on (white highlight pills, navy backdrop, channel list). */
+@Composable
+@androidx.compose.runtime.ReadOnlyComposable
+internal fun nowSeenLook(): Boolean = com.nuvio.tv.ui.theme.LocalAppTheme.current == com.nuvio.tv.domain.model.AppTheme.NOWSEEN
+
+/** The NowSeen accent: progress bars and the group you're in. */
+internal val NOWSEEN_ACCENT = Color(0xFF7FD18B)
+
 /** "Guide darkness" setting ("standard" = Lightest, "darker" = Standard, "solid" = Darkest): the guide bars follow it. */
 internal val LocalGuideDarkness = staticCompositionLocalOf { "darker" }
 
@@ -181,6 +189,7 @@ private class Blob(val x: Float, val y: Float, val r: Float, val color: Color, v
 internal object GuideBackdrops {
     val all: List<Pair<String, String>> = listOf(
         "auto" to "Match Theme",
+        "nowseen" to "NowSeen Navy",
         "onyx" to "Onyx",
         "original" to "Original",
         "arctic" to "Arctic Blue",
@@ -231,6 +240,7 @@ private fun backdropBase(style: String): Color = if (style.startsWith("auto:")) 
     androidx.compose.ui.graphics.lerp(accentOf(style).first, Color.Black, 0.94f)
 } else when (GuideBackdrops.normalize(style)) {
     "onyx" -> Color(0xFF000000)
+    "nowseen" -> Color(0xFF0A0D12)
     "original" -> Color(0xFF0B0A18)
     "arctic" -> Color(0xFF050D1A)
     "emerald" -> Color(0xFF05130F)
@@ -241,6 +251,10 @@ private fun backdropBase(style: String): Color = if (style.startsWith("auto:")) 
 
 private fun backdropBlobs(styleKey: String): List<Blob> {
     val style = GuideBackdrops.normalize(styleKey)
+    if (style == "nowseen") return listOf(
+        Blob(0.20f, 0.00f, 0.70f, Color(0xFF1E2A3E), 0.55f),
+        Blob(0.90f, 0.90f, 0.55f, Color(0xFF141C2A), 0.40f)
+    )
     if (style == "onyx") return listOf(
         Blob(0.14f, 0.00f, 0.60f, Color(0xFF2A2F4A), 0.40f),
         Blob(0.92f, 0.82f, 0.55f, Color(0xFF3A2440), 0.30f),
@@ -260,6 +274,7 @@ private fun backdropBlobs(styleKey: String): List<Blob> {
 internal fun resolveBackdrop(style: String): String {
     val key = GuideBackdrops.normalize(style)
     if (key != "auto") return key
+    if (nowSeenLook()) return "nowseen"
     val c = NuvioTheme.colors
     val a = androidx.compose.ui.graphics.lerp(c.Secondary, Color.Black, 0.25f)
     val b = androidx.compose.ui.graphics.lerp(c.SecondaryVariant, Color.Black, 0.25f)

@@ -276,7 +276,7 @@ fun RecordingsScreen(
     val firstDoneId = if (now.isEmpty() && schedules.isEmpty() && seriesRules.isEmpty()) done.firstOrNull()?.id else null
 
     androidx.compose.runtime.CompositionLocalProvider(
-        com.nuvio.tv.livetv.ui.LocalLiveSolidHighlight provides look.solidHighlight,
+        com.nuvio.tv.livetv.ui.LocalLiveSolidHighlight provides (look.solidHighlight || com.nuvio.tv.livetv.ui.nowSeenLook()),
         com.nuvio.tv.livetv.ui.LocalGuideDarkness provides look.guideInfoBackground
     ) {
     Box(

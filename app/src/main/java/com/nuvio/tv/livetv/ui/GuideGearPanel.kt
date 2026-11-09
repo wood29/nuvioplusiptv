@@ -159,6 +159,18 @@ internal fun GuideGearPanel(
                     }
                 }
                 GearRow(Modifier.fillMaxWidth(), onClick = {
+                    onChange { it.copy(guideLayout = if (it.guideLayout == "GRID") "LIST" else "GRID") }
+                }) { focused ->
+                    Column(Modifier.weight(1f)) {
+                        LiveText("Guide style", size = 13.sp, weight = if (focused) FontWeight.Bold else FontWeight.Medium, color = gearText(focused))
+                        LiveText("Channel list: on now and next · TV guide: the timeline", size = 10.sp, color = gearText(focused, dim = true))
+                    }
+                    LiveText(
+                        if (settings.guideLayout == "GRID") "TV guide" else "Channel list",
+                        size = 12.sp, color = gearText(focused, dim = true)
+                    )
+                }
+                GearRow(Modifier.fillMaxWidth(), onClick = {
                     onChange { it.copy(guideBackdrop = GuideBackdrops.next(it.guideBackdrop)) }
                 }) { focused ->
                     Column(Modifier.weight(1f)) {

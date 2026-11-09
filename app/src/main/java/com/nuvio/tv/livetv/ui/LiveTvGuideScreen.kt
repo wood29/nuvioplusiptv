@@ -855,7 +855,7 @@ fun LiveTvGuideScreen(
         if (now >= landed.startMs && now < landed.stopMs && ch.catchup == null) resetToNow()
     }
 
-    CompositionLocalProvider(LocalLiveSolidHighlight provides settings.solidHighlight, LocalGuideDarkness provides settings.guideInfoBackground) {
+    CompositionLocalProvider(LocalLiveSolidHighlight provides (settings.solidHighlight || nowSeenLook()), LocalGuideDarkness provides settings.guideInfoBackground) {
     val hostActivity = androidx.compose.ui.platform.LocalContext.current as? com.nuvio.tv.MainActivity
     // Where the preview window is (the video view sits there when not full screen).
     var rootBounds by remember { mutableStateOf<androidx.compose.ui.geometry.Rect?>(null) }
@@ -1182,7 +1182,24 @@ fun LiveTvGuideScreen(
                                 weight = FontWeight.Bold
                             )
                         }
-                        BoxWithConstraints(modifier = Modifier.weight(1f).fillMaxHeight()) {
+                        if (settings.guideLayout != "GRID") Row(
+                            // Channel list: column titles instead of the time ruler, the clock at the end.
+                            modifier = Modifier.weight(1f).fillMaxHeight().padding(start = 20.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            LiveText("On now", color = NuvioTheme.colors.TextSecondary, size = (13f * guideScale(settings)).sp, weight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
+                            LiveText("Next", color = NuvioTheme.colors.TextSecondary, size = (13f * guideScale(settings)).sp, weight = FontWeight.SemiBold, modifier = Modifier.width(278.dp))
+                            LiveText(
+                                formatClock(now, settings.use24HourClock),
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .background(guideSurface())
+                                    .padding(horizontal = 10.dp, vertical = 3.dp),
+                                color = NuvioTheme.colors.TextPrimary,
+                                size = (14f * guideScale(settings)).sp,
+                                weight = FontWeight.Bold
+                            )
+                        } else BoxWithConstraints(modifier = Modifier.weight(1f).fillMaxHeight()) {
                             val w = maxWidth
                             // The next day starts in view: a tag at midnight ("Tomorrow · Fri").
                             val midnight = nextMidnight(windowStart)
@@ -1583,7 +1600,7 @@ fun LiveTvGuideScreen(
                                     }
                                 }
                                 // "Now" line across the program area (can be hidden in settings).
-                                if (settings.showNowLine && now in windowStart until windowStart + guideWindowMs(settings)) {
+                                if (settings.guideLayout == "GRID" && settings.showNowLine && now in windowStart until windowStart + guideWindowMs(settings)) {
                                     BoxWithConstraints(
                                         modifier = Modifier
                                             .fillMaxSize()
@@ -1596,9 +1613,20 @@ fun LiveTvGuideScreen(
                                                 .width(2.dp)
                                                 .fillMaxHeight()
                                                 .clip(RoundedCornerShape(1.dp))
-                                                .background(NuvioTheme.colors.Secondary.copy(alpha = 0.9f))
+                                                .background((if (nowSeenLook()) LIVE_RED else NuvioTheme.colors.Secondary).copy(alpha = 0.9f))
                                         )
-                                        Box(
+                                        if (nowSeenLook()) LiveText(
+                                            // NowSeen: a red "now" pill with the time on top of the line (like Tubi's guide).
+                                            formatClock(now, settings.use24HourClock),
+                                            modifier = Modifier
+                                                .offset(x = x - 26.dp)
+                                                .clip(RoundedCornerShape(50))
+                                                .background(LIVE_RED)
+                                                .padding(horizontal = 7.dp, vertical = 1.dp),
+                                            color = Color.White,
+                                            size = 10.sp,
+                                            weight = FontWeight.Bold
+                                        ) else Box(
                                             modifier = Modifier
                                                 .offset(x = x - 4.dp)
                                                 .size(10.dp)
@@ -2671,6 +2699,18 @@ private fun GuideRow(
     /** Width of the shows part of the row, measured once for the whole guide (null: measure here). */
     programAreaWidth: Dp? = null
 ) {
+    if (settings.guideLayout != "GRID") {
+        ChannelListRow(
+            channel = channel, programs = programs, settings = settings, rowHeight = rowHeight,
+            channelColWidth = channelColWidth, numberDigits = numberDigits, now = now,
+            isFavorite = isFavorite, isPlaying = isPlaying,
+            rowFocused = focusColumn != null || nameFocused || moving,
+            focusedProgram = if (focusColumn != null) focusedBlock?.program else null,
+            visible = visible, moving = moving, reorderMode = reorderMode, quality = quality,
+            recording = recordingSpan != null && now in recordingSpan.first until recordingSpan.second
+        )
+        return
+    }
     val windowEnd = windowStart + guideWindowMs(settings)
     val cellShape = RoundedCornerShape(liveCorner())
     Row(
@@ -4463,7 +4503,13 @@ private const val OK_WITH_ARROW_MS = 250L
 internal const val LONG_PRESS_MS = 550L
 
 /** How tall each channel row is: compact or normal, taller when show times are shown. */
-private fun guideRowHeight(s: LiveTvSettings): Dp = when (s.effectiveGuideSize) {
+private fun guideRowHeight(s: LiveTvSettings): Dp = if (s.guideLayout != "GRID") when (s.effectiveGuideSize) {
+    // Nuvio Plus channel list: taller rows with what's on now, a progress bar and what's next.
+    "COMPACT" -> 46.dp
+    "LARGE" -> 64.dp
+    "XLARGE" -> 74.dp
+    else -> 54.dp
+} else when (s.effectiveGuideSize) {
     "COMPACT" -> if (s.showProgramTimes) 44.dp else 32.dp
     "LARGE" -> if (s.showProgramTimes) 64.dp else 47.dp
     "XLARGE" -> if (s.showProgramTimes) 76.dp else 56.dp
@@ -4929,4 +4975,159 @@ private fun LogoFromPhoneDialog(channelName: String, onDismiss: () -> Unit, onUr
         Spacer(Modifier.height(12.dp))
         MenuItem("Close", onClick = onDismiss)
     }
+}
+
+
+/**
+ * Nuvio Plus: one channel in the channel list (Guide style "Channel list", NowSeen look): number,
+ * logo and name, then what's on now with a progress bar and time left, and what's next. The row
+ * you're on is one highlight pill; Right and Left step through this channel's later and earlier
+ * shows (the card then shows that show), just like moving along the TV guide's timeline.
+ */
+@Composable
+private fun ChannelListRow(
+    channel: LiveChannel,
+    programs: List<EpgProgram>,
+    settings: LiveTvSettings,
+    rowHeight: Dp,
+    channelColWidth: Dp,
+    numberDigits: Int,
+    now: Long,
+    isFavorite: Boolean,
+    isPlaying: Boolean,
+    rowFocused: Boolean,
+    focusedProgram: EpgProgram?,
+    visible: Boolean?,
+    moving: Boolean,
+    reorderMode: Boolean,
+    quality: String?,
+    recording: Boolean
+) {
+    val shape = RoundedCornerShape(liveCorner().coerceAtLeast(14.dp))
+    val colors = if (moving) LiveCellColors(NuvioTheme.colors.Rating, NuvioTheme.colors.Rating, Color.Black)
+        else liveCellColors(focused = rowFocused, idle = guideSurface())
+    val playingMark = isPlaying && settings.markPlayingChannel && !reorderMode && !moving
+    val dim = colors.text.copy(alpha = 0.62f)
+    val accent = if (nowSeenLook()) NOWSEEN_ACCENT else NuvioTheme.colors.Secondary
+    val onNow = remember(programs, now / 60_000L) { programs.firstOrNull { now >= it.startMs && now < it.stopMs } }
+    val shown = focusedProgram ?: onNow
+    val next = remember(programs, shown) { shown?.let { s -> programs.firstOrNull { it.startMs >= s.stopMs } } }
+    val live = shown != null && now >= shown.startMs && now < shown.stopMs
+    val large = rowHeight >= 50.dp
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(rowHeight)
+            .padding(vertical = 3.dp)
+            .graphicsLayer { alpha = if (visible == false) 0.45f else 1f }
+            .glassTile(
+                colors.background,
+                if (playingMark) NuvioTheme.colors.Error else if (colors.border == Color.Transparent) GuideGlassEdge else colors.border,
+                shape,
+                edgeWidth = if (playingMark) 2.dp else 1.dp
+            )
+            .padding(horizontal = 12.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        // ---- the channel
+        Row(Modifier.width(channelColWidth - 12.dp), verticalAlignment = Alignment.CenterVertically) {
+            if (settings.showChannelNumbers) {
+                LiveText(
+                    channel.number.toString(),
+                    modifier = Modifier.width(gdp(9f * numberDigits + 4f)),
+                    align = TextAlign.End,
+                    color = dim,
+                    size = gsp(14f),
+                    weight = FontWeight.Medium
+                )
+                Spacer(Modifier.width(10.dp))
+            }
+            if (settings.showChannelLogos) {
+                ChannelLogo(channel.logo, (rowHeight - 18.dp).coerceAtLeast(18.dp))
+                Spacer(Modifier.width(10.dp))
+            }
+            Column(Modifier.weight(1f)) {
+                if (settings.showChannelNames) LiveText(
+                    channel.name,
+                    color = colors.text,
+                    size = gsp(15f),
+                    weight = FontWeight.Bold,
+                    marquee = rowFocused
+                )
+                if (large && quality != null && !reorderMode && visible == null) LiveText(quality, color = dim, size = gsp(11f))
+            }
+            if (isFavorite && !reorderMode && !moving) {
+                Icon(Icons.Default.Star, contentDescription = "Favorite",
+                    tint = if (rowFocused && LocalLiveSolidHighlight.current) colors.text else NuvioTheme.colors.Rating,
+                    modifier = Modifier.size(gdp(14f)))
+            }
+            if (reorderMode || moving) {
+                Spacer(Modifier.width(6.dp))
+                Icon(Icons.Default.SwapVert, contentDescription = if (moving) "Moving" else "Can be moved",
+                    tint = if (moving || rowFocused) colors.text else NuvioTheme.colors.TextSecondary,
+                    modifier = Modifier.size(gdp(18f)))
+            }
+            if (visible != null) {
+                Spacer(Modifier.width(6.dp))
+                Icon(if (visible) Icons.Default.Visibility else Icons.Default.VisibilityOff,
+                    contentDescription = if (visible) "Shown" else "Hidden",
+                    tint = if (rowFocused) colors.text else if (visible) accent else NuvioTheme.colors.TextTertiary,
+                    modifier = Modifier.size(gdp(18f)))
+            }
+        }
+        Spacer(Modifier.width(14.dp))
+        // ---- on now (or the show picked with Right/Left)
+        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(5.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                if (recording) {
+                    Box(Modifier.size(gdp(9f)).clip(RoundedCornerShape(50)).background(NuvioTheme.colors.Error))
+                    Spacer(Modifier.width(6.dp))
+                }
+                LiveText(
+                    shown?.let { titleMarks(it.title).title } ?: channel.name,
+                    modifier = Modifier.weight(1f),
+                    color = if (shown == null) dim else colors.text,
+                    size = gsp(15f),
+                    weight = FontWeight.SemiBold,
+                    marquee = rowFocused
+                )
+                if (shown != null) {
+                    Spacer(Modifier.width(12.dp))
+                    LiveText(
+                        if (live) minutesLeftLabel(shown.stopMs - now) else formatRange(shown.startMs, shown.stopMs, settings.use24HourClock),
+                        color = dim,
+                        size = gsp(12f)
+                    )
+                }
+            }
+            if (live && shown != null) {
+                Box(
+                    Modifier.fillMaxWidth().height(4.dp).clip(RoundedCornerShape(50))
+                        .background(colors.text.copy(alpha = 0.16f))
+                ) {
+                    Box(
+                        Modifier.fillMaxWidth(shown.progress(now).coerceIn(0.02f, 1f)).fillMaxHeight()
+                            .clip(RoundedCornerShape(50))
+                            .background(if (rowFocused && LocalLiveSolidHighlight.current) colors.text else accent)
+                    )
+                }
+            }
+        }
+        // ---- next
+        if (next != null) {
+            Spacer(Modifier.width(18.dp))
+            LiveText(
+                "Next · " + titleMarks(next.title).title,
+                modifier = Modifier.widthIn(max = 260.dp).width(260.dp),
+                color = dim,
+                size = gsp(12.5f)
+            )
+        }
+    }
+}
+
+/** "23 min left", "1 h 05 left". */
+private fun minutesLeftLabel(ms: Long): String {
+    val m = ((ms + 59_999L) / 60_000L).coerceAtLeast(1L)
+    return if (m < 60) "$m min left" else "${m / 60} h ${"%02d".format(m % 60)} left"
 }

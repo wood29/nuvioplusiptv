@@ -190,6 +190,7 @@ class LiveTvPreferences @Inject constructor(
         val panelBackground = stringPreferencesKey("panel_background")
         val guideInfoBackground = stringPreferencesKey("guide_info_background")
         val guideBackdrop = stringPreferencesKey("guide_backdrop")
+        val guideLayout = stringPreferencesKey("np_guide_layout")
         val recentInPanel = booleanPreferencesKey("recent_in_panel")
         val panelRow = stringPreferencesKey("panel_row")
         val channelSurf = booleanPreferencesKey("channel_surf")
@@ -465,6 +466,7 @@ class LiveTvPreferences @Inject constructor(
             panelBackground = p[Keys.panelBackground] ?: d.panelBackground,
             guideInfoBackground = p[Keys.guideInfoBackground] ?: d.guideInfoBackground,
             guideBackdrop = p[Keys.guideBackdrop] ?: d.guideBackdrop,
+            guideLayout = p[Keys.guideLayout] ?: d.guideLayout,
             recentInPanel = p[Keys.recentInPanel] ?: d.recentInPanel,
             // Before the choice existed it was an on / off switch for Recent.
             panelRow = p[Keys.panelRow] ?: if (p[Keys.recentInPanel] == false) "OFF" else d.panelRow,
@@ -755,6 +757,7 @@ class LiveTvPreferences @Inject constructor(
         p[Keys.panelBackground] = s.panelBackground
         p[Keys.guideInfoBackground] = s.guideInfoBackground
         p[Keys.guideBackdrop] = s.guideBackdrop
+        p[Keys.guideLayout] = s.guideLayout
         p[Keys.recentInPanel] = s.recentInPanel
         p[Keys.panelRow] = s.panelRow
         p[Keys.channelSurf] = s.channelSurf

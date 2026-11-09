@@ -91,6 +91,26 @@ object ThemeColors {
         backgroundCard = NuvioPrimitives.neutral850
     )
 
+    /** Nuvio Plus: the NowSeen look (deep navy, an Apple TV-like white highlight with dark text). */
+    val NowSeen = ThemeColorPalette(
+        secondary = Color(0xFFF2F4F8),
+        secondaryVariant = Color(0xFFC9D0DC),
+        onSecondary = Color(0xFF0A0D12),
+        onSecondaryVariant = Color(0xFF0A0D12),
+        focusRing = Color(0xFFF2F4F8),
+        focusBackground = Color(0xFF1B222D),
+        background = Color(0xFF0A0D12),
+        backgroundElevated = Color(0xFF10151D),
+        backgroundCard = Color(0xFF121822),
+        surface = Color(0xFF10151D),
+        surfaceVariant = Color(0xFF1B222D),
+        panel = Color(0xFF0C1016),
+        field = Color(0xFF161C26),
+        menu = Color(0xFF10151D),
+        modal = Color(0xFF0C1016),
+        playerOverlay = Color(0xD90A0D12)
+    )
+
     fun getColorPalette(
         theme: AppTheme,
         customColors: CustomThemeColors = CustomThemeColors.Default
@@ -109,6 +129,7 @@ object ThemeColors {
             AppTheme.AMBER -> Amber
             AppTheme.ROSE -> Rose
             AppTheme.WHITE -> White
+            AppTheme.NOWSEEN -> NowSeen
         }
     }
 }
