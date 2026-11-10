@@ -306,4 +306,6 @@ private const val BANNER_HEIGHT = 0.56f
 /** Nuvio Plus: whether a big banner is showing at the top (the top-bar menu shows over it). */
 object NpBannerState {
     val showing = kotlinx.coroutines.flow.MutableStateFlow(false)
+    /** Set when the top bar was just turned on in Settings: it opens once so you see it. */
+    val openTopBar = kotlinx.coroutines.flow.MutableStateFlow(false)
 }

@@ -214,9 +214,16 @@ fun SideMenuSettingsContent(initialFocusRequester: FocusRequester? = null) {
                 SettingsGroupCard(title = "How the Menu Looks") {
                     SettingsActionRow(
                         title = "Menu Style",
-                        subtitle = "Side menu: on the left, Back or Left opens it. Top bar: the page names along the top (on Home above the big picture; elsewhere Back shows it).",
+                        subtitle = "Side menu: on the left, Back or Left opens it. Top bar: the page names along the top: press Up at the top of a page, or hold Back.",
                         value = if (s.menuStyle == "TOP") "Top bar" else "Side menu",
-                        onClick = { update { it.copy(menuStyle = if (it.menuStyle == "TOP") "SIDE" else "TOP") } }
+                        onClick = {
+                            val toTop = s.menuStyle != "TOP"
+                            // The bar opens straight away so you see the change (the page under it
+                            // is rebuilt for the new menu).
+                            if (toTop) com.nuvio.tv.ui.components.NpBannerState.openTopBar.value = true
+                            update { it.copy(menuStyle = if (toTop) "TOP" else "SIDE") }
+                            LiveTvNotice.show(if (toTop) "Top bar on: Up at the top of a page (or hold Back) opens it" else "Side menu on")
+                        }
                     )
                     SettingsToggleRow(
                         title = "Line Above Live TV",

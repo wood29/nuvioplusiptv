@@ -2912,18 +2912,50 @@ private fun TopMenuScaffold(
     }
 
     BackHandler(enabled = onRoot && !(menuOpen || barFocused)) { focusBar() }
+    // Just switched on in Settings: open it once so the change is visible.
+    LaunchedEffect(Unit) {
+        if (com.nuvio.tv.ui.components.NpBannerState.openTopBar.value) {
+            com.nuvio.tv.ui.components.NpBannerState.openTopBar.value = false
+            delay(400)
+            focusBar()
+        }
+    }
     BackHandler(enabled = onRoot && (menuOpen || barFocused)) {
         if (longPressBackHeld.value) return@BackHandler
         onExitApp()
     }
 
     Box(Modifier.fillMaxSize()) {
+        Box(
+            Modifier.fillMaxSize()
+                .onPreviewKeyEvent { k ->
+                    // Holding Back opens the bar from anywhere (like the side menu).
+                    if (k.key == Key.Back && onRoot && !(menuOpen || barFocused)) {
+                        if (k.type == KeyEventType.KeyDown && k.nativeKeyEvent.isLongPress) {
+                            if (!longPressBackHeld.value) { longPressBackHeld.value = true; focusBar() }
+                            return@onPreviewKeyEvent true
+                        }
+                        if (longPressBackHeld.value) {
+                            if (k.type == KeyEventType.KeyUp) longPressBackHeld.value = false
+                            return@onPreviewKeyEvent true
+                        }
+                    }
+                    false
+                }
+                .onKeyEvent { k ->
+                    // Up at the top of a page goes on into the bar.
+                    if (onRoot && !(menuOpen || barFocused) && k.type == KeyEventType.KeyDown && k.key == Key.DirectionUp) {
+                        if (focusManager.moveFocus(FocusDirection.Up)) true else { focusBar(); true }
+                    } else false
+                }
+        ) {
         CompositionLocalProvider(
             LocalSidebarExpanded provides (menuOpen || barFocused),
             LocalContentFocusRequester provides contentFocusRequester,
             LocalOpenSidebar provides { focusBar() }
         ) {
             NuvioNavHost(navController = navController, startDestination = startDestination, hideBuiltInHeaders = false)
+        }
         }
         AnimatedVisibility(
             visible = showBar,
