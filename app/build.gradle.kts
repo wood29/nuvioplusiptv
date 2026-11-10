@@ -135,8 +135,9 @@ android {
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         minSdk = 24
         targetSdk = 36
-        // Nuvio Plus: 1077, not Nuvio's 1076, so this installs as an update over the earlier builds.
-        versionCode = 1077
+        // Nuvio Plus: goes up by one with every new Nuvio version, so the box always sees a newer
+        // build (x 100 + build number: beta.11.19 was 107719, beta.13.N is 1078NN).
+        versionCode = 1078
         versionName = "1.1.0-beta.13"
 
         buildConfigField("String", "PARENTAL_GUIDE_API_URL", "\"${localProperties.getProperty("PARENTAL_GUIDE_API_URL", "")}\"")
