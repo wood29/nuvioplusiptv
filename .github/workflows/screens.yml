@@ -1,0 +1,41 @@
+name: Screens
+
+# Nuvio Plus: renders new screens to pictures (NpScreensTest) when pushed to "screens", so they
+# can be looked at before a release. The pictures are kept as the run's artifact.
+on:
+  push:
+    branches: [ screens ]
+  workflow_dispatch:
+
+jobs:
+  render:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.27.3"
+          cache-dependency-path: vpn-android/native/go.sum
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+          cache: gradle
+      - name: Placeholder keys
+        run: |
+          echo "TMDB_API_KEY=x" > local.properties
+          cp local.properties local.dev.properties
+      - name: Render
+        run: |
+          ./gradlew :app:testFullDebugUnitTest --tests '*NpScreensTest*' -PlivetvBuildNumber=1 -PlivetvVersionName=screens --stacktrace 2>&1 | tee screens.log
+          exit ${PIPESTATUS[0]}
+      - name: Errors
+        if: failure()
+        run: grep -E "e: |FAILED|Exception|What went wrong" -A3 screens.log | head -80
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: np-screens
+          path: |
+            app/build/np-screens/*.png
+            app/build/reports/tests/

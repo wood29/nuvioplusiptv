@@ -365,6 +365,8 @@ android {
 
     testOptions {
         unitTests.isReturnDefaultValues = true
+        // Nuvio Plus: screen pictures rendered in tests (NpScreensTest) need the app's resources.
+        unitTests.isIncludeAndroidResources = true
     }
 }
 
@@ -669,6 +671,10 @@ dependencies {
     testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.8.1")
     testImplementation("io.mockk:mockk:1.13.12")
     testImplementation("com.squareup.okhttp3:mockwebserver:5.3.2")
+    // Nuvio Plus: rendering screens to pictures in tests (NpScreensTest).
+    testImplementation("org.robolectric:robolectric:4.16")
+    testImplementation(platform(libs.androidx.compose.bom))
+    testImplementation(libs.androidx.compose.ui.test.junit4)
     debugImplementation("androidx.compose.ui:ui-tooling")
     debugImplementation(libs.androidx.compose.ui.test.manifest)
 }
