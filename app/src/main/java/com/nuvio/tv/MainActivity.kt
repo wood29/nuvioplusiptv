@@ -2912,6 +2912,14 @@ private fun TopMenuScaffold(
     }
 
     BackHandler(enabled = onRoot && !(menuOpen || barFocused)) { focusBar() }
+    androidx.compose.runtime.DisposableEffect(Unit) {
+        com.nuvio.tv.ui.components.NpBannerState.topBarOn.value = true
+        com.nuvio.tv.ui.components.NpBannerState.onUp = { focusBar(); true }
+        onDispose {
+            com.nuvio.tv.ui.components.NpBannerState.topBarOn.value = false
+            com.nuvio.tv.ui.components.NpBannerState.onUp = null
+        }
+    }
     // Just switched on in Settings: open it once so the change is visible.
     LaunchedEffect(Unit) {
         if (com.nuvio.tv.ui.components.NpBannerState.openTopBar.value) {
@@ -2970,7 +2978,7 @@ private fun TopMenuScaffold(
                             Brush.verticalGradient(listOf(Color.Black.copy(alpha = 0.85f), Color.Black.copy(alpha = 0.55f), Color.Transparent))
                         ) else Modifier
                     )
-                    .padding(top = 20.dp, bottom = 28.dp),
+                    .padding(top = 14.dp, bottom = 22.dp),
                 contentAlignment = Alignment.TopCenter
             ) {
                 Row(
@@ -3010,14 +3018,14 @@ private fun TopMenuScaffold(
                                     navigateToDrawerRoute(navController, currentRoute, item.route)
                                     backToPage()
                                 }
-                                .padding(horizontal = 18.dp, vertical = 9.dp),
+                                .padding(horizontal = 14.dp, vertical = 6.dp),
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.spacedBy(6.dp)
                         ) {
                             Text(
                                 text = item.label,
                                 color = fg,
-                                style = androidx.tv.material3.MaterialTheme.typography.titleSmall.copy(fontSize = 16.sp, fontWeight = FontWeight.SemiBold),
+                                style = androidx.tv.material3.MaterialTheme.typography.titleSmall.copy(fontSize = 14.sp, fontWeight = FontWeight.SemiBold),
                                 maxLines = 1
                             )
                             if (item.badge) Box(Modifier.size(7.dp).clip(RoundedCornerShape(50)).background(Color(0xFFE53935)))

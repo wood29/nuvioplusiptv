@@ -27,6 +27,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -189,7 +190,8 @@ private fun NpFeaturedBanner(
                 lastKeyAt = System.currentTimeMillis()
                 when (e.key) {
                     Key.DirectionDown -> { onDown(); true }
-                    Key.DirectionUp -> keepUp
+                    // Top-bar menu: Up from the banner goes into the bar.
+                    Key.DirectionUp -> if (NpBannerState.onUp?.invoke() == true) true else keepUp
                     else -> false
                 }
             }
@@ -225,7 +227,10 @@ private fun NpFeaturedBanner(
                 .widthIn(max = 520.dp),
             verticalArrangement = Arrangement.spacedBy(7.dp)
         ) {
-            Text(label.uppercase(), color = Color(0xFF7FD18B), fontSize = 12.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.5.sp)
+            // With the top-bar menu the bar sits where this line would be.
+            if (!NpBannerState.topBarOn.collectAsState().value) {
+                Text(label.uppercase(), color = com.nuvio.tv.ui.theme.NuvioTheme.colors.Secondary, fontSize = 12.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.5.sp)
+            }
             if (!item.logo.isNullOrBlank()) {
                 AsyncImage(
                     model = item.logo,
@@ -308,4 +313,8 @@ object NpBannerState {
     val showing = kotlinx.coroutines.flow.MutableStateFlow(false)
     /** Set when the top bar was just turned on in Settings: it opens once so you see it. */
     val openTopBar = kotlinx.coroutines.flow.MutableStateFlow(false)
+    /** The top-bar menu is in use. */
+    val topBarOn = kotlinx.coroutines.flow.MutableStateFlow(false)
+    /** Set by the top-bar menu: Up from the banner opens it (returns true when it did). */
+    @Volatile var onUp: (() -> Boolean)? = null
 }
