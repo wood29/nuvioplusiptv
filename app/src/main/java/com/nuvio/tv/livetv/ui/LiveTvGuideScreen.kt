@@ -5060,7 +5060,7 @@ private fun ChannelListRow(
         else liveCellColors(focused = rowFocused, idle = guideSurface())
     val playingMark = isPlaying && settings.markPlayingChannel && !reorderMode && !moving
     val dim = colors.text.copy(alpha = 0.62f)
-    val accent = if (nowSeenLook()) NOWSEEN_ACCENT else NuvioTheme.colors.Secondary
+    val accent = NuvioTheme.colors.Secondary
     val onNow = remember(programs, now / 60_000L) { programs.firstOrNull { now >= it.startMs && now < it.stopMs } }
     val shown = focusedProgram ?: onNow
     val next = remember(programs, shown) { shown?.let { s -> programs.firstOrNull { it.startMs >= s.stopMs } } }
@@ -5231,7 +5231,7 @@ private fun ChoiceChip(label: String, filled: Boolean, onClick: () -> Unit) {
                     else -> Color.Transparent
                 }
             )
-            .border(1.dp, if (filled && !focused) NOWSEEN_ACCENT else Color.White.copy(alpha = if (focused) 0f else 0.16f), shape)
+            .border(1.dp, if (filled && !focused) NuvioTheme.colors.Secondary else Color.White.copy(alpha = if (focused) 0f else 0.16f), shape)
             .onFocusChanged { focused = it.isFocused }
             .clickable(interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() }, indication = null, onClick = onClick)
             .padding(horizontal = 16.dp, vertical = 6.dp),
@@ -5362,7 +5362,7 @@ private fun NowSeenHeader(
                         ProgressBar(
                             fraction = ((now - block.startMs).toFloat() / (block.stopMs - block.startMs).coerceAtLeast(1)).coerceIn(0f, 1f),
                             modifier = Modifier.width(300.dp),
-                            color = NOWSEEN_ACCENT,
+                            color = NuvioTheme.colors.Secondary,
                             trackColor = Color.White.copy(alpha = 0.14f)
                         )
                         Spacer(Modifier.width(14.dp))

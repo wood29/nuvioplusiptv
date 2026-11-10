@@ -608,4 +608,9 @@ private fun AppTheme.localizedName(): String = when (this) {
     AppTheme.ROSE -> stringResource(R.string.theme_color_rose)
     AppTheme.WHITE -> stringResource(R.string.theme_color_white)
     AppTheme.NOWSEEN -> "NowSeen"
+    AppTheme.TIVIMATE -> "TiviMate Classic"
+    AppTheme.PLEX_AMBER -> "Plex Amber"
+    AppTheme.CINEMA -> "Cinema"
+    AppTheme.GLASS -> "Apple TV Glass"
+    AppTheme.ALPINE -> "Alpine"
 }

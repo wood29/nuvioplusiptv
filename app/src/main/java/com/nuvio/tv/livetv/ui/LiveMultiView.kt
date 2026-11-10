@@ -264,7 +264,7 @@ private fun Tile(
             LiveText("${channel.number}  ${channel.name}", color = Color.White, size = 14.sp, weight = FontWeight.SemiBold)
             if (hasSound) {
                 Spacer(Modifier.padding(start = 8.dp))
-                LiveText("♪", color = NOWSEEN_ACCENT, size = 14.sp, weight = FontWeight.Bold)
+                LiveText("♪", color = com.nuvio.tv.ui.theme.NuvioTheme.colors.Secondary, size = 14.sp, weight = FontWeight.Bold)
             }
         }
     }

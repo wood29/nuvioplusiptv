@@ -115,6 +115,106 @@ object ThemeColors {
         playerOverlay = Color(0xD90A0D12)
     )
 
+    /** Nuvio Plus: TiviMate's look: dark grey, a blue highlight. */
+    val TiviMateClassic = ThemeColorPalette(
+        secondary = Color(0xFF2F80ED),
+        secondaryVariant = Color(0xFF1E63C4),
+        onSecondary = Color.White,
+        onSecondaryVariant = Color.White,
+        focusRing = Color(0xFF6AA8FF),
+        focusBackground = Color(0xFF1E2A3A),
+        background = Color(0xFF121417),
+        backgroundElevated = Color(0xFF1A1D21),
+        backgroundCard = Color(0xFF1E2226),
+        surface = Color(0xFF1A1D21),
+        surfaceVariant = Color(0xFF262B31),
+        panel = Color(0xFF16191C),
+        field = Color(0xFF20242A),
+        menu = Color(0xFF1A1D21),
+        modal = Color(0xFF16191C),
+        playerOverlay = Color(0xD9121417)
+    )
+
+    /** Nuvio Plus: Plex's warm look: charcoal, an amber highlight. */
+    val PlexAmber = ThemeColorPalette(
+        secondary = Color(0xFFE5A00D),
+        secondaryVariant = Color(0xFFC2860A),
+        onSecondary = Color(0xFF151515),
+        onSecondaryVariant = Color(0xFF151515),
+        focusRing = Color(0xFFF2F2F2),
+        focusBackground = Color(0xFF2A2620),
+        background = Color(0xFF121212),
+        backgroundElevated = Color(0xFF1B1B1B),
+        backgroundCard = Color(0xFF202020),
+        surface = Color(0xFF1B1B1B),
+        surfaceVariant = Color(0xFF2A2A2A),
+        panel = Color(0xFF161616),
+        field = Color(0xFF232323),
+        menu = Color(0xFF1B1B1B),
+        modal = Color(0xFF161616),
+        playerOverlay = Color(0xD9121212)
+    )
+
+    /** Nuvio Plus: Cinema: pure black, a red highlight (most contrast for films). */
+    val Cinema = ThemeColorPalette(
+        secondary = Color(0xFFE50914),
+        secondaryVariant = Color(0xFFB20710),
+        onSecondary = Color.White,
+        onSecondaryVariant = Color.White,
+        focusRing = Color(0xFFF5F5F5),
+        focusBackground = Color(0xFF2A1416),
+        background = Color(0xFF000000),
+        backgroundElevated = Color(0xFF0E0E0E),
+        backgroundCard = Color(0xFF141414),
+        surface = Color(0xFF0E0E0E),
+        surfaceVariant = Color(0xFF1C1C1C),
+        panel = Color(0xFF0A0A0A),
+        field = Color(0xFF161616),
+        menu = Color(0xFF0E0E0E),
+        modal = Color(0xFF0A0A0A),
+        playerOverlay = Color(0xD9000000)
+    )
+
+    /** Nuvio Plus: Apple TV Glass: light cool greys over the picture, white focus, Apple's blue highlight. */
+    val Glass = ThemeColorPalette(
+        secondary = Color(0xFF0A84FF),
+        secondaryVariant = Color(0xFF0066CC),
+        onSecondary = Color.White,
+        onSecondaryVariant = Color.White,
+        focusRing = Color(0xFFFFFFFF),
+        focusBackground = Color(0xFF3A3F48),
+        background = Color(0xFF16181D),
+        backgroundElevated = Color(0xFF22252C),
+        backgroundCard = Color(0xFF282C34),
+        surface = Color(0xFF22252C),
+        surfaceVariant = Color(0xFF30353E),
+        panel = Color(0xE01C1F25),
+        field = Color(0xFF2A2E36),
+        menu = Color(0xE622252C),
+        modal = Color(0xEB1C1F25),
+        playerOverlay = Color(0xB316181D)
+    )
+
+    /** Nuvio Plus: Alpine: deep blue-green with a soft lake-blue highlight. */
+    val Alpine = ThemeColorPalette(
+        secondary = Color(0xFF6FC3DF),
+        secondaryVariant = Color(0xFF4FA6C4),
+        onSecondary = Color(0xFF08151A),
+        onSecondaryVariant = Color(0xFF08151A),
+        focusRing = Color(0xFFE8F4F6),
+        focusBackground = Color(0xFF173238),
+        background = Color(0xFF0B1416),
+        backgroundElevated = Color(0xFF102022),
+        backgroundCard = Color(0xFF132527),
+        surface = Color(0xFF102022),
+        surfaceVariant = Color(0xFF1A3033),
+        panel = Color(0xFF0D1A1C),
+        field = Color(0xFF142729),
+        menu = Color(0xFF102022),
+        modal = Color(0xFF0D1A1C),
+        playerOverlay = Color(0xD90B1416)
+    )
+
     fun getColorPalette(
         theme: AppTheme,
         customColors: CustomThemeColors = CustomThemeColors.Default
@@ -134,6 +234,11 @@ object ThemeColors {
             AppTheme.ROSE -> Rose
             AppTheme.WHITE -> White
             AppTheme.NOWSEEN -> NowSeen
+            AppTheme.TIVIMATE -> TiviMateClassic
+            AppTheme.PLEX_AMBER -> PlexAmber
+            AppTheme.CINEMA -> Cinema
+            AppTheme.GLASS -> Glass
+            AppTheme.ALPINE -> Alpine
         }
     }
 }

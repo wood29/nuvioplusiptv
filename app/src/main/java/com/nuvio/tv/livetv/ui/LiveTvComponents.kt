@@ -78,7 +78,7 @@ internal val LocalLiveSolidHighlight = staticCompositionLocalOf { false }
 /** Nuvio Plus: the NowSeen theme is on (white highlight pills, navy backdrop, channel list). */
 @Composable
 @androidx.compose.runtime.ReadOnlyComposable
-internal fun nowSeenLook(): Boolean = com.nuvio.tv.ui.theme.LocalAppTheme.current == com.nuvio.tv.domain.model.AppTheme.NOWSEEN
+internal fun nowSeenLook(): Boolean = com.nuvio.tv.ui.theme.LocalAppTheme.current.isNuvioPlus
 
 /** The NowSeen accent: progress bars and the group you're in. */
 internal val NOWSEEN_ACCENT = Color(0xFF7FD18B)
@@ -274,7 +274,7 @@ private fun backdropBlobs(styleKey: String): List<Blob> {
 internal fun resolveBackdrop(style: String): String {
     val key = GuideBackdrops.normalize(style)
     if (key != "auto") return key
-    if (nowSeenLook()) return "nowseen"
+    if (com.nuvio.tv.ui.theme.LocalAppTheme.current == com.nuvio.tv.domain.model.AppTheme.NOWSEEN) return "nowseen"
     val c = NuvioTheme.colors
     val a = androidx.compose.ui.graphics.lerp(c.Secondary, Color.Black, 0.25f)
     val b = androidx.compose.ui.graphics.lerp(c.SecondaryVariant, Color.Black, 0.25f)

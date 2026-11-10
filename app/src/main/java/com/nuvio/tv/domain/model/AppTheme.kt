@@ -15,5 +15,14 @@ enum class AppTheme(val displayName: String) {
     ROSE("Rose"),
     WHITE("White"),
     /** Nuvio Plus: the NowSeen look — deep navy, white highlight pills. */
-    NOWSEEN("NowSeen")
+    NOWSEEN("NowSeen"),
+    /** Nuvio Plus themes, built on the NowSeen layout with their own colours. */
+    TIVIMATE("TiviMate Classic"),
+    PLEX_AMBER("Plex Amber"),
+    CINEMA("Cinema"),
+    GLASS("Apple TV Glass"),
+    ALPINE("Alpine");
+
+    /** Nuvio Plus: themes that use the NowSeen layout (guide header, list, banner). */
+    val isNuvioPlus: Boolean get() = this == NOWSEEN || this == TIVIMATE || this == PLEX_AMBER || this == CINEMA || this == GLASS || this == ALPINE
 }

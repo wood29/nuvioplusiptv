@@ -2088,7 +2088,7 @@ private fun SimpleAgenda(
     onOptions: (CalendarEntry) -> Unit
 ) {
     val theme = NuvioTheme.colors
-    val accent = if (com.nuvio.tv.livetv.ui.nowSeenLook()) com.nuvio.tv.livetv.ui.NOWSEEN_ACCENT else theme.Secondary
+    val accent = theme.Secondary
     val today = LocalDate.now()
     val upcoming = entries
         .filter { !it.day.isBefore(today) && whenOf(it) + (it.runtimeMin ?: 30) * 60_000L > now && !it.day.isAfter(today.plusDays(14)) }
