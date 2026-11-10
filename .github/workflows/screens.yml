@@ -7,6 +7,9 @@ on:
     branches: [ screens ]
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
   render:
     runs-on: ubuntu-latest
@@ -33,6 +36,19 @@ jobs:
         if: failure()
         run: |
           grep -E "e: |FAILED|Exception|What went wrong" -A3 screens.log | head -80
+      - name: Test failures
+        if: always()
+        run: |
+          for f in app/build/test-results/testFullDebugUnitTest/*NpScreens*.xml; do grep -A25 "<failure" "$f" | head -60; done || true
+      - name: Publish pictures to the np-screens-out branch
+        if: always()
+        run: |
+          mkdir -p /tmp/out && cp app/build/np-screens/*.png /tmp/out/ 2>/dev/null || true
+          cd /tmp/out && ls -la
+          git init -q && git checkout -q -b np-screens-out
+          git config user.name "screens" && git config user.email "screens@users.noreply.github.com"
+          git add -A && git commit -qm "Screens for ${GITHUB_SHA}" || exit 0
+          git push -qf "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${GITHUB_REPOSITORY}.git" np-screens-out
       - uses: actions/upload-artifact@v4
         if: always()
         with:
