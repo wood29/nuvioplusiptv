@@ -698,7 +698,7 @@ class OnDemandDatabase @Inject constructor(@ApplicationContext private val appCo
         private val PREFIX = Regex("""^(\[[^\]]*\]|\|[^|]*\||[A-Z]{2,4}\s*[-|:]\s+)+""")
         // Built once: building a pattern is slow, and these run for every title on screen.
         private val YEAR_IN_BRACKETS_TRAIL = Regex("""\s*\((19|20)\d{2}\)""")
-        private val YEAR_AT_END = Regex("""\s*[-|]\s*(19|20)\d{2}\s*$""")
+        private val YEAR_AT_END = Regex("""\s*[-–—|:]\s*\(?(19|20)\d{2}\)?\s*$""")
         private val QUALITY_AT_END = Regex("""(?i)\s*[\[(]?\b(4k|uhd|fhd|hd|sd|1080p|720p|2160p|hdr|multi|multi-?sub|vostfr|dub|sub)\b[\])]?\s*$""")
         private val YEAR_WORD = Regex("""(19|20)\d{2}""")
         private val YEAR_ANYWHERE = Regex("""\b(19|20)\d{2}\b""")

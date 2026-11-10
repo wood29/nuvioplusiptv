@@ -21,6 +21,8 @@ import kotlinx.coroutines.launch
 internal object NpHomeRecommendations {
     const val CATALOG_ID = "np-recommended"
     val row = MutableStateFlow<CatalogRow?>(null)
+    /** The featured banner at the top of Home: recommendations with a wide backdrop, logo and description. */
+    val banner = MutableStateFlow<List<MetaPreview>>(emptyList())
     @Volatile var basis: String? = null
 }
 
@@ -76,6 +78,21 @@ internal fun HomeViewModel.observeNpRecommendationsPipeline() {
                     hasMore = false
                 )
                 updateCatalogRowsPipeline()
+                // The banner: the first recommendations that have a wide backdrop, with their
+                // logo and description from TMDB.
+                val featured = items.filter { !it.background.isNullOrBlank() }.take(8).map { m ->
+                    val id = m.id.removePrefix("tmdb:")
+                    val e = runCatching { tmdbMetadataService.fetchEnrichment(tmdbId = id, contentType = m.type) }.getOrNull()
+                    if (e == null) m else m.copy(
+                        logo = e.logo ?: m.logo,
+                        background = e.backdrop ?: m.background,
+                        description = e.description ?: m.description,
+                        genres = e.genres.takeIf { it.isNotEmpty() } ?: m.genres,
+                        imdbRating = e.rating?.toFloat() ?: m.imdbRating,
+                        releaseInfo = e.releaseInfo ?: m.releaseInfo
+                    )
+                }
+                NpHomeRecommendations.banner.value = featured
             }
     }
 }

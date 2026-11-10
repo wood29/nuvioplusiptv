@@ -222,6 +222,26 @@ interface TmdbApi {
         @Query("page") page: Int = 1
     ): Response<TmdbListDetailsResponse>
 
+    /** Nuvio Plus: find a movie by its name (and year), for provider titles without a TMDB id. */
+    @GET("search/movie")
+    suspend fun searchMovies(
+        @Query("api_key") apiKey: String,
+        @Query("query") query: String,
+        @Query("year") year: Int? = null,
+        @Query("language") language: String? = null,
+        @Query("include_adult") includeAdult: Boolean = false
+    ): Response<TmdbRecommendationsResponse>
+
+    /** Nuvio Plus: find a TV show by its name (and first-air year). */
+    @GET("search/tv")
+    suspend fun searchTv(
+        @Query("api_key") apiKey: String,
+        @Query("query") query: String,
+        @Query("first_air_date_year") year: Int? = null,
+        @Query("language") language: String? = null,
+        @Query("include_adult") includeAdult: Boolean = false
+    ): Response<TmdbRecommendationsResponse>
+
     @GET("search/company")
     suspend fun searchCompanies(
         @Query("api_key") apiKey: String,

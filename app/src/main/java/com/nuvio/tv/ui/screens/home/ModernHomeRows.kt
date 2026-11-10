@@ -1096,6 +1096,11 @@ private fun ModernCarouselCard(
     onTrailerEnded: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    // Nuvio Plus: a title with only a tall poster (no wide backdrop or landscape art) stays
+    // poster-shaped when highlighted: widening it cropped the poster (half a face).
+    val canExpandWide = useLandscapeOverlayTreatment || item.metaPreview == null ||
+        !item.metaPreview?.background.isNullOrBlank() || !item.metaPreview?.landscapePoster.isNullOrBlank()
+    val expandedHere = isBackdropExpanded && canExpandWide
     val cardShape = remember(cardCornerRadius) { RoundedCornerShape(cardCornerRadius) }
     val cardDepthStyle = LocalCardDepthStyle.current
     val context = LocalContext.current
@@ -1105,7 +1110,7 @@ private fun ModernCarouselCard(
     } else {
         cardHeight * (16f / 9f)
     }
-    val targetCardWidth = if (focusedPosterBackdropExpandEnabled && isBackdropExpanded) {
+    val targetCardWidth = if (focusedPosterBackdropExpandEnabled && expandedHere) {
         expandedCardWidth
     } else {
         cardWidth
@@ -1156,10 +1161,10 @@ private fun ModernCarouselCard(
     val payload = item.payload as? ModernPayload.CollectionFolder
     val isCollectionFolder = item.payload is ModernPayload.CollectionFolder
     val effectiveIgnoreLandscapePoster = alwaysShowLandscapeClearlogo
-    val useLandscapeAsExpanded = focusedPosterBackdropExpandEnabled && isBackdropExpanded &&
+    val useLandscapeAsExpanded = focusedPosterBackdropExpandEnabled && expandedHere &&
         !alwaysShowLandscapeClearlogo &&
         !item.metaPreview?.landscapePoster.isNullOrBlank()
-    val baseImageUrl = if (focusedPosterBackdropExpandEnabled && isBackdropExpanded) {
+    val baseImageUrl = if (focusedPosterBackdropExpandEnabled && expandedHere) {
         if (useLandscapeOverlayTreatment) {
             if (effectiveIgnoreLandscapePoster) {
                 effectiveBackdropUrl ?: item.heroPreview.backdrop ?: item.imageUrl ?: item.heroPreview.poster
@@ -1266,12 +1271,12 @@ private fun ModernCarouselCard(
     // requests efficiently without needing scroll-aware request swapping.
     val hasImage = !imageUrl.isNullOrBlank()
     val hasLandscapeLogo =
-        (useLandscapeOverlayTreatment || isBackdropExpanded) &&
+        (useLandscapeOverlayTreatment || expandedHere) &&
             !isCollectionFolder &&
             !effectiveLogoUrl.isNullOrBlank() &&
             !landscapeLogoLoadFailed &&
             !(useLandscapeAsExpanded && !trailerFirstFrameRendered) &&
-            (effectiveIgnoreLandscapePoster || isBackdropExpanded || item.metaPreview?.landscapePoster.isNullOrBlank() || customPosterLoadFailed)
+            (effectiveIgnoreLandscapePoster || expandedHere || item.metaPreview?.landscapePoster.isNullOrBlank() || customPosterLoadFailed)
     var longPressTriggered by remember { mutableStateOf(false) }
     val longPressKeyTracker = rememberLongPressKeyTracker()
     val backgroundCardColor = NuvioTheme.colors.BackgroundCard
@@ -1496,7 +1501,7 @@ private fun ModernCarouselCard(
                         contentScale = ContentScale.Fit,
                         alignment = Alignment.CenterStart
                     )
-                } else if ((useLandscapeOverlayTreatment || isBackdropExpanded) && !isCollectionFolder && !(useLandscapeAsExpanded && !trailerFirstFrameRendered) && (effectiveIgnoreLandscapePoster || item.metaPreview?.landscapePoster.isNullOrBlank() || customPosterLoadFailed)) {
+                } else if ((useLandscapeOverlayTreatment || expandedHere) && !isCollectionFolder && !(useLandscapeAsExpanded && !trailerFirstFrameRendered) && (effectiveIgnoreLandscapePoster || item.metaPreview?.landscapePoster.isNullOrBlank() || customPosterLoadFailed)) {
                     Text(
                         text = item.title,
                         style = titleStyle.copy(
@@ -1523,7 +1528,7 @@ private fun ModernCarouselCard(
             }
         }
 
-        if (showLabels && !isBackdropExpanded && item.title.isNotBlank()) {
+        if (showLabels && !expandedHere && item.title.isNotBlank()) {
             Column(
                 modifier = Modifier
                     .fillMaxWidth()

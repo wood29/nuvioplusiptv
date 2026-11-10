@@ -131,8 +131,11 @@ class OnDemandViewModel @Inject constructor(
      * the top was the tall poster stretched wide.
      */
     private suspend fun tmdbMetaById(item: VodItem): com.nuvio.tv.domain.model.MetaPreview? {
-        val id = item.tmdbId?.takeIf { it.isNotBlank() } ?: return null
         val type = if (item.kind == VodKind.SERIES) com.nuvio.tv.domain.model.ContentType.SERIES else com.nuvio.tv.domain.model.ContentType.MOVIE
+        // The provider's TMDB id, else a TMDB search by the cleaned-up name and year.
+        val id = item.tmdbId?.takeIf { it.isNotBlank() }
+            ?: runCatching { tmdbMetadata.searchTmdbId(OnDemandDatabase.displayTitle(item.name), item.year, type) }.getOrNull()
+            ?: return null
         val e = runCatching { tmdbMetadata.fetchEnrichment(tmdbId = id, contentType = type) }.getOrNull() ?: return null
         return com.nuvio.tv.domain.model.MetaPreview(
             id = "tmdb:$id",
@@ -763,7 +766,7 @@ class OnDemandViewModel @Inject constructor(
         val day = (System.currentTimeMillis() / 86_400_000L).toInt()
         val picked = pool.shuffled(java.util.Random(day.toLong())).take(12)
         return VodHomeIds.row(
-            uid = FEATURED_UID,
+            uid = VodHomeIds.FEATURED_UID,
             name = "Featured",
             kind = picked.first().kind,
             items = picked.map { item ->
@@ -1102,8 +1105,6 @@ class OnDemandViewModel @Inject constructor(
 
     private companion object {
         const val FIRST_ROWS = 6
-        /** The Featured row's id (not a provider group). */
-        const val FEATURED_UID = "np:featured"
         /** Nuvio Plus: the section last picked (Movies first until you pick another). */
         @Volatile var lastSection: VodKind? = OnDemandHomeTab.last
         /** Nuvio Plus: groups read at a time as you scroll down the page. */

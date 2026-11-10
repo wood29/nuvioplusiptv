@@ -183,24 +183,34 @@ internal fun ModernHeroMediaLayer(
                     }
             ) {
                 if (portrait) {
-                    if (android.os.Build.VERSION.SDK_INT >= 31) AsyncImage(
-                        model = model,
-                        contentDescription = null,
-                        modifier = Modifier.fillMaxSize().blur(48.dp),
-                        contentScale = ContentScale.Crop,
-                        alpha = 0.45f
-                    )
+                    // The poster's own colours as a soft wash: the poster loaded tiny and
+                    // stretched (a blur that works on every TV box, unlike blur effects).
+                    val washModel = remember(displayedBackdrop) {
+                        displayedBackdrop?.let { ImageRequest.Builder(localContext).data(it).size(12, 18).build() }
+                    }
                     AsyncImage(
-                        model = model,
+                        model = washModel,
                         contentDescription = null,
-                        modifier = Modifier
-                            .align(Alignment.CenterEnd)
-                            .fillMaxHeight(0.78f)
-                            .padding(end = 120.dp)
-                            .aspectRatio(2f / 3f, matchHeightConstraintsFirst = true)
-                            .clip(androidx.compose.foundation.shape.RoundedCornerShape(18.dp)),
-                        contentScale = ContentScale.Crop
+                        modifier = Modifier.fillMaxSize(),
+                        contentScale = ContentScale.Crop,
+                        alpha = 0.55f
                     )
+                    // The whole poster, at its own shape, in the top right (clear of the rows
+                    // and the buttons at the top).
+                    androidx.compose.foundation.layout.BoxWithConstraints(Modifier.fillMaxSize()) {
+                        val posterHeight = (maxHeight * 0.44f).coerceAtMost(440.dp)
+                        AsyncImage(
+                            model = model,
+                            contentDescription = null,
+                            modifier = Modifier
+                                .align(Alignment.TopEnd)
+                                .padding(top = 84.dp, end = 120.dp)
+                                .height(posterHeight)
+                                .aspectRatio(2f / 3f)
+                                .clip(androidx.compose.foundation.shape.RoundedCornerShape(16.dp)),
+                            contentScale = ContentScale.Crop
+                        )
+                    }
                 } else {
                     AsyncImage(
                         model = model,

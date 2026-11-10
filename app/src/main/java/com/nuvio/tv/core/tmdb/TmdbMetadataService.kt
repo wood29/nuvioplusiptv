@@ -657,6 +657,31 @@ class TmdbMetadataService(
         }
     }
 
+    /**
+     * Nuvio Plus: TMDB's id for a title known only by name (and year): the first search result
+     * whose name matches (ignoring case and punctuation) and whose year is within one of [year].
+     * Null when nothing matches well, so a wrong title's pictures are never used.
+     */
+    suspend fun searchTmdbId(title: String, year: Int?, contentType: ContentType): String? = withContext(ioDispatcher) {
+        val norm = { s: String? -> s.orEmpty().lowercase().replace(Regex("[^\\p{L}\\p{N}]+"), "") }
+        val want = norm(title)
+        if (want.isBlank()) return@withContext null
+        val tv = contentType == ContentType.SERIES || contentType == ContentType.TV
+        val results = runCatching {
+            if (tv) tmdbApi.searchTv(TMDB_API_KEY, title, year).body()?.results
+            else tmdbApi.searchMovies(TMDB_API_KEY, title, year).body()?.results
+        }.getOrNull().orEmpty()
+        val retry = if (results.isEmpty() && year != null) runCatching {
+            if (tv) tmdbApi.searchTv(TMDB_API_KEY, title, null).body()?.results
+            else tmdbApi.searchMovies(TMDB_API_KEY, title, null).body()?.results
+        }.getOrNull().orEmpty() else results
+        retry.firstOrNull { r ->
+            val names = listOf(r.title, r.name, r.originalTitle, r.originalName).map(norm)
+            val y = (r.releaseDate ?: r.firstAirDate)?.take(4)?.toIntOrNull()
+            want in names && (year == null || y == null || kotlin.math.abs(y - year) <= 1)
+        }?.id?.toString()
+    }
+
     suspend fun fetchMoreLikeThis(
         tmdbId: String,
         contentType: ContentType,

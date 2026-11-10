@@ -682,6 +682,27 @@ private fun ModernHomeRoute(
             viewModel.preloadAdjacentItem(item)
         }
     }
+    // Nuvio Plus: the featured banner at the top (recommendations; else titles from your rows
+    // that have a wide backdrop), over Home's rows until you press Down.
+    val bannerRecs by NpHomeRecommendations.banner.collectAsStateWithLifecycle()
+    val bannerItems = remember(bannerRecs, uiState.catalogRows) {
+        bannerRecs.ifEmpty {
+            uiState.catalogRows.flatMap { it.items.take(4) }
+                .filter { !it.background.isNullOrBlank() }
+                .distinctBy { it.id }
+                .take(8)
+        }
+    }
+    com.nuvio.tv.ui.components.NpFeaturedBannerHost(
+        items = bannerItems,
+        focusedRowKey = { viewModel.liveFocusedRowKey },
+        liveRowFocused = { com.nuvio.tv.livetv.home.LiveTvHomeFocus.rowHasFocus },
+        label = if (bannerRecs.isNotEmpty()) "Recommended for you" else "Featured",
+        onOpen = { m -> onNavigateToDetail(m.id, m.apiType, "") },
+        onWatchlist = { m -> viewModel.togglePosterLibrary(m, null) },
+        inWatchlist = { m -> uiState.posterLibraryMembership[homeItemStatusKey(m.id, m.apiType)] == true },
+        onShown = { m -> viewModel.refreshPosterLibraryStatus(m) }
+    ) {
     ModernHomeContent(
         uiState = uiState,
         modernPresentation = modernPresentation,
@@ -718,6 +739,7 @@ private fun ModernHomeRoute(
             { catalogKey: String -> viewModel.requestLazyCatalogLoad(catalogKey) }
         }
     )
+    }
 }
 
 @OptIn(ExperimentalTvMaterial3Api::class)

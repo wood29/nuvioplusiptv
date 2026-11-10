@@ -29,6 +29,9 @@ data class VodGroupEntry(
 
 /** Ids and markers that tie Nuvio's rows and cards back to On Demand. */
 object VodHomeIds {
+    /** Nuvio Plus: the Featured titles' row id (shown as the banner at the top, not as a row). */
+    const val FEATURED_UID = "np:featured"
+
     const val ADDON_ID = "nuvio-iptv-on-demand"
     private const val PREFIX = "nuviovod:"
 

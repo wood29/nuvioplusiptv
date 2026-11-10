@@ -161,7 +161,14 @@ fun OnDemandHomeScreen(
         else -> kind
     }
     val wantedType = if (shownKind == VodKind.SERIES) com.nuvio.tv.domain.model.ContentType.SERIES else com.nuvio.tv.domain.model.ContentType.MOVIE
-    val rows = remember(state.rows, wantedType) { state.rows.filter { it.type == wantedType } }
+    // Nuvio Plus: Featured is the banner at the top (Modern layout), not a row.
+    val bannerItems = remember(state.rows) {
+        state.rows.firstOrNull { it.catalogId == VodHomeIds.FEATURED_UID }?.items.orEmpty()
+    }
+    val rows = remember(state.rows, wantedType, base.homeLayout) {
+        state.rows.filter { it.type == wantedType && !(base.homeLayout == HomeLayout.MODERN && it.catalogId == VodHomeIds.FEATURED_UID) }
+    }
+    var odFocusedRow by remember { mutableStateOf<String?>(null) }
     fun switchTo(k: VodKind) {
         if (k == kind) return
         OnDemandHomeTab.last = k
@@ -401,7 +408,13 @@ fun OnDemandHomeScreen(
                     onFocusedRowKeyChanged = {},
                     scrollToTopTrigger = 0
                 )
-                HomeLayout.MODERN -> ModernHomeContent(
+                HomeLayout.MODERN -> com.nuvio.tv.ui.components.NpFeaturedBannerHost(
+                    items = bannerItems,
+                    focusedRowKey = { odFocusedRow },
+                    label = if (shownKind == VodKind.SERIES) "Featured series" else "Featured movies",
+                    keepUp = false,
+                    onOpen = { m -> onNavigateToDetail(m.id, m.apiType, "") }
+                ) { ModernHomeContent(
                     uiState = ui,
                     modernPresentation = modernPresentation,
                     focusState = focusState,
@@ -431,10 +444,10 @@ fun OnDemandHomeScreen(
                             focusedRowIndex = ri, focusedItemIndex = ii, hasSavedFocus = true
                         )
                     },
-                    onFocusedRowKeyChanged = {},
+                    onFocusedRowKeyChanged = { odFocusedRow = it },
                     scrollToTopTrigger = 0,
                     onRequestLazyCatalogLoad = {}
-                )
+                ) }
             }
         }
 
