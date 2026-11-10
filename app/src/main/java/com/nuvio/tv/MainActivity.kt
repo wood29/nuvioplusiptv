@@ -78,6 +78,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.withFrameNanos
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -1335,7 +1336,20 @@ open class MainActivity : ComponentActivity() {
                                 LocalNavViewModelStoreOwner provides navViewModelStoreOwner,
                                 com.nuvio.tv.livetv.ui.LocalSideMenuFit provides liveTvSettingsNow.sideMenuFit
                             ) {
-                                if (modernSidebarEnabled) {
+                                if (liveTvSettingsNow.menuStyle == "TOP") {
+                                    TopMenuScaffold(
+                                        longPressBackHeld = longPressBackHeld,
+                                        navController = navController,
+                                        startDestination = startDestination,
+                                        currentRoute = currentRoute,
+                                        rootRoutes = rootRoutes,
+                                        drawerItems = drawerItems,
+                                        selectedDrawerRoute = selectedDrawerRoute,
+                                        onNavigate = { optimisticRoute = it },
+                                        onExitApp = handleExitApp,
+                                        onMenuOpenChange = { open -> sidebarOpenNow = open }
+                                    )
+                                } else if (modernSidebarEnabled) {
                                     ModernSidebarScaffold(
                                         longPressBackHeld = longPressBackHeld,
                                         navController = navController,
@@ -2842,4 +2856,143 @@ object LocaleCache {
 
     @Volatile
     var localeTag: String = UNSET
+}
+
+// -------------------------------------------------------------------- Nuvio Plus: the top-bar menu
+
+/**
+ * The menu as a bar of page names along the top (Settings → Menu → Menu Style → Top bar), like
+ * Apple TV. On Home it sits over the big picture while that shows and goes away in the rows; on
+ * other pages (and anywhere with Back) it comes down over the top of the page while you use it.
+ * Left/Right: move along it. OK: open that page. Down: back into the page. Back: leave the app.
+ */
+@Composable
+private fun TopMenuScaffold(
+    longPressBackHeld: MutableState<Boolean>,
+    navController: NavHostController,
+    startDestination: String,
+    currentRoute: String?,
+    rootRoutes: Set<String>,
+    drawerItems: List<DrawerItem>,
+    selectedDrawerRoute: String?,
+    onNavigate: (String) -> Unit,
+    onExitApp: () -> Unit,
+    onMenuOpenChange: (Boolean) -> Unit = {}
+) {
+    val liveTvFullscreen by com.nuvio.tv.livetv.ui.LiveTvFullscreen.active.collectAsState()
+    val bannerShowing by com.nuvio.tv.ui.components.NpBannerState.showing.collectAsState()
+    val onRoot = currentRoute in rootRoutes && !liveTvFullscreen
+    val items = remember(drawerItems) { drawerItems.filter { !it.isChild && !it.groupOpen } }
+    val requesters = remember(items) { items.associate { it.route to FocusRequester() } }
+    val contentFocusRequester = remember { FocusRequester() }
+    val focusManager = LocalFocusManager.current
+    val scope = rememberCoroutineScope()
+    var barFocused by remember { mutableStateOf(false) }
+    var menuOpen by remember { mutableStateOf(false) }
+    // On Home the bar shows over the big picture; elsewhere only while it's being used.
+    val showBar = onRoot && (menuOpen || barFocused || (currentRoute == Screen.Home.route && bannerShowing))
+
+    LaunchedEffect(currentRoute) { longPressBackHeld.value = false }
+    LaunchedEffect(menuOpen, barFocused) { onMenuOpenChange(menuOpen || barFocused) }
+
+    fun focusBar() {
+        menuOpen = true
+        scope.launch {
+            repeat(3) { withFrameNanos { } }
+            val target = requesters[selectedDrawerRoute] ?: requesters.values.firstOrNull()
+            runCatching { target?.requestFocus() }
+        }
+    }
+    fun backToPage() {
+        menuOpen = false
+        scope.launch {
+            repeat(2) { withFrameNanos { } }
+            if (!focusManager.moveFocus(FocusDirection.Down)) runCatching { contentFocusRequester.requestFocus() }
+        }
+    }
+
+    BackHandler(enabled = onRoot && !(menuOpen || barFocused)) { focusBar() }
+    BackHandler(enabled = onRoot && (menuOpen || barFocused)) {
+        if (longPressBackHeld.value) return@BackHandler
+        onExitApp()
+    }
+
+    Box(Modifier.fillMaxSize()) {
+        CompositionLocalProvider(
+            LocalSidebarExpanded provides (menuOpen || barFocused),
+            LocalContentFocusRequester provides contentFocusRequester,
+            LocalOpenSidebar provides { focusBar() }
+        ) {
+            NuvioNavHost(navController = navController, startDestination = startDestination, hideBuiltInHeaders = false)
+        }
+        AnimatedVisibility(
+            visible = showBar,
+            enter = androidx.compose.animation.fadeIn(tween(180)),
+            exit = androidx.compose.animation.fadeOut(tween(180)),
+            modifier = Modifier.align(Alignment.TopCenter)
+        ) {
+            Box(
+                Modifier.fillMaxWidth()
+                    .then(
+                        if (currentRoute != Screen.Home.route || !bannerShowing) Modifier.background(
+                            Brush.verticalGradient(listOf(Color.Black.copy(alpha = 0.85f), Color.Black.copy(alpha = 0.55f), Color.Transparent))
+                        ) else Modifier
+                    )
+                    .padding(top = 20.dp, bottom = 28.dp),
+                contentAlignment = Alignment.TopCenter
+            ) {
+                Row(
+                    Modifier
+                        .clip(RoundedCornerShape(50))
+                        .background(Color(0xFF10151D).copy(alpha = 0.78f))
+                        .padding(5.dp)
+                        .onFocusChanged { barFocused = it.hasFocus; if (!it.hasFocus) menuOpen = false }
+                        .onPreviewKeyEvent { k ->
+                            if (k.type == KeyEventType.KeyDown && k.key == Key.DirectionDown) { backToPage(); true } else false
+                        },
+                    horizontalArrangement = Arrangement.spacedBy(2.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    items.forEachIndexed { i, item ->
+                        var focused by remember { mutableStateOf(false) }
+                        val selected = item.route == selectedDrawerRoute
+                        val bg = when {
+                            focused -> Color(0xFFF2F4F8)
+                            selected -> Color.White.copy(alpha = 0.16f)
+                            else -> Color.Transparent
+                        }
+                        val fg = if (focused) Color(0xFF0A0D12) else if (selected) Color.White else Color(0xFFC3CAD7)
+                        Row(
+                            Modifier
+                                .focusRequester(requesters.getValue(item.route))
+                                .focusProperties {
+                                    if (i == 0) left = FocusRequester.Cancel
+                                    if (i == items.lastIndex) right = FocusRequester.Cancel
+                                    up = FocusRequester.Cancel
+                                }
+                                .onFocusChanged { focused = it.isFocused }
+                                .clip(RoundedCornerShape(50))
+                                .background(bg)
+                                .clickable {
+                                    onNavigate(item.route)
+                                    navigateToDrawerRoute(navController, currentRoute, item.route)
+                                    backToPage()
+                                }
+                                .padding(horizontal = 18.dp, vertical = 9.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            Text(
+                                text = item.label,
+                                color = fg,
+                                style = androidx.tv.material3.MaterialTheme.typography.titleSmall.copy(fontSize = 16.sp, fontWeight = FontWeight.SemiBold),
+                                maxLines = 1
+                            )
+                            if (item.badge) Box(Modifier.size(7.dp).clip(RoundedCornerShape(50)).background(Color(0xFFE53935)))
+                        }
+                    }
+                }
+            }
+        }
+    }
 }

@@ -384,6 +384,8 @@ data class LiveTvSettings(
     val sideMenuLine: Boolean = true,
     /** Side menu: draw everything a little smaller when the pages don't fit, instead of scrolling. */
     val sideMenuFit: Boolean = true,
+    /** Nuvio Plus: "SIDE" (the side menu) or "TOP" (a bar of page names at the top). */
+    val menuStyle: String = "SIDE",
     /** Calendar: your shows' next episodes in Home's Upcoming row. */
     val calendarUpcomingRow: Boolean = true,
     /** Calendar: a "new episode" card in Continue Watching for shows you rang the bell on. */

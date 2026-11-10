@@ -84,6 +84,10 @@ fun NpFeaturedBannerHost(
     content: @Composable () -> Unit
 ) {
     var showing by rememberSaveable { mutableStateOf(true) }
+    androidx.compose.runtime.DisposableEffect(showing) {
+        NpBannerState.showing.value = showing
+        onDispose { NpBannerState.showing.value = false }
+    }
     val scope = rememberCoroutineScope()
     val contentFocus = remember { FocusRequester() }
     val active = showing && items.isNotEmpty()
@@ -297,3 +301,9 @@ private fun BannerButton(text: String, modifier: Modifier, onClick: () -> Unit) 
 
 /** How much of the screen's height the banner takes (the rows start just below). */
 private const val BANNER_HEIGHT = 0.56f
+
+
+/** Nuvio Plus: whether a big banner is showing at the top (the top-bar menu shows over it). */
+object NpBannerState {
+    val showing = kotlinx.coroutines.flow.MutableStateFlow(false)
+}

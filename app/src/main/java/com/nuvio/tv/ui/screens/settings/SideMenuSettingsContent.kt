@@ -212,6 +212,12 @@ fun SideMenuSettingsContent(initialFocusRequester: FocusRequester? = null) {
             }
             item(key = "look") {
                 SettingsGroupCard(title = "How the Menu Looks") {
+                    SettingsActionRow(
+                        title = "Menu Style",
+                        subtitle = "Side menu: on the left, Back or Left opens it. Top bar: the page names along the top (on Home above the big picture; elsewhere Back shows it).",
+                        value = if (s.menuStyle == "TOP") "Top bar" else "Side menu",
+                        onClick = { update { it.copy(menuStyle = if (it.menuStyle == "TOP") "SIDE" else "TOP") } }
+                    )
                     SettingsToggleRow(
                         title = "Line Above Live TV",
                         subtitle = "The thin line between Nuvio's pages and the Live TV pages. Off: the pages sit a little closer together.",
