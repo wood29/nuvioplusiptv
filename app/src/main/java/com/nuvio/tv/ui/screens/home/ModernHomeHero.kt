@@ -198,7 +198,7 @@ internal fun ModernHeroMediaLayer(
                     // The whole poster, at its own shape, in the top right (clear of the rows
                     // and the buttons at the top).
                     androidx.compose.foundation.layout.BoxWithConstraints(Modifier.fillMaxSize()) {
-                        val posterHeight = (maxHeight * 0.44f).coerceAtMost(440.dp)
+                        val posterHeight = (maxHeight * 0.38f).coerceAtMost(400.dp)
                         AsyncImage(
                             model = model,
                             contentDescription = null,

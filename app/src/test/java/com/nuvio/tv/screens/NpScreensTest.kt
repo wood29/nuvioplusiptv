@@ -111,7 +111,8 @@ class NpScreensTest {
                 onWatchlist = {},
                 inWatchlist = { false }
             ) {
-                Column(Modifier.fillMaxSize().background(Color(0xFF0A0D12)).padding(40.dp)) {
+                // Like Home's rows: they start a little below the middle of the screen.
+                Column(Modifier.fillMaxSize().background(Color(0xFF0A0D12)).padding(start = 52.dp, top = 310.dp)) {
                     Text("Continue Watching", color = Color.White)
                     Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                         repeat(4) { Box(Modifier.size(200.dp, 112.dp).background(Color(0xFF2A3241))) }

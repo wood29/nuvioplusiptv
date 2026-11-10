@@ -796,6 +796,9 @@ class OnDemandDatabase @Inject constructor(@ApplicationContext private val appCo
                 .trim()
                 .trim('-', '–', '—', '|', ':', '.', '_', ' ')
             if (t.isBlank() || t.none { it.isLetterOrDigit() }) t = before
+            // Nuvio Plus: a year that was only at the end once tags after it went
+            // ("The Odyssey - 2026 [MULTI]" → "The Odyssey").
+            t = t.replace(YEAR_AT_END, "").replace(YEAR_IN_BRACKETS_TRAIL, "").trim().trim('-', '–', '—', '|', ':', ' ').ifBlank { t }
             return t.ifBlank { s.trim() }
         }
 

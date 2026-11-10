@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
@@ -103,7 +104,12 @@ fun NpFeaturedBannerHost(
             }
     ) {
         Box(Modifier.fillMaxSize().focusRequester(contentFocus).focusGroup()) { content() }
-        AnimatedVisibility(visible = active, enter = fadeIn(tween(250)), exit = fadeOut(tween(200))) {
+        AnimatedVisibility(
+            visible = active,
+            enter = fadeIn(tween(250)),
+            exit = fadeOut(tween(200)),
+            modifier = Modifier.align(Alignment.TopStart)
+        ) {
             NpFeaturedBanner(
                 items = items,
                 label = label,
@@ -166,9 +172,12 @@ private fun NpFeaturedBanner(
         index = (index + d + items.size) % items.size
         lastKeyAt = System.currentTimeMillis()
     }
+    // The top part of the screen only (Apple TV style): the first row (Continue Watching) stays
+    // in view below it.
     Box(
         Modifier
-            .fillMaxSize()
+            .fillMaxWidth()
+            .fillMaxHeight(BANNER_HEIGHT)
             .background(Color(0xFF0A0D12))
             .onFocusChanged { hasFocus = it.hasFocus }
             .onPreviewKeyEvent { e ->
@@ -200,7 +209,7 @@ private fun NpFeaturedBanner(
                 )
                 Box(
                     Modifier.fillMaxSize().background(
-                        Brush.verticalGradient(0.55f to Color(0x000A0D12), 1f to Color(0xF20A0D12))
+                        Brush.verticalGradient(0.5f to Color(0x000A0D12), 1f to Color(0xFF0A0D12))
                     )
                 )
             }
@@ -208,21 +217,21 @@ private fun NpFeaturedBanner(
         Column(
             Modifier
                 .align(Alignment.BottomStart)
-                .padding(start = 56.dp, bottom = 64.dp)
+                .padding(start = 56.dp, bottom = 22.dp)
                 .widthIn(max = 520.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp)
+            verticalArrangement = Arrangement.spacedBy(7.dp)
         ) {
             Text(label.uppercase(), color = Color(0xFF7FD18B), fontSize = 12.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.5.sp)
             if (!item.logo.isNullOrBlank()) {
                 AsyncImage(
                     model = item.logo,
                     contentDescription = item.name,
-                    modifier = Modifier.heightIn(max = 96.dp).widthIn(max = 380.dp),
+                    modifier = Modifier.heightIn(max = 70.dp).widthIn(max = 320.dp),
                     contentScale = ContentScale.Fit,
                     alignment = Alignment.CenterStart
                 )
             } else {
-                Text(item.name, color = Color.White, fontSize = 40.sp, fontWeight = FontWeight.ExtraBold, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                Text(item.name, color = Color.White, fontSize = 34.sp, fontWeight = FontWeight.ExtraBold, maxLines = 2, overflow = TextOverflow.Ellipsis)
             }
             val meta = listOfNotNull(
                 item.releaseInfo?.take(4)?.takeIf { it.isNotBlank() },
@@ -231,10 +240,9 @@ private fun NpFeaturedBanner(
             ).joinToString("  ·  ")
             if (meta.isNotBlank()) Text(meta, color = Color(0xFFC9D0DC), fontSize = 15.sp, fontWeight = FontWeight.Medium)
             item.description?.takeIf { it.isNotBlank() }?.let {
-                Text(it, color = Color(0xFFB7BFCE), fontSize = 15.sp, maxLines = 3, overflow = TextOverflow.Ellipsis)
+                Text(it, color = Color(0xFFB7BFCE), fontSize = 14.sp, maxLines = 2, overflow = TextOverflow.Ellipsis)
             }
-            Spacer(Modifier.height(4.dp))
-            Row(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
+            Row(Modifier.padding(top = 2.dp), horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
                 val buttons = buildList<Pair<String, () -> Unit>> {
                     // Opens the title's page, where Play is the first button.
                     add("▶  Watch" to { onOpen(item) })
@@ -256,7 +264,7 @@ private fun NpFeaturedBanner(
                     )
                 }
             }
-            if (items.size > 1) Row(Modifier.padding(top = 8.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            if (items.size > 1) Row(Modifier.padding(top = 4.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                 items.indices.forEach { i ->
                     Box(
                         Modifier
@@ -267,12 +275,6 @@ private fun NpFeaturedBanner(
                 }
             }
         }
-        Text(
-            "▼  Continue to your rows",
-            modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 18.dp),
-            color = Color.White.copy(alpha = 0.55f),
-            fontSize = 13.sp
-        )
     }
 }
 
@@ -286,9 +288,12 @@ private fun BannerButton(text: String, modifier: Modifier, onClick: () -> Unit) 
             .clip(RoundedCornerShape(14.dp))
             .background(if (focused) Color(0xFFF2F4F8) else Color.White.copy(alpha = 0.14f))
             .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null, onClick = onClick)
-            .padding(horizontal = 22.dp, vertical = 12.dp),
+            .padding(horizontal = 20.dp, vertical = 10.dp),
         color = if (focused) Color(0xFF0A0D12) else Color.White,
-        fontSize = 17.sp,
+        fontSize = 16.sp,
         fontWeight = FontWeight.Bold
     )
 }
+
+/** How much of the screen's height the banner takes (the rows start just below). */
+private const val BANNER_HEIGHT = 0.56f
