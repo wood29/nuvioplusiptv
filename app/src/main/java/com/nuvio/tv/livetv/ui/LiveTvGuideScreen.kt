@@ -5186,17 +5186,6 @@ private fun minutesLeftLabel(ms: Long): String {
 }
 
 
-/** "Today", "Tomorrow", or the weekday and date of the day [ms] falls on. */
-private fun guideDayLabel(ms: Long, now: Long): String {
-    val cal = java.util.Calendar.getInstance()
-    fun dayNo(t: Long): Long { cal.timeInMillis = t; return cal.get(java.util.Calendar.YEAR) * 400L + cal.get(java.util.Calendar.DAY_OF_YEAR) }
-    return when (dayNo(ms) - dayNo(now)) {
-        0L -> "Today"
-        1L -> "Tomorrow"
-        else -> java.text.SimpleDateFormat("EEE d MMM", java.util.Locale.getDefault()).format(java.util.Date(ms))
-    }
-}
-
 /**
  * Nuvio Plus (NowSeen look): the choices above the channel list: the group you're in (OK opens
  * the group list), the day (TV guide only: OK steps to the next day, then back to today) and how
