@@ -31,15 +31,6 @@ jobs:
           ref: mine
           fetch-depth: 0
 
-      - name: Remove the broken beta.13 builds (made from unreleased code)
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          for t in $(gh release list -R "$GITHUB_REPOSITORY" --limit 200 --json tagName -q '.[].tagName' | grep -F '1.1.0-beta.13.' || true); do
-            echo "Deleting $t"
-            gh release delete "$t" -R "$GITHUB_REPOSITORY" --yes --cleanup-tag || true
-          done
-
       - name: Work out the version number
         id: version
         env:
