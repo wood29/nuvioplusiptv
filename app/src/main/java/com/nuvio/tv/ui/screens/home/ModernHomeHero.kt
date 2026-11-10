@@ -186,7 +186,7 @@ internal fun ModernHeroMediaLayer(
                     // The poster's own colours as a soft wash: the poster loaded tiny and
                     // stretched (a blur that works on every TV box, unlike blur effects).
                     val washModel = remember(displayedBackdrop) {
-                        displayedBackdrop?.let { ImageRequest.Builder(localContext).data(it).size(3, 4).build() }
+                        displayedBackdrop?.let { ImageRequest.Builder(localContext).data(it).size(3, 4).precision(coil3.size.Precision.EXACT).build() }
                     }
                     AsyncImage(
                         model = washModel,
