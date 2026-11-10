@@ -81,7 +81,7 @@ fun LiveTvReminderHost(navController: NavController) {
             if (due == null) {
                 val reminders = runCatching { prefs.userState.first().reminders }.getOrDefault(emptyList())
                 due = reminders.firstOrNull { r ->
-                    "${r.channelKey}|${r.startMs}" !in shown && now >= r.startMs - 60_000 && now < r.startMs + 10 * 60_000
+                    "${r.channelKey}|${r.startMs}" !in shown && now >= r.startMs - 5 * 60_000 && now < r.startMs + 10 * 60_000
                 }?.also { shown += "${it.channelKey}|${it.startMs}" }
             }
             delay(10_000)
@@ -99,17 +99,17 @@ fun LiveTvReminderHost(navController: NavController) {
     LiveDialog(onDismiss = { finish() }, width = 460.dp) {
         val now = System.currentTimeMillis()
         LiveText(
-            if (now < r.startMs) "Starting in a minute" else "Starting now",
+            if (now < r.startMs) "Starts in ${((r.startMs - now + 59_999) / 60_000).coerceAtLeast(1)} min" else "Starting now",
             color = NuvioTheme.colors.Secondary, size = 13.sp, weight = FontWeight.SemiBold
         )
         LiveText(r.title, size = 22.sp, weight = FontWeight.Bold, maxLines = 2)
         LiveText(
-            "${SimpleDateFormat("h:mm a", Locale.getDefault()).format(Date(r.startMs))} · ${r.channelName}",
+            "${java.text.DateFormat.getTimeInstance(java.text.DateFormat.SHORT, Locale.getDefault()).format(Date(r.startMs))} · ${r.channelName}",
             color = NuvioTheme.colors.TextSecondary, size = 14.sp
         )
         Spacer(Modifier.height(14.dp))
         Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-            MenuItem("Watch", Modifier.focusRequester(first)) {
+            MenuItem("Switch now", Modifier.focusRequester(first)) {
                 val channel = entry.liveTvRepository().channels.value.firstOrNull { it.key == r.channelKey }
                 finish()
                 if (channel != null) {

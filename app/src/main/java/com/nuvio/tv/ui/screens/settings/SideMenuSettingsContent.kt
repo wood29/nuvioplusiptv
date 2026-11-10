@@ -397,11 +397,11 @@ fun CalendarSettingsContent(initialFocusRequester: FocusRequester? = null) {
                     )
                     SettingsActionRow(
                         title = "Opens In",
-                        subtitle = "The list by day, a week, or a month at a time",
-                        value = when (s.calendarView) { "MONTH" -> "Month"; "WEEK" -> "Week"; else -> "List" },
+                        subtitle = "Simple: one list, up and down only. Or the old Calendar: list, week or month",
+                        value = when (s.calendarView) { "MONTH" -> "Month"; "WEEK" -> "Week"; "LIST" -> "List"; else -> "Simple" },
                         onClick = {
                             update {
-                                it.copy(calendarView = when (it.calendarView) { "MONTH" -> "LIST"; "WEEK" -> "MONTH"; else -> "WEEK" })
+                                it.copy(calendarView = when (it.calendarView) { "SIMPLE" -> "LIST"; "LIST" -> "WEEK"; "WEEK" -> "MONTH"; else -> "SIMPLE" })
                             }
                         }
                     )

@@ -192,6 +192,8 @@ fun CalendarScreen(
     var tab by rememberSaveable { mutableStateOf(CalTab.UPCOMING) }
     var kind by rememberSaveable { mutableStateOf(CalKind.ALL) }
     var airFilter by rememberSaveable { mutableStateOf(AirFilter.ALL) }
+    // Nuvio Plus: the simple list (Up and Down only) unless the old Calendar is picked in Settings.
+    val simple = settings.calendarView == "SIMPLE"
     val view = settings.calendarView.takeIf { it == "WEEK" || it == "MONTH" } ?: "LIST"
     val grid = view != "LIST"
     // Kept when you leave (a game, a show page) so the same entry is up top when you come back.
@@ -383,6 +385,22 @@ fun CalendarScreen(
     )
 
     Box(Modifier.fillMaxSize().guideBackdrop(settings.guideBackdrop).onFocusChanged { screenFocused = it.hasFocus }) {
+        if (simple) {
+            CompositionLocalProvider(LocalAtHome provides { atHome = true }, LocalCardFocus provides cardFocuses) {
+                Box(Modifier.fillMaxSize().onFocusChanged { inContent = it.hasFocus }.onPreviewKeyEvent { k ->
+                    if (k.type == KeyEventType.KeyDown && k.nativeKeyEvent.keyCode in setOf(
+                            android.view.KeyEvent.KEYCODE_DPAD_DOWN, android.view.KeyEvent.KEYCODE_DPAD_UP)) atHome = false
+                    false
+                }) {
+                    SimpleAgenda(
+                        entries = all, loading = state.loading && state.entries.isEmpty(), noShows = state.showCount == 0,
+                        use24h = use24h, now = now, firstFocus = firstItem,
+                        status = { viewModel.status(it) }, isFollowed = ::isFollowed,
+                        onOpen = ::open, onOptions = { options = it }
+                    )
+                }
+            }
+        } else {
         val showHero = when (tab) {
             CalTab.UPCOMING, CalTab.RECENT -> !grid
             CalTab.AIRING -> true
@@ -607,6 +625,7 @@ fun CalendarScreen(
                     }
                 }
             } }
+        }
         }
 
         // Opening the Calendar: back on the card you were on (coming back from a game, a show page
@@ -2044,4 +2063,213 @@ private fun dayWord(day: LocalDate, today: LocalDate): String = when (ChronoUnit
     -1L -> "Yesterday"
     in 2L..6L -> day.format(DateTimeFormatter.ofPattern("EEEE"))
     else -> day.format(DateTimeFormatter.ofPattern("EEE MMM d"))
+}
+
+// -------------------------------------------------------------------- Nuvio Plus: the simple Calendar
+
+/**
+ * One list, Up and Down only: Tonight, Tomorrow, then the next days, each entry with its time,
+ * picture, name, where it's on and a bell (filled: a reminder is set). The highlighted entry is
+ * shown big on the right. OK: Live TV options (watch, remind, record) or the show's page;
+ * hold OK: everything else (bell, hide). No tabs, filters or view buttons.
+ */
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+private fun SimpleAgenda(
+    entries: List<CalendarEntry>,
+    loading: Boolean,
+    noShows: Boolean,
+    use24h: Boolean,
+    now: Long,
+    firstFocus: FocusRequester,
+    status: (CalendarEntry) -> CalendarLiveStatus,
+    isFollowed: (CalendarEntry) -> Boolean,
+    onOpen: (CalendarEntry) -> Unit,
+    onOptions: (CalendarEntry) -> Unit
+) {
+    val theme = NuvioTheme.colors
+    val accent = if (com.nuvio.tv.livetv.ui.nowSeenLook()) com.nuvio.tv.livetv.ui.NOWSEEN_ACCENT else theme.Secondary
+    val today = LocalDate.now()
+    val upcoming = entries
+        .filter { !it.day.isBefore(today) && whenOf(it) + (it.runtimeMin ?: 30) * 60_000L > now && !it.day.isAfter(today.plusDays(14)) }
+        .distinctBy { it.key }
+        .sortedWith(compareBy<CalendarEntry> { it.day }.thenBy { whenOf(it) })
+    val days = upcoming.groupBy { it.day }.toList()
+    var focusedKey by rememberSaveable { mutableStateOf<String?>(null) }
+    val hero = upcoming.firstOrNull { it.key == focusedKey } ?: upcoming.firstOrNull()
+
+    Row(Modifier.fillMaxSize().padding(start = 64.dp, end = 56.dp, top = 30.dp)) {
+        // ---------------------------------------------------------------- the list
+        Column(Modifier.weight(1f).fillMaxHeight()) {
+            Row(verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
+                LiveText("Calendar", size = 30.sp, weight = FontWeight.ExtraBold)
+                LiveText(
+                    if (loading) "Looking up your shows…" else "Your followed shows, movies and matches, in the order they come",
+                    size = 14.sp, color = theme.TextSecondary, modifier = Modifier.padding(bottom = 4.dp)
+                )
+            }
+            Spacer(Modifier.height(14.dp))
+            if (days.isEmpty()) {
+                // Something to focus, so the remote isn't stuck.
+                LiveFocusRow(modifier = Modifier.fillMaxWidth().focusRequester(firstFocus), onClick = {}) { f ->
+                    LiveText(
+                        when {
+                            loading -> "Looking up your shows…"
+                            noShows -> "Nothing here yet. Hold OK on a show in the TV guide (or ring the bell on its page) to follow it."
+                            else -> "Nothing coming up in the next two weeks."
+                        },
+                        size = 16.sp, color = focusedTextColor(f), maxLines = 2
+                    )
+                }
+                return@Column
+            }
+            LazyColumn(
+                verticalArrangement = Arrangement.spacedBy(4.dp),
+                contentPadding = PaddingValues(bottom = 48.dp)
+            ) {
+                days.forEachIndexed { di, (day, list) ->
+                    item(key = "h|$day") {
+                        val label = when (ChronoUnit.DAYS.between(today, day)) {
+                            0L -> if (java.time.LocalTime.now().hour >= 17) "Tonight" else "Today"
+                            1L -> "Tomorrow"
+                            else -> day.format(DateTimeFormatter.ofPattern("EEEE"))
+                        }
+                        Row(
+                            Modifier.padding(top = if (di == 0) 0.dp else 18.dp, bottom = 6.dp, start = 6.dp),
+                            verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.spacedBy(10.dp)
+                        ) {
+                            LiveText(label, size = 20.sp, weight = FontWeight.ExtraBold)
+                            LiveText(day.format(DateTimeFormatter.ofPattern("EEE d MMM")), size = 14.sp, color = theme.TextSecondary)
+                        }
+                    }
+                    itemsIndexed(list, key = { _, e -> e.key }) { i, e ->
+                        val first = di == 0 && i == 0
+                        AgendaRow(
+                            e = e, use24h = use24h, now = now, accent = accent,
+                            st = status(e), followed = isFollowed(e),
+                            modifier = (if (first) Modifier.focusRequester(firstFocus).homeMark() else Modifier).cardFocus(e.key),
+                            onFocus = { focusedKey = e.key },
+                            onClick = { onOpen(e) },
+                            onLongClick = { onOptions(e) }
+                        )
+                    }
+                }
+            }
+        }
+        Spacer(Modifier.width(40.dp))
+        // ---------------------------------------------------------------- the highlighted entry, big
+        Column(Modifier.width(400.dp).padding(top = 52.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            val e = hero ?: return@Column
+            Box(Modifier.fillMaxWidth().aspectRatio(16f / 9f).clip(RoundedCornerShape(16.dp)).background(theme.BackgroundCard)) {
+                if (e.kind == CalendarKind.GAME && e.teams.size == 2) {
+                    GameArt(e, big = true, modifier = Modifier.fillMaxSize())
+                } else {
+                    val art = if (e.spoiler) e.background ?: e.poster else e.episodeImage ?: e.background ?: e.poster
+                    if (art != null) coil3.compose.AsyncImage(model = art, contentDescription = null, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
+                }
+                val tag = agendaTag(e, now)
+                if (tag != null) Box(Modifier.align(Alignment.TopStart).padding(12.dp)) {
+                    LiveTag(tag.uppercase(), if (tag == "Live") LIVE_RED else accent, if (tag == "Live") Color.White else Color(0xFF0A0D12))
+                }
+            }
+            LiveText(
+                if (e.kind == CalendarKind.GAME && e.teams.size == 2) e.teams.joinToString(" vs ") { it.name } else e.title,
+                size = 26.sp, weight = FontWeight.ExtraBold, maxLines = 2
+            )
+            LiveText(entryLine(e, use24h), size = 15.sp, color = theme.TextSecondary, maxLines = 2)
+            val about = if (e.spoiler) null else e.description
+            if (!about.isNullOrBlank()) LiveText(about, size = 14.sp, color = theme.TextSecondary, maxLines = 4)
+            Spacer(Modifier.height(6.dp))
+            LiveText(
+                when {
+                    e.kind == CalendarKind.GAME -> "OK  Open in Sports"
+                    e.guide != null -> "OK  Watch, remind or record"
+                    else -> "OK  Show page"
+                } + "   ·   Hold OK  Follow, hide and more",
+                size = 13.sp, color = theme.TextSecondary, maxLines = 2
+            )
+        }
+    }
+}
+
+private fun agendaTag(e: CalendarEntry, now: Long): String? {
+    val airMs = e.airMs
+    return when {
+        e.live || (airMs != null && now in airMs until airMs + (e.runtimeMin ?: 30) * 60_000L) -> "Live"
+        CalendarTag.SEASON_PREMIERE in e.tags || CalendarTag.SERIES_PREMIERE in e.tags -> "Premiere"
+        CalendarTag.SEASON_FINALE in e.tags || CalendarTag.SERIES_FINALE in e.tags -> "Finale"
+        CalendarTag.NEW in e.tags -> "New"
+        else -> e.tags.firstOrNull()?.label
+    }
+}
+
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+private fun AgendaRow(
+    e: CalendarEntry,
+    use24h: Boolean,
+    now: Long,
+    accent: Color,
+    st: CalendarLiveStatus,
+    followed: Boolean,
+    modifier: Modifier,
+    onFocus: () -> Unit,
+    onClick: () -> Unit,
+    onLongClick: () -> Unit
+) {
+    val theme = NuvioTheme.colors
+    var focused by remember { mutableStateOf(false) }
+    val shape = RoundedCornerShape(14.dp)
+    val game = e.kind == CalendarKind.GAME && e.teams.size == 2
+    Row(
+        modifier
+            .fillMaxWidth()
+            .clip(shape)
+            .background(if (focused) theme.FocusBackground else Color.Transparent)
+            .focusRing(focused, shape)
+            .onFocusChanged { focused = it.isFocused; if (it.isFocused) onFocus() }
+            .combinedClickable(interactionSource = remember { MutableInteractionSource() }, indication = null, onClick = onClick, onLongClick = onLongClick)
+            .padding(start = 8.dp, end = 14.dp, top = 8.dp, bottom = 8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(16.dp)
+    ) {
+        LiveText(cardTime(e, use24h), size = 17.sp, weight = FontWeight.Bold, modifier = Modifier.width(78.dp), maxLines = 1)
+        Box(Modifier.size(width = 104.dp, height = 58.dp).clip(RoundedCornerShape(8.dp)).background(theme.BackgroundCard)) {
+            if (game) GameArt(e, big = false, standalone = false, modifier = Modifier.fillMaxSize())
+            else {
+                val art = if (e.spoiler) e.background ?: e.poster else e.episodeImage ?: e.background ?: e.poster
+                if (art != null) coil3.compose.AsyncImage(model = art, contentDescription = null, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
+            }
+        }
+        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+            LiveText(if (game) e.teams.joinToString(" vs ") { it.name } else e.title, size = 18.sp, weight = FontWeight.Bold, marquee = focused)
+            LiveText(
+                when (e.kind) {
+                    CalendarKind.GAME -> listOfNotNull(e.league, e.guide?.channelName).joinToString(" · ")
+                    CalendarKind.MOVIE -> listOfNotNull("Movie", e.guide?.channelName ?: e.note).joinToString(" · ")
+                    else -> listOfNotNull(e.episodeCode, e.guide?.channelName ?: e.network).joinToString(" · ")
+                },
+                size = 14.sp, color = theme.TextSecondary
+            )
+        }
+        agendaTag(e, now)?.let { t ->
+            if (t == "Live") LiveTag("LIVE", LIVE_RED, Color.White)
+            else LiveText(t, size = 12.sp, weight = FontWeight.SemiBold, color = theme.TextSecondary,
+                modifier = Modifier.border(1.dp, theme.Border, RoundedCornerShape(50)).padding(horizontal = 10.dp, vertical = 3.dp))
+        }
+        if (st.recording || st.series) LiveTag("REC", LIVE_RED, Color.White)
+        // The bell: filled when a reminder is set, an outline for a followed show without one.
+        val on = st.reminder || st.waitRemind
+        Box(
+            Modifier.size(32.dp).clip(RoundedCornerShape(50)).background(if (on) accent else Color.Transparent),
+            contentAlignment = Alignment.Center
+        ) {
+            androidx.tv.material3.Icon(
+                imageVector = if (on) Icons.Filled.NotificationsActive else Icons.Filled.NotificationsNone,
+                contentDescription = if (on) "Reminder on" else null,
+                tint = if (on) Color(0xFF0A0D12) else if (followed) theme.TextSecondary else theme.TextSecondary.copy(alpha = 0.35f),
+                modifier = Modifier.size(18.dp)
+            )
+        }
+    }
 }

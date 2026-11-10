@@ -396,8 +396,8 @@ data class LiveTvSettings(
     val calendarSkipNewsTalk: Boolean = true,
     /** Calendar: games for the teams you follow in Sports. */
     val calendarSports: Boolean = true,
-    /** Calendar: opens in "LIST" or "MONTH" view. */
-    val calendarView: String = "LIST",
+    /** Calendar: "SIMPLE" (Nuvio Plus: one list, Up/Down only), or the old Calendar in "LIST", "WEEK" or "MONTH" view. */
+    val calendarView: String = "SIMPLE",
     /** OK on an episode that's in your Live TV guide: "LIVE" (Live TV options) or "PAGE" (the show page). */
     val calendarOkAction: String = "LIVE",
     /** Recently aired: only what you haven't watched. */

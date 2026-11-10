@@ -129,6 +129,10 @@ class CalendarRepository @Inject constructor(
         scope.launch {
             follows.drop(1).debounce(600).collect { refresh(force = false) }
         }
+        // Nuvio Plus: a show with the bell on gets a reminder by itself for each episode in your guide.
+        scope.launch {
+            _state.debounce(2_000).collect { st -> runCatching { autoRemind(st.entries); tonightNote(st.entries) } }
+        }
         scope.launch {
             hiddenShows.drop(1).debounce(300).collect { build(fetch = false) }
         }
@@ -1119,6 +1123,58 @@ class CalendarRepository @Inject constructor(
     fun canWaitForGuide(e: CalendarEntry): Boolean =
         e.kind == CalendarKind.EPISODE && !e.streaming && e.airMs != null && e.airMs > System.currentTimeMillis() &&
             channelsOf(e).isEmpty() && liveRepo.channels.value.isNotEmpty()
+
+    // Nuvio Plus: automatic reminders for followed shows. Airings already handled (set, or turned
+    // off by you) are kept so a reminder you cancel isn't set again.
+    private val autoPrefs by lazy { context.getSharedPreferences("np_calendar_auto", Context.MODE_PRIVATE) }
+
+    private fun autoDone(): MutableSet<String> = autoPrefs.getStringSet("done", emptySet()).orEmpty().toMutableSet()
+
+    /** Once a day, from 4 pm: "Tonight: 2 of your shows · Harbour Lights 21:00, …". */
+    private fun tonightNote(entries: List<CalendarEntry>) {
+        val zone = java.time.ZoneId.systemDefault()
+        val nowZ = java.time.ZonedDateTime.now(zone)
+        if (nowZ.hour < 16) return
+        val today = nowZ.toLocalDate().toString()
+        if (autoPrefs.getString("tonight", null) == today) return
+        val now = System.currentTimeMillis()
+        val tonight = entries.filter { e ->
+            e.followed && e.kind != CalendarKind.GAME && !e.streaming &&
+                (bestHit(e)?.startMs ?: e.airMs)?.let { t -> t > now - 10 * 60_000 && java.time.Instant.ofEpochMilli(t).atZone(zone).toLocalDate() == nowZ.toLocalDate() } == true
+        }.distinctBy { it.contentId }.sortedBy { bestHit(it)?.startMs ?: it.airMs ?: 0L }
+        if (tonight.isEmpty()) return
+        autoPrefs.edit().putString("tonight", today).apply()
+        val fmt = java.text.DateFormat.getTimeInstance(java.text.DateFormat.SHORT)
+        val list = tonight.take(3).joinToString(", ") { e ->
+            val t = bestHit(e)?.startMs ?: e.airMs
+            e.title + (t?.let { " " + fmt.format(java.util.Date(it)) } ?: "")
+        }
+        val n = tonight.size
+        com.nuvio.tv.livetv.record.LiveTvNotice.show("Tonight: " + (if (n == 1) "1 of your shows" else "$n of your shows") + " · " + list)
+    }
+
+    private suspend fun autoRemind(entries: List<CalendarEntry>) {
+        val now = System.currentTimeMillis()
+        val done = autoDone()
+        val rem = reminders.value
+        var changed = false
+        for (e in entries) {
+            if (!e.followed || e.kind == CalendarKind.GAME) continue
+            val hit = bestHit(e) ?: continue
+            if (hit.startMs <= now || hit.startMs > now + 2 * CalendarSources.DAY) continue
+            val id = "${hit.channelKey}|${hit.startMs}"
+            if (id in done) continue
+            done += id; changed = true
+            if (rem.none { it.channelKey == hit.channelKey && it.startMs == hit.startMs }) {
+                prefs.addReminder(com.nuvio.tv.livetv.model.Reminder(hit.channelKey, hit.channelName, hit.title.ifBlank { e.title }, hit.startMs))
+            }
+        }
+        if (changed) {
+            // Old airings drop off (the list stays small).
+            val keep = done.filter { it.substringAfterLast('|').toLongOrNull()?.let { t -> t > now - CalendarSources.DAY } ?: false }.toSet()
+            autoPrefs.edit().putStringSet("done", keep).apply()
+        }
+    }
 
     /** Sets or cancels a reminder for [e] on [hit]'s channel. Returns a message to show. */
     suspend fun toggleReminder(e: CalendarEntry, hit: CalendarGuideHit): String {

@@ -130,7 +130,7 @@ class LiveTvPreferences @Inject constructor(
         val calendarHideSpoilers = booleanPreferencesKey("calendar_hide_spoilers")
         val calendarCountry = stringPreferencesKey("calendar_country")
         val calendarSkipNewsTalk = booleanPreferencesKey("calendar_skip_news_talk")
-        val calendarView = stringPreferencesKey("calendar_view")
+        val calendarView = stringPreferencesKey("np_calendar_view")
         val calendarOkAction = stringPreferencesKey("calendar_ok_action")
         val calendarHideWatched = booleanPreferencesKey("calendar_hide_watched")
         val calendarSports = booleanPreferencesKey("calendar_sports")
