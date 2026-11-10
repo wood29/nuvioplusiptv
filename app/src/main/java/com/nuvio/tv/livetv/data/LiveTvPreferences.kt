@@ -125,7 +125,7 @@ class LiveTvPreferences @Inject constructor(
         val calendarInMenu = booleanPreferencesKey("calendar_in_menu")
         val sideMenuLine = booleanPreferencesKey("side_menu_line")
         val sideMenuFit = booleanPreferencesKey("side_menu_fit")
-        val menuStyle = stringPreferencesKey("np_menu_style")
+        val menuStyle = stringPreferencesKey("np_menu_style_v2")
         val calendarUpcomingRow = booleanPreferencesKey("calendar_upcoming_row")
         val calendarNewEpisodeCards = booleanPreferencesKey("calendar_new_episode_cards")
         val calendarHideSpoilers = booleanPreferencesKey("calendar_hide_spoilers")
