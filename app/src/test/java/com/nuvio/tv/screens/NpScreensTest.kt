@@ -87,6 +87,12 @@ class NpScreensTest {
             v.draw(Canvas(img))
             File(out, "$name.png").outputStream().use { img.compress(Bitmap.CompressFormat.PNG, 100, it) }
         }
+        // And Compose's own capture, with the clock running again (a second opinion).
+        runCatching {
+            rule.mainClock.autoAdvance = true
+            val img = rule.onRoot().captureToImage().asAndroidBitmap()
+            File(out, "${name}_capture.png").outputStream().use { img.compress(Bitmap.CompressFormat.PNG, 100, it) }
+        }
     }
 
     @Test
