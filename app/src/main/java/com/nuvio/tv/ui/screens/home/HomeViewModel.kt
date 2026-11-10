@@ -378,6 +378,7 @@ class HomeViewModel @Inject constructor(
             profileManager.activeProfileReady.first { it }
             observeLayoutPreferences()
             observeModernHomePresentation()
+            observeNpRecommendationsPipeline()
             loadContinueWatching()
             watchedSeriesStateHolder.loadFromDisk()
             observeExternalMetaPrefetchPreference()

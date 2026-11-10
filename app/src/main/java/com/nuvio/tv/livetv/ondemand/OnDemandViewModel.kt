@@ -125,6 +125,30 @@ class OnDemandViewModel @Inject constructor(
         imdb != null && hit.meta.imdbId != imdb && hit.meta.id != imdb
 
     /** TMDB's poster for the provider's own TMDB id: exact, whatever the title is called. */
+    /**
+     * Nuvio Plus: the title's details straight from TMDB by the provider's TMDB id (wide backdrop,
+     * logo, description), for titles your addons don't find. Without this the big picture at
+     * the top was the tall poster stretched wide.
+     */
+    private suspend fun tmdbMetaById(item: VodItem): com.nuvio.tv.domain.model.MetaPreview? {
+        val id = item.tmdbId?.takeIf { it.isNotBlank() } ?: return null
+        val type = if (item.kind == VodKind.SERIES) com.nuvio.tv.domain.model.ContentType.SERIES else com.nuvio.tv.domain.model.ContentType.MOVIE
+        val e = runCatching { tmdbMetadata.fetchEnrichment(tmdbId = id, contentType = type) }.getOrNull() ?: return null
+        return com.nuvio.tv.domain.model.MetaPreview(
+            id = "tmdb:$id",
+            type = type,
+            name = e.localizedTitle?.takeIf { it.isNotBlank() } ?: OnDemandDatabase.displayTitle(item.name),
+            poster = e.poster,
+            posterShape = com.nuvio.tv.domain.model.PosterShape.POSTER,
+            background = e.backdrop,
+            logo = e.logo,
+            description = e.description,
+            releaseInfo = e.releaseInfo ?: item.year?.toString(),
+            imdbRating = e.rating?.toFloat(),
+            genres = e.genres
+        )
+    }
+
     private suspend fun tmdbPosterById(item: VodItem): String? {
         val id = item.tmdbId?.takeIf { it.isNotBlank() } ?: return null
         val type = if (item.kind == VodKind.SERIES) com.nuvio.tv.domain.model.ContentType.SERIES else com.nuvio.tv.domain.model.ContentType.MOVIE
@@ -818,9 +842,13 @@ class OnDemandViewModel @Inject constructor(
         val meta = (full as? com.nuvio.tv.core.network.NetworkResult.Success<*>)?.data as? com.nuvio.tv.domain.model.Meta
         if (meta == null) { homeDetailed.remove(uid); return }
         val base = homeMatched[uid] ?: hit.meta
+        // No wide backdrop from the addon: TMDB's, by the provider's id.
+        val tmdb = if (meta.background.isNullOrBlank() && base.background.isNullOrBlank()) {
+            homeItems.values.asSequence().flatten().firstOrNull { it.uid == uid }?.let { tmdbMetaById(it) }
+        } else null
         homeMatched[uid] = base.copy(
-            logo = meta.logo?.takeIf { it.isNotBlank() } ?: base.logo,
-            background = meta.background?.takeIf { it.isNotBlank() } ?: base.background,
+            background = meta.background?.takeIf { it.isNotBlank() } ?: base.background ?: tmdb?.background,
+            logo = meta.logo?.takeIf { it.isNotBlank() } ?: base.logo ?: tmdb?.logo,
             description = meta.description?.takeIf { it.isNotBlank() } ?: base.description,
             releaseInfo = meta.releaseInfo?.takeIf { it.isNotBlank() } ?: base.releaseInfo,
             imdbRating = meta.imdbRating ?: base.imdbRating,
@@ -836,10 +864,15 @@ class OnDemandViewModel @Inject constructor(
         val imdb = if (fixed) null else kotlinx.coroutines.withTimeoutOrNull(4_000) { runCatching { imdbFor(item) }.getOrNull() }
         val found = runCatching { matchAny(item, urgent = urgent, imdb = imdb) }.rethrowCancel().getOrNull()
         if (!fixed && (found == null || wrongTitle(found, imdb))) {
-            // Not in your addons (or only another title by that name): TMDB's poster for the id.
-            tmdbPosterById(item)?.let { p ->
-                posters[item.uid] = p
-                repository.cachePoster(item, p, null)
+            // Not in your addons (or only another title by that name): TMDB's details for the id
+            // (poster, and the wide backdrop and description for the top of the page).
+            tmdbMetaById(item)?.let { m ->
+                homeMatched[item.uid] = m
+                homeDetailed += item.uid
+                m.poster?.takeIf { it.isNotBlank() }?.let { p ->
+                    posters[item.uid] = p
+                    repository.cachePoster(item, p, null)
+                }
                 return
             }
         }

@@ -11,6 +11,9 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.ui.draw.blur
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
@@ -167,18 +170,51 @@ internal fun ModernHeroMediaLayer(
             animationSpec = tween(durationMillis = NuvioMotion.tokens.durations.overlay),
             label = "heroBackdropCrossfade"
         ) { model ->
-            AsyncImage(
-                model = model,
-                contentDescription = null,
-                modifier = Modifier
+            // Nuvio Plus: a tall poster (a title with no wide backdrop) isn't stretched across
+            // the screen (that showed the top of a head): it stands at the right at its own
+            // shape, over a soft blurred copy of itself, the way Apple TV and Plex show them.
+            var portrait by remember(model) { mutableStateOf(false) }
+            Box(
+                Modifier
                     .fillMaxSize()
                     .graphicsLayer {
                         compositingStrategy = CompositingStrategy.Offscreen
                         alpha = 1f - transitionProgressState.value
-                    },
-                contentScale = ContentScale.Crop,
-                alignment = Alignment.TopEnd
-            )
+                    }
+            ) {
+                if (portrait) {
+                    if (android.os.Build.VERSION.SDK_INT >= 31) AsyncImage(
+                        model = model,
+                        contentDescription = null,
+                        modifier = Modifier.fillMaxSize().blur(48.dp),
+                        contentScale = ContentScale.Crop,
+                        alpha = 0.45f
+                    )
+                    AsyncImage(
+                        model = model,
+                        contentDescription = null,
+                        modifier = Modifier
+                            .align(Alignment.CenterEnd)
+                            .fillMaxHeight(0.78f)
+                            .padding(end = 120.dp)
+                            .aspectRatio(2f / 3f, matchHeightConstraintsFirst = true)
+                            .clip(androidx.compose.foundation.shape.RoundedCornerShape(18.dp)),
+                        contentScale = ContentScale.Crop
+                    )
+                } else {
+                    AsyncImage(
+                        model = model,
+                        contentDescription = null,
+                        modifier = Modifier.fillMaxSize(),
+                        contentScale = ContentScale.Crop,
+                        alignment = Alignment.TopEnd,
+                        onSuccess = { st ->
+                            val img = st.result.image
+                            if (img.height > img.width * 1.15f) portrait = true
+                        }
+                    )
+                }
+            }
         }
         if (shouldPlay) {
             val trailerUrlVal = heroTrailerUrl()

@@ -723,6 +723,8 @@ internal suspend fun HomeViewModel.updateCatalogRowsPipeline() {
             val placeholdersByKey = synchronized(catalogStateLock) {
                 placeholderDescriptors.associateBy { it.catalogKey }
             }
+            // Nuvio Plus: suggestions first, right under Continue Watching.
+            NpHomeRecommendations.row.value?.let { add(HomeRow.Catalog(it)) }
             val addedCollectionIds = mutableSetOf<String>()
             collectionsCache.forEach { collection ->
                 val key = "collection_${collection.id}"
