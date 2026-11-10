@@ -867,8 +867,52 @@ class LiveTvPlaybackController @Inject constructor(
         }
     }
 
+    // ---------------------------------------------------------------- cushion keeper (Nuvio Plus)
+
+    /**
+     * Most IPTV channels send the picture exactly as fast as it plays, so whatever cushion the
+     * player has when the channel starts (about a second) is all it ever gets: the first late
+     * piece from the provider, every few minutes, empties it and the picture stops to "catch
+     * up". While the cushion is thin, play 3% slower (you can't hear or see it, the sound keeps
+     * its pitch) so it slowly grows to several seconds; then back to normal speed. Every stop
+     * is also written in the start-up report with how much was ahead, so we can see it.
+     */
+    private var cushionSlow = false
+    private var lastCushionLog = 0L
+
+    private fun keepCushion(p: ExoPlayer) {
+        val live = _state.value.catchupTitle == null && _shiftStartedAt.value == null &&
+            _recordingPlayback.value == null && currentChannel != null
+        if (!live || p.playbackState != Player.STATE_READY || !p.playWhenReady) {
+            if (cushionSlow && !live) { cushionSlow = false; runCatching { p.setPlaybackSpeed(1f) } }
+            return
+        }
+        val ahead = p.totalBufferedDuration
+        val (low, high) = when (bufferSize) {
+            "none" -> 1_500L to 3_000L
+            "small" -> 4_000L to 8_000L
+            "large", "xlarge" -> 10_000L to 20_000L
+            else -> 6_000L to 12_000L
+        }
+        if (!cushionSlow && ahead < low) {
+            cushionSlow = true
+            runCatching { p.setPlaybackSpeed(0.97f) }
+        } else if (cushionSlow && ahead >= high) {
+            cushionSlow = false
+            runCatching { p.setPlaybackSpeed(1f) }
+            val now = android.os.SystemClock.elapsedRealtime()
+            if (now - lastCushionLog > 60_000) {
+                lastCushionLog = now
+                com.nuvio.tv.livetv.model.LiveTvLoadReport.add("Cushion on ${currentChannel?.name}: ${ahead / 1000}s ahead, normal speed")
+            }
+        }
+    }
+
+    private var bufferingSince = 0L
+
     private fun checkStall() {
         val p = _player ?: return
+        keepCushion(p)
         if (_shiftStartedAt.value != null || _recordingPlayback.value != null) { lastProgressAt = android.os.SystemClock.elapsedRealtime(); return }
         val now = android.os.SystemClock.elapsedRealtime()
         val ch = currentChannel
@@ -1561,6 +1605,17 @@ class LiveTvPlaybackController @Inject constructor(
         }
 
         override fun onPlaybackStateChanged(playbackState: Int) {
+            // Nuvio Plus: a stop while a live channel was playing (not a channel start) goes in
+            // the report with how long it lasted.
+            val nowMs = android.os.SystemClock.elapsedRealtime()
+            if (playbackState == Player.STATE_BUFFERING && _state.value.isPlaying && !awaitingFrame) {
+                bufferingSince = nowMs
+            } else if (playbackState == Player.STATE_READY && bufferingSince > 0) {
+                com.nuvio.tv.livetv.model.LiveTvLoadReport.add(
+                    "Stopped to catch up on ${currentChannel?.name} for ${(nowMs - bufferingSince) / 100 / 10.0}s (buffer: $bufferSize)"
+                )
+                bufferingSince = 0L
+            }
             _state.value = _state.value.copy(
                 isBuffering = playbackState == Player.STATE_BUFFERING,
                 error = if (playbackState == Player.STATE_READY) null else _state.value.error,
