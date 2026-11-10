@@ -91,10 +91,14 @@ object ThemeColors {
         backgroundCard = NuvioPrimitives.neutral850
     )
 
-    /** Nuvio Plus: the NowSeen look (deep navy, an Apple TV-like white highlight with dark text). */
+    /**
+     * Nuvio Plus: the NowSeen look (deep navy, white focus ring). The accent is the NowSeen green, so
+     * switches that are on, the Download button and other "active" states keep a colour; it was white,
+     * which made on and off switches look the same.
+     */
     val NowSeen = ThemeColorPalette(
-        secondary = Color(0xFFF2F4F8),
-        secondaryVariant = Color(0xFFC9D0DC),
+        secondary = Color(0xFF7FD18B),
+        secondaryVariant = Color(0xFF5DB86B),
         onSecondary = Color(0xFF0A0D12),
         onSecondaryVariant = Color(0xFF0A0D12),
         focusRing = Color(0xFFF2F4F8),

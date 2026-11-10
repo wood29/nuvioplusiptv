@@ -363,7 +363,9 @@ internal data class LiveCellColors(val background: Color, val border: Color, val
 internal fun liveCellColors(focused: Boolean, idle: Color, idleText: Color = NuvioTheme.colors.TextPrimary): LiveCellColors {
     if (!focused) return LiveCellColors(idle, Color.Transparent, idleText)
     return if (LocalLiveSolidHighlight.current) {
-        LiveCellColors(NuvioTheme.colors.Secondary, Color.Transparent, NuvioTheme.colors.OnSecondary)
+        // NowSeen keeps its white highlight in the guide; the theme's accent is green now.
+        if (nowSeenLook()) LiveCellColors(Color(0xFFF2F4F8), Color.Transparent, Color(0xFF0A0D12))
+        else LiveCellColors(NuvioTheme.colors.Secondary, Color.Transparent, NuvioTheme.colors.OnSecondary)
     } else {
         LiveCellColors(NuvioTheme.colors.FocusBackground, NuvioTheme.colors.FocusRing, NuvioTheme.colors.TextPrimary)
     }
