@@ -147,9 +147,13 @@ fun OnDemandHomeScreen(
 
     val base = homeSettings ?: HomeUiState()
     // Movies or Series: one at a time (mixed rows were confusing). Remembered while the app runs.
-    var kind by remember { mutableStateOf(OnDemandHomeTab.last) }
-    val hasMovies = state.rows.any { it.type == com.nuvio.tv.domain.model.ContentType.MOVIE }
-    val hasSeries = state.rows.any { it.type == com.nuvio.tv.domain.model.ContentType.SERIES }
+    // Nuvio Plus: the sections come from the whole catalogue (not the rows read so far: series
+    // groups come last and are only read when picked, so the tabs went missing).
+    val sections by viewModel.sections.collectAsStateWithLifecycle()
+    val picked by viewModel.section.collectAsStateWithLifecycle()
+    val kind = picked ?: VodKind.MOVIE
+    val hasMovies = VodKind.MOVIE in sections
+    val hasSeries = VodKind.SERIES in sections
     // Only one kind available: show that one.
     val shownKind = when {
         kind == VodKind.SERIES && !hasSeries && hasMovies -> VodKind.MOVIE
@@ -160,8 +164,8 @@ fun OnDemandHomeScreen(
     val rows = remember(state.rows, wantedType) { state.rows.filter { it.type == wantedType } }
     fun switchTo(k: VodKind) {
         if (k == kind) return
-        kind = k
         OnDemandHomeTab.last = k
+        viewModel.pickSection(k)
         // A fresh start in the other list (the saved position belongs to the old one).
         focusState = HomeScreenFocusState()
         gridFocusState = HomeScreenFocusState()

@@ -428,6 +428,43 @@ class OnDemandViewModel @Inject constructor(
     private val homeMatched = java.util.concurrent.ConcurrentHashMap<String, com.nuvio.tv.domain.model.MetaPreview>()
     private val homeTried = java.util.concurrent.ConcurrentHashMap.newKeySet<String>()
     private var homeGroups: List<Pair<VodCategory, String>> = emptyList()
+    /** Nuvio Plus: every visible group, movies and series; [homeGroups] is the section picked. */
+    private var allHomeGroups: List<Pair<VodCategory, String>> = emptyList()
+
+    /** Nuvio Plus: the section at the top of On Demand: Movies, Series or (null) everything. Kept while the app runs. */
+    private val _section = MutableStateFlow(lastSection)
+    val section: StateFlow<VodKind?> = _section
+    /** The sections this catalogue has (a provider without series shows no Series). */
+    private val _sections = MutableStateFlow<List<VodKind>>(emptyList())
+    val sections: StateFlow<List<VodKind>> = _sections
+
+    private fun inSection(all: List<Pair<VodCategory, String>>): List<Pair<VodCategory, String>> {
+        _sections.value = VodKind.entries.filter { k -> all.any { it.first.kind == k } }
+        val k = _section.value?.takeIf { it in _sections.value } ?: return all
+        return all.filter { it.first.kind == k }
+    }
+
+    /** Switches the section: its groups are read (the first batch) and the page rebuilt. */
+    fun pickSection(kind: VodKind?) {
+        if (_section.value == kind) return
+        _section.value = kind
+        lastSection = kind
+        groupsJob?.cancel()
+        homeGroups = inSection(allHomeGroups)
+        viewModelScope.launch {
+            var read = 0
+            for ((index, pair) in homeGroups.withIndex()) {
+                if (read >= GROUP_BATCH) break
+                if (!homeItems.containsKey(pair.first.uid)) readFirstPage(pair.first)
+                read++
+                homeReadUpTo = index + 1
+                if (index == FIRST_ROWS) updateHomeRows()
+            }
+            homeReadUpTo = homeReadUpTo.coerceAtMost(homeGroups.size)
+            updateHomeRows()
+            enrichHome()
+        }
+    }
     private var homeEnrichJob: kotlinx.coroutines.Job? = null
 
     /** Builds the page: every group in your order, hidden and locked ones left out. */
@@ -461,7 +498,8 @@ class OnDemandViewModel @Inject constructor(
                 c.uid !in user.vodHiddenCategories &&
                     !ParentalControls.isLocked("vod:${c.uid}", c.name, settings.value, user.lockedGroups)
             }
-            homeGroups = visible.map { it to (user.vodGroupNames[it.uid]?.takeIf { n -> n.isNotBlank() } ?: it.name) }
+            allHomeGroups = visible.map { it to (user.vodGroupNames[it.uid]?.takeIf { n -> n.isNotBlank() } ?: it.name) }
+            homeGroups = inSection(allHomeGroups)
             // Before anything is highlighted, the header names the first group's playlist.
             if (focusedPlaylist.value == null) focusedPlaylist.value = homeGroups.firstOrNull()?.first?.playlistId
             homeItems.clear(); homeEnded.clear(); homeRead.clear()
@@ -970,7 +1008,8 @@ class OnDemandViewModel @Inject constructor(
     }
 
     private fun restoreHome(snap: HomeSnapshot) {
-        homeGroups = snap.groups
+        allHomeGroups = snap.groups
+        homeGroups = inSection(allHomeGroups)
         homeItems.clear(); homeItems.putAll(snap.items)
         homeEnded.clear(); homeEnded.addAll(snap.ended)
         homeRead.clear(); homeRead.putAll(snap.read)
@@ -991,7 +1030,7 @@ class OnDemandViewModel @Inject constructor(
             HomeSnapshot.last = HomeSnapshot(
                 key = key,
                 state = state,
-                groups = homeGroups,
+                groups = allHomeGroups,
                 items = HashMap(homeItems),
                 ended = HashSet(homeEnded),
                 read = HashMap(homeRead),
@@ -1006,6 +1045,8 @@ class OnDemandViewModel @Inject constructor(
 
     private companion object {
         const val FIRST_ROWS = 6
+        /** Nuvio Plus: the section last picked (Movies first until you pick another). */
+        @Volatile var lastSection: VodKind? = OnDemandHomeTab.last
         /** Nuvio Plus: groups read at a time as you scroll down the page. */
         const val GROUP_BATCH = 12
         const val HOME_PAGE = 30

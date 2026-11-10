@@ -81,6 +81,17 @@ class LayoutPreferenceDataStore @Inject constructor(
     private val modernSidebarBlurEnabledKey = booleanPreferencesKey("modern_sidebar_blur_enabled")
     private val modernLandscapePostersEnabledKey = booleanPreferencesKey("modern_landscape_posters_enabled")
     private val heroSectionEnabledKey = booleanPreferencesKey("hero_section_enabled")
+    /** Nuvio Plus: set once you change the Home layout, the hero or its backdrop yourself; until then the NowSeen home (Modern, large featured title) is used. */
+    private val nowSeenHomeKey = booleanPreferencesKey("np_nowseen_home")
+
+    /** Before your own change: keep the NowSeen home as your starting point. */
+    private fun androidx.datastore.preferences.core.MutablePreferences.adoptNowSeenHome() {
+        if (this[nowSeenHomeKey] == true) return
+        this[layoutKey] = HomeLayout.MODERN.name
+        this[heroSectionEnabledKey] = true
+        this[modernHeroFullScreenBackdropKey] = true
+        this[nowSeenHomeKey] = true
+    }
     private val posterLabelsEnabledKey = booleanPreferencesKey("poster_labels_enabled")
     private val catalogAddonNameEnabledKey = booleanPreferencesKey("catalog_addon_name_enabled")
     private val catalogTypeSuffixEnabledKey = booleanPreferencesKey("catalog_type_suffix_enabled")
@@ -156,7 +167,7 @@ class LayoutPreferenceDataStore @Inject constructor(
         value?.takeIf { it > 0 } ?: defaultValue
 
     val selectedLayout: Flow<HomeLayout> = profileFlow { prefs ->
-        val layoutName = prefs[layoutKey] ?: HomeLayout.MODERN.name
+        val layoutName = if (prefs[nowSeenHomeKey] != true) HomeLayout.MODERN.name else prefs[layoutKey] ?: HomeLayout.MODERN.name
         try {
             HomeLayout.valueOf(layoutName)
         } catch (e: IllegalArgumentException) {
@@ -242,11 +253,11 @@ class LayoutPreferenceDataStore @Inject constructor(
     }
 
     val modernHeroFullScreenBackdropEnabled: Flow<Boolean> = profileFlow { prefs ->
-        prefs[modernHeroFullScreenBackdropKey] ?: false
+        if (prefs[nowSeenHomeKey] != true) true else prefs[modernHeroFullScreenBackdropKey] ?: false
     }
 
     val heroSectionEnabled: Flow<Boolean> = profileFlow { prefs ->
-        prefs[heroSectionEnabledKey] ?: true
+        if (prefs[nowSeenHomeKey] != true) true else prefs[heroSectionEnabledKey] ?: true
     }
 
     val discoverLocation: Flow<DiscoverLocation> = profileFlow { prefs ->
@@ -501,6 +512,7 @@ class LayoutPreferenceDataStore @Inject constructor(
 
     suspend fun setLayout(layout: HomeLayout) {
         store().edit { prefs ->
+            prefs.adoptNowSeenHome()
             val hadChosenLayout = prefs[hasChosenKey] ?: false
             prefs[layoutKey] = layout.name
             if (
@@ -581,12 +593,14 @@ class LayoutPreferenceDataStore @Inject constructor(
 
     suspend fun setModernHeroFullScreenBackdropEnabled(enabled: Boolean) {
         store().edit { prefs ->
+            prefs.adoptNowSeenHome()
             prefs[modernHeroFullScreenBackdropKey] = enabled
         }
     }
 
     suspend fun setHeroSectionEnabled(enabled: Boolean) {
         store().edit { prefs ->
+            prefs.adoptNowSeenHome()
             prefs[heroSectionEnabledKey] = enabled
         }
     }

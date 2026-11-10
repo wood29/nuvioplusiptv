@@ -87,6 +87,7 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.input.key.Key
+import androidx.compose.foundation.clickable
 import androidx.compose.ui.input.key.KeyEventType
 import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.onPreviewKeyEvent
@@ -1000,7 +1001,26 @@ fun LiveTvGuideScreen(
                 playbackBuffering = playback.isBuffering,
                 playbackError = playback.error,
                 catchupTitle = playback.catchupTitle,
-                status = status.message.takeIf { status.loading }
+                status = status.message.takeIf { status.loading },
+                nextTitle = headerBlock?.let { b ->
+                    headerChannel?.let { ch -> programs[ch.key]?.firstOrNull { it.startMs >= b.stopMs && it.title.isNotBlank() }?.let { titleMarks(it.title).title } }
+                }
+            )
+            // Nuvio Plus (NowSeen): the group you're in and the day, as choices above the list.
+            if (nowSeenLook()) GuideChoices(
+                groupTitle = selectedGroupTitle,
+                channelCount = channels.size,
+                dayLabel = if (settings.guideLayout == "GRID") guideDayLabel(windowStart, now) else null,
+                onGroup = {
+                    groupsOpen = true
+                    scope.launch { delay(120); runCatching { groupsFocus.requestFocus() } }
+                },
+                onDay = {
+                    val dayMs = 86_400_000L
+                    val next = windowStart + dayMs
+                    windowStart = if (next > now + settings.epgFutureDays * dayMs) floorSlot(System.currentTimeMillis()) else next
+                },
+                onDown = { runCatching { gridFocus.requestFocus() } }
             )
 
             // ---------------------------------------------------------------- groups + guide
@@ -2446,8 +2466,18 @@ private fun GuideHeader(
     onGear: () -> Unit = {},
     onGearDown: () -> Unit = {},
     /** Opens Recordings (the ● beside the ⚙). */
-    onRecordings: () -> Unit = {}
+    onRecordings: () -> Unit = {},
+    /** Nuvio Plus: what comes after the highlighted show (the NowSeen header shows it). */
+    nextTitle: String? = null
 ) {
+    if (nowSeenLook() && (settings.showProgramDetails || showPreview)) {
+        NowSeenHeader(
+            channel, block, playlistName, settings, now, showPreview, playingKey, playbackBuffering,
+            playbackError, catchupTitle, status, onPreviewBounds, onGlassBounds, gearFocus, onGear,
+            onGearDown, onRecordings, nextTitle
+        )
+        return
+    }
     if (!settings.showProgramDetails && !showPreview) {
         Row(
             // Info panel and preview both off: just a slim bar with the clock.
@@ -5153,4 +5183,229 @@ private fun ChannelListRow(
 private fun minutesLeftLabel(ms: Long): String {
     val m = ((ms + 59_999L) / 60_000L).coerceAtLeast(1L)
     return if (m < 60) "$m min left" else "${m / 60} h ${"%02d".format(m % 60)} left"
+}
+
+
+/** "Today", "Tomorrow", or the weekday and date of the day [ms] falls on. */
+private fun guideDayLabel(ms: Long, now: Long): String {
+    val cal = java.util.Calendar.getInstance()
+    fun dayNo(t: Long): Long { cal.timeInMillis = t; return cal.get(java.util.Calendar.YEAR) * 400L + cal.get(java.util.Calendar.DAY_OF_YEAR) }
+    return when (dayNo(ms) - dayNo(now)) {
+        0L -> "Today"
+        1L -> "Tomorrow"
+        else -> java.text.SimpleDateFormat("EEE d MMM", java.util.Locale.getDefault()).format(java.util.Date(ms))
+    }
+}
+
+/**
+ * Nuvio Plus (NowSeen look): the choices above the channel list: the group you're in (OK opens
+ * the group list), the day (TV guide only: OK steps to the next day, then back to today) and how
+ * many channels the group has.
+ */
+@Composable
+private fun GuideChoices(
+    groupTitle: String,
+    channelCount: Int,
+    dayLabel: String?,
+    onGroup: () -> Unit,
+    onDay: () -> Unit,
+    onDown: () -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(start = 56.dp, end = 24.dp, top = 2.dp, bottom = 6.dp)
+            .onPreviewKeyEvent { e ->
+                if (e.type == KeyEventType.KeyDown && e.key == Key.DirectionDown) { onDown(); true } else false
+            },
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(10.dp)
+    ) {
+        ChoiceChip(groupTitle, filled = true, onClick = onGroup)
+        if (dayLabel != null) ChoiceChip(dayLabel, filled = false, onClick = onDay)
+        LiveText("$channelCount channels", color = NuvioTheme.colors.TextSecondary, size = 14.sp)
+    }
+}
+
+@Composable
+private fun ChoiceChip(label: String, filled: Boolean, onClick: () -> Unit) {
+    var focused by remember { mutableStateOf(false) }
+    val shape = RoundedCornerShape(50)
+    LiveText(
+        label,
+        modifier = Modifier
+            .clip(shape)
+            .background(
+                when {
+                    focused -> Color(0xFFF2F4F8)
+                    filled -> Color(0xFF1B222D)
+                    else -> Color.Transparent
+                }
+            )
+            .border(1.dp, if (filled && !focused) NOWSEEN_ACCENT else Color.White.copy(alpha = if (focused) 0f else 0.16f), shape)
+            .onFocusChanged { focused = it.isFocused }
+            .clickable(interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() }, indication = null, onClick = onClick)
+            .padding(horizontal = 16.dp, vertical = 6.dp),
+        color = if (focused) Color(0xFF0A0D12) else NuvioTheme.colors.TextPrimary,
+        size = 15.sp,
+        weight = FontWeight.SemiBold
+    )
+}
+
+/**
+ * Nuvio Plus: the NowSeen-style header (mockups 1 and 2): a big title for the highlighted show
+ * with its channel and time, description, progress and what's next, and a large live preview,
+ * on the right in the channel list and on the left in the TV guide. No glass card: it sits on
+ * the page like a hero.
+ */
+@Composable
+private fun NowSeenHeader(
+    channel: LiveChannel?,
+    block: GuideBlock?,
+    playlistName: String?,
+    settings: LiveTvSettings,
+    now: Long,
+    showPreview: Boolean,
+    playingKey: String?,
+    playbackBuffering: Boolean,
+    playbackError: String?,
+    catchupTitle: String?,
+    status: String?,
+    onPreviewBounds: (androidx.compose.ui.geometry.Rect?) -> Unit,
+    onGlassBounds: (androidx.compose.ui.geometry.Rect?) -> Unit,
+    gearFocus: FocusRequester,
+    onGear: () -> Unit,
+    onGearDown: () -> Unit,
+    onRecordings: () -> Unit,
+    nextTitle: String?
+) {
+    val small = settings.smallHeader
+    val grid = settings.guideLayout == "GRID"
+    val height = if (small) 190.dp else 262.dp
+    val preview: @Composable () -> Unit = {
+        if (showPreview) Box(
+            modifier = Modifier
+                .fillMaxHeight()
+                .aspectRatio(16f / 9f)
+                .clip(RoundedCornerShape(22.dp))
+                .background(Color(0xFF141A24))
+                .border(1.dp, Color.White.copy(alpha = 0.08f), RoundedCornerShape(22.dp))
+        ) {
+            Box(Modifier.fillMaxSize().onGloballyPositioned { onPreviewBounds(it.boundsInRoot()) })
+            androidx.compose.runtime.DisposableEffect(Unit) { onDispose { onPreviewBounds(null) } }
+            val overlay = when {
+                playingKey == null -> "Press OK on a channel to preview"
+                playbackError != null -> null
+                playbackBuffering -> "Loading…"
+                else -> null
+            }
+            overlay?.let { LiveText(it, modifier = Modifier.align(Alignment.Center), color = NuvioTheme.colors.TextSecondary, size = 15.sp) }
+            playbackError?.let { PlayerStatusMessage("Reconnecting…", it, modifier = Modifier.align(Alignment.Center), compact = true) }
+            catchupTitle?.let {
+                LiveText(
+                    "ARCHIVE · $it",
+                    modifier = Modifier.align(Alignment.TopStart).padding(10.dp).clip(RoundedCornerShape(6.dp))
+                        .background(Color.Black.copy(alpha = 0.6f)).padding(horizontal = 8.dp, vertical = 3.dp),
+                    size = 12.sp
+                )
+            }
+        }
+    }
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(height)
+            .padding(start = 56.dp, end = 24.dp, top = if (small) 14.dp else 22.dp, bottom = 10.dp)
+            .onGloballyPositioned { onGlassBounds(it.boundsInRoot()) },
+        horizontalArrangement = Arrangement.spacedBy(28.dp)
+    ) {
+        if (grid) preview()
+        Column(Modifier.weight(1f).fillMaxHeight()) {
+            // Channel, time, LIVE; the clock, Recordings and ⚙ at the end.
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                val live = block != null && now in block.startMs until block.stopMs
+                if (live) { LiveTag("LIVE", LIVE_RED, Color.White); Spacer(Modifier.width(12.dp)) }
+                val label = buildString {
+                    if (channel != null) {
+                        if (settings.showChannelNumbers) append("${channel.number}  ")
+                        append(channel.name)
+                        playlistName?.let { append("  ·  $it") }
+                    }
+                    if (block != null) append("  ·  " + formatDayClock(block.startMs, now, settings.use24HourClock) + " – " + formatClock(block.stopMs, settings.use24HourClock))
+                }
+                LiveText(label.ifBlank { status ?: "Live TV" }, color = NuvioTheme.colors.TextSecondary, size = 16.sp, weight = FontWeight.Medium, modifier = Modifier.weight(1f))
+                if (settings.clockMode != "never") {
+                    LiveText(formatClock(now, settings.use24HourClock), size = 24.sp, weight = FontWeight.Bold)
+                    Spacer(Modifier.width(14.dp))
+                }
+                GuideRecordingsButton(onOpen = onRecordings, onDown = onGearDown)
+                Spacer(Modifier.width(6.dp))
+                GuideGearButton(Modifier.focusRequester(gearFocus), onOpen = onGear, onDown = onGearDown)
+            }
+            Spacer(Modifier.weight(1f))
+            if (channel != null && settings.showProgramDetails) {
+                val p = rememberShowDetails(channel.key, block?.program)
+                LiveText(
+                    text = p?.title?.let { titleMarks(it).title } ?: channel.name,
+                    modifier = Modifier.fillMaxWidth(),
+                    size = if (small) 28.sp else 38.sp,
+                    weight = FontWeight.ExtraBold,
+                    maxLines = 1,
+                    marquee = true
+                )
+                val meta = listOfNotNull(
+                    p?.episode?.takeIf { settings.showEpisodeNumbers },
+                    p?.category,
+                    channel.catchup?.let { "Catch-up" }
+                ).joinToString("  ·  ")
+                if (meta.isNotBlank()) LiveText(meta, color = NuvioTheme.colors.TextSecondary, size = 14.sp)
+                Spacer(Modifier.height(6.dp))
+                val about = rememberChannelAbout(channel, p)
+                ScrollingDescription(
+                    text = about?.description?.takeIf { it.isNotBlank() } ?: p?.description ?: if (p == null) "No program information" else "",
+                    color = NuvioTheme.colors.TextSecondary,
+                    size = 15.sp,
+                    maxLines = if (small) 1 else 2
+                )
+                if (block != null && now in block.startMs until block.stopMs) {
+                    Spacer(Modifier.height(10.dp))
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        ProgressBar(
+                            fraction = ((now - block.startMs).toFloat() / (block.stopMs - block.startMs).coerceAtLeast(1)).coerceIn(0f, 1f),
+                            modifier = Modifier.width(300.dp),
+                            color = NOWSEEN_ACCENT,
+                            trackColor = Color.White.copy(alpha = 0.14f)
+                        )
+                        Spacer(Modifier.width(14.dp))
+                        LiveText(
+                            minutesLeftLabel(block.stopMs, now) + (nextTitle?.let { "  ·  Next: $it" } ?: ""),
+                            color = NuvioTheme.colors.TextSecondary, size = 14.sp
+                        )
+                    }
+                }
+                if (!small) {
+                    Spacer(Modifier.height(10.dp))
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        KeyHint("OK", "Watch")
+                        KeyHint("Hold OK", "Record · Remind · Multi-view")
+                    }
+                }
+            }
+        }
+        if (!grid) preview()
+    }
+}
+
+/** A remote-button hint in the header: "OK  Watch". */
+@Composable
+private fun KeyHint(key: String, what: String) {
+    Row(
+        Modifier.clip(RoundedCornerShape(10.dp)).background(Color.White.copy(alpha = 0.07f)).padding(horizontal = 10.dp, vertical = 5.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        LiveText(key, size = 12.sp, weight = FontWeight.Bold, color = Color(0xFF0A0D12),
+            modifier = Modifier.clip(RoundedCornerShape(5.dp)).background(Color(0xFFF2F4F8)).padding(horizontal = 6.dp, vertical = 1.dp))
+        Spacer(Modifier.width(8.dp))
+        LiveText(what, size = 13.sp, color = NuvioTheme.colors.TextSecondary)
+    }
 }
