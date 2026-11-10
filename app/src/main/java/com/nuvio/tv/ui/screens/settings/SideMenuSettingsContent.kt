@@ -218,11 +218,16 @@ fun SideMenuSettingsContent(initialFocusRequester: FocusRequester? = null) {
                         value = if (s.menuStyle == "TOP") "Top bar" else "Side menu",
                         onClick = {
                             val toTop = s.menuStyle != "TOP"
-                            // The bar opens straight away so you see the change (the page under it
-                            // is rebuilt for the new menu).
+                            // The app reopens on its first page with the new menu (and, for the
+                            // top bar, the bar open once so you see it).
                             if (toTop) com.nuvio.tv.ui.components.NpBannerState.openTopBar.value = true
-                            update { it.copy(menuStyle = if (toTop) "TOP" else "SIDE") }
-                            LiveTvNotice.show(if (toTop) "Top bar on: Up at the top of a page (or hold Back) opens it" else "Side menu on")
+                            scope.launch {
+                                prefs.updateSettings { it.copy(menuStyle = if (toTop) "TOP" else "SIDE") }
+                                LiveTvNotice.show(if (toTop) "Menu style: Top bar. Up at the top of a page, or hold Back, opens it" else "Menu style: Side menu")
+                                var c: android.content.Context? = context
+                                while (c is android.content.ContextWrapper && c !is android.app.Activity) c = c.baseContext
+                                (c as? android.app.Activity)?.recreate()
+                            }
                         }
                     )
                     SettingsToggleRow(

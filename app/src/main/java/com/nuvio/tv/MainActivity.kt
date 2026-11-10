@@ -229,6 +229,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.flow.first
 
 val LocalSidebarExpanded = compositionLocalOf { false }
 
@@ -1132,6 +1133,11 @@ open class MainActivity : ComponentActivity() {
                         .collectAsState(initial = com.nuvio.tv.livetv.model.LiveTvSettings())
                         .value
                     val liveTvInSidebar = liveTvSettingsNow.showInSidebar
+                    // Nuvio Plus: the menu style is read once when the app opens (Settings restarts
+                    // the screen when it changes), so the page you're on never gets swapped mid-way.
+                    val menuStyleAtStart by androidx.compose.runtime.produceState<String?>(null) {
+                        value = liveTvSettingsFlow.first().menuStyle
+                    }
                     // Live TV fork: On Demand shows in the menu only when a provider's movies or
                     // series are imported.
                     val onDemandHasContent = remember { onDemandRepository.also { it.start() }.hasContent }
@@ -1336,7 +1342,7 @@ open class MainActivity : ComponentActivity() {
                                 LocalNavViewModelStoreOwner provides navViewModelStoreOwner,
                                 com.nuvio.tv.livetv.ui.LocalSideMenuFit provides liveTvSettingsNow.sideMenuFit
                             ) {
-                                if (liveTvSettingsNow.menuStyle == "TOP") {
+                                if (menuStyleAtStart == "TOP") {
                                     TopMenuScaffold(
                                         longPressBackHeld = longPressBackHeld,
                                         navController = navController,
@@ -2916,6 +2922,7 @@ private fun TopMenuScaffold(
         com.nuvio.tv.ui.components.NpBannerState.topBarOn.value = true
         com.nuvio.tv.ui.components.NpBannerState.onUp = { focusBar(); true }
         onDispose {
+            onMenuOpenChange(false)
             com.nuvio.tv.ui.components.NpBannerState.topBarOn.value = false
             com.nuvio.tv.ui.components.NpBannerState.onUp = null
         }
