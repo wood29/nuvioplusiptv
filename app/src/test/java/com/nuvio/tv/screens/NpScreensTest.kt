@@ -45,7 +45,7 @@ import java.io.File
 @org.robolectric.annotation.ConscryptMode(org.robolectric.annotation.ConscryptMode.Mode.OFF)
 @Config(sdk = [34], qualifiers = "w960dp-h540dp-xhdpi", application = android.app.Application::class)
 class NpScreensTest {
-    @get:Rule val rule = createComposeRule()
+    @get:Rule val rule = androidx.compose.ui.test.junit4.createAndroidComposeRule<androidx.activity.ComponentActivity>()
 
     private val out = File("build/np-screens").apply { mkdirs() }
 
@@ -78,9 +78,15 @@ class NpScreensTest {
         }
     }
 
+    // The window drawn straight into a picture (Compose's own capture waits for a frame the
+    // paused test clock never produces).
     private fun save(name: String) {
-        val img = rule.onRoot().captureToImage().asAndroidBitmap()
-        File(out, "$name.png").outputStream().use { img.compress(Bitmap.CompressFormat.PNG, 100, it) }
+        rule.runOnUiThread {
+            val v = rule.activity.window.decorView
+            val img = Bitmap.createBitmap(v.width.coerceAtLeast(1), v.height.coerceAtLeast(1), Bitmap.Config.ARGB_8888)
+            v.draw(Canvas(img))
+            File(out, "$name.png").outputStream().use { img.compress(Bitmap.CompressFormat.PNG, 100, it) }
+        }
     }
 
     @Test
