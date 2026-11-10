@@ -219,6 +219,42 @@ private fun PlaybackNavHost(
                     homeVmForSettings.uiState.collect { com.nuvio.tv.livetv.ondemand.OnDemandHomeSettings.last = it }
                 }
             }
+            // Nuvio Plus: a title from your provider in Continue Watching plays from the provider
+            // again, from where you stopped.
+            val cwScope = androidx.compose.runtime.rememberCoroutineScope()
+            fun playOnDemandFromContinue(item: ContinueWatchingItem, fromStart: Boolean): Boolean {
+                val p = (item as? ContinueWatchingItem.InProgress)?.progress ?: return false
+                val uid = com.nuvio.tv.livetv.ondemand.OnDemandTracking.uidOf(p.contentId) ?: return false
+                cwScope.launch {
+                    val r = runCatching {
+                        com.nuvio.tv.livetv.ondemand.OnDemandPlay.resolve(context, uid, p.season, p.episode)
+                    }.getOrNull()
+                    if (r == null) {
+                        Toast.makeText(context, "Your provider doesn't have this any more", Toast.LENGTH_SHORT).show()
+                        return@launch
+                    }
+                    navController.navigate(
+                        Screen.Player.createRoute(
+                            streamUrl = r.url,
+                            title = r.title,
+                            contentId = p.contentId,
+                            contentType = p.contentType,
+                            contentName = p.name,
+                            poster = p.poster ?: r.poster,
+                            backdrop = p.backdrop,
+                            logo = p.logo,
+                            videoId = p.videoId,
+                            season = p.season,
+                            episode = p.episode,
+                            episodeTitle = p.episodeTitle,
+                            addonName = com.nuvio.tv.livetv.ondemand.OnDemandStreams.GROUP_NAME,
+                            startFromBeginning = fromStart,
+                            returnToHomeOnBack = true
+                        )
+                    )
+                }
+                return true
+            }
             fun createContinueWatchingRoute(
                 item: ContinueWatchingItem,
                 manualSelection: Boolean = false,
@@ -305,6 +341,7 @@ private fun PlaybackNavHost(
                     )
                 },
                 onContinueWatchingClick = onContinueWatchingClick@{ item ->
+                    if (playOnDemandFromContinue(item, false)) return@onContinueWatchingClick
                     if (!playbackAvailability.canStream(item)) {
                         Toast.makeText(context, R.string.playback_unavailable_message, Toast.LENGTH_SHORT).show()
                         return@onContinueWatchingClick
@@ -312,6 +349,7 @@ private fun PlaybackNavHost(
                     navController.navigate(createContinueWatchingRoute(item))
                 },
                 onContinueWatchingStartFromBeginning = onContinueWatchingStartFromBeginning@{ item ->
+                    if (playOnDemandFromContinue(item, true)) return@onContinueWatchingStartFromBeginning
                     if (!playbackAvailability.canStream(item)) {
                         Toast.makeText(context, R.string.playback_unavailable_message, Toast.LENGTH_SHORT).show()
                         return@onContinueWatchingStartFromBeginning
@@ -1321,14 +1359,21 @@ private fun PlaybackNavHost(
                     )
                 },
                 onPlayOnDemand = { url, title, type, poster ->
+                    val track = com.nuvio.tv.livetv.ondemand.OnDemandTracking.take()
                     navController.navigate(
                         Screen.Player.createRoute(
                             streamUrl = url,
                             title = title,
-                            contentType = type,
-                            contentName = title,
+                            contentType = track?.contentType ?: type,
+                            contentName = track?.name ?: title,
                             poster = poster,
-                            addonName = com.nuvio.tv.livetv.ondemand.OnDemandStreams.GROUP_NAME
+                            addonName = com.nuvio.tv.livetv.ondemand.OnDemandStreams.GROUP_NAME,
+                            // Nuvio Plus: kept in Continue Watching under its own id.
+                            contentId = track?.contentId,
+                            videoId = track?.videoId,
+                            season = track?.season,
+                            episode = track?.episode,
+                            episodeTitle = track?.episodeTitle
                         )
                     )
                 },
@@ -1568,14 +1613,21 @@ private fun PlaybackNavHost(
                     )
                 },
                 onPlay = { url, title, type, poster ->
+                    val track = com.nuvio.tv.livetv.ondemand.OnDemandTracking.take()
                     navController.navigate(
                         Screen.Player.createRoute(
                             streamUrl = url,
                             title = title,
-                            contentType = type,
-                            contentName = title,
+                            contentType = track?.contentType ?: type,
+                            contentName = track?.name ?: title,
                             poster = poster,
-                            addonName = com.nuvio.tv.livetv.ondemand.OnDemandStreams.GROUP_NAME
+                            addonName = com.nuvio.tv.livetv.ondemand.OnDemandStreams.GROUP_NAME,
+                            // Nuvio Plus: kept in Continue Watching under its own id.
+                            contentId = track?.contentId,
+                            videoId = track?.videoId,
+                            season = track?.season,
+                            episode = track?.episode,
+                            episodeTitle = track?.episodeTitle
                         )
                     )
                 },

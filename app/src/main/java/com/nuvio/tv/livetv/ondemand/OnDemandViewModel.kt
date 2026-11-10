@@ -406,6 +406,8 @@ class OnDemandViewModel @Inject constructor(
     }
 
     suspend fun info(item: VodItem): VodInfo? = repository.info(item)
+    /** Adult titles are never kept in Continue Watching. */
+    suspend fun isAdult(item: VodItem): Boolean = repository.isAdult(item)
     suspend fun movieUrl(item: VodItem): String? = repository.movieUrl(item)
 
     // ------------------------------------------------------------------ loading

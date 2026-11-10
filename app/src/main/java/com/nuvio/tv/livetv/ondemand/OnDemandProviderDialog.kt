@@ -87,6 +87,7 @@ internal fun ProviderDetailDialog(
     onPlay: (url: String, title: String, poster: String?) -> Unit
 ) {
     val scope = rememberCoroutineScope()
+    val adult by produceState(initialValue = true, item.uid) { value = runCatching { viewModel.isAdult(item) }.getOrDefault(true) }
     val info by produceState<VodInfo?>(initialValue = null, item.uid) { value = viewModel.info(item) }
     val poster by produceState<String?>(initialValue = item.icon, item.uid) { viewModel.posterFor(item)?.let { value = it } }
     var season by remember { mutableStateOf<Int?>(null) }
@@ -126,12 +127,18 @@ internal fun ProviderDetailDialog(
                                     "Play · ${v.label}" + if (v.detail.isNotBlank()) "  —  ${v.detail}" else "",
                                     if (v == versions.first()) Modifier.focusRequester(first) else Modifier
                                 ) {
-                                    scope.launch { viewModel.movieUrl(v.item)?.let { onPlay(it, item.name, poster) } }
+                                    scope.launch { viewModel.movieUrl(v.item)?.let {
+                                        if (!adult) OnDemandTracking.set(OnDemandTracking.Track(item.uid, OnDemandDatabase.displayTitle(item.name), series = false))
+                                        onPlay(it, item.name, poster)
+                                    } }
                                 }
                             }
                         }
                     } else MenuItem("Play", Modifier.focusRequester(first)) {
-                        scope.launch { viewModel.movieUrl(item)?.let { onPlay(it, item.name, poster) } }
+                        scope.launch { viewModel.movieUrl(item)?.let {
+                            if (!adult) OnDemandTracking.set(OnDemandTracking.Track(item.uid, OnDemandDatabase.displayTitle(item.name), series = false))
+                            onPlay(it, item.name, poster)
+                        } }
                     }
                 } else {
                     val episodes = info?.episodes.orEmpty()
@@ -150,6 +157,7 @@ internal fun ProviderDetailDialog(
                                     "${ep.episode}.  ${ep.title}",
                                     if (ep == episodes.firstOrNull { it.season == current }) Modifier.focusRequester(first) else Modifier
                                 ) {
+                                    if (!adult) OnDemandTracking.set(OnDemandTracking.Track(item.uid, OnDemandDatabase.displayTitle(item.name), series = true, season = ep.season, episode = ep.episode, episodeTitle = ep.title))
                                     onPlay(ep.url, "${item.name} · S${ep.season}E${ep.episode}", poster)
                                 }
                             }

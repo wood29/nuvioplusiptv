@@ -90,3 +90,35 @@ fun OnDemandVersionPicker(
     }
     LaunchedEffect(Unit) { delay(80); runCatching { first.requestFocus() } }
 }
+
+
+/**
+ * Nuvio Plus: titles played straight from your provider (ones Nuvio's add-ons don't know) are
+ * kept in Continue Watching too, under their own id "npvod:<uid>". The provider's details
+ * dialog says what is about to play; the player route picks it up.
+ */
+object OnDemandTracking {
+    const val PREFIX = "npvod:"
+
+    data class Track(
+        val uid: String,
+        val name: String,
+        val series: Boolean,
+        val season: Int? = null,
+        val episode: Int? = null,
+        val episodeTitle: String? = null
+    ) {
+        val contentId: String get() = PREFIX + uid
+        val contentType: String get() = if (series) "series" else "movie"
+        val videoId: String get() = if (series && season != null && episode != null) "$contentId:$season:$episode" else contentId
+    }
+
+    @Volatile private var pending: Track? = null
+
+    fun set(t: Track) { pending = t }
+
+    /** What's about to play (once). */
+    fun take(): Track? = pending.also { pending = null }
+
+    fun uidOf(contentId: String?): String? = contentId?.takeIf { it.startsWith(PREFIX) }?.removePrefix(PREFIX)
+}
