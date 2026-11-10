@@ -1209,8 +1209,7 @@ fun LiveTvGuideScreen(
                             modifier = Modifier.weight(1f).fillMaxHeight().padding(start = 20.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            LiveText("On now", color = NuvioTheme.colors.TextSecondary, size = (13f * guideScale(settings)).sp, weight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
-                            LiveText("Next", color = NuvioTheme.colors.TextSecondary, size = (13f * guideScale(settings)).sp, weight = FontWeight.SemiBold, modifier = Modifier.width(278.dp))
+                            Spacer(Modifier.weight(1f))
                             LiveText(
                                 formatClock(now, settings.use24HourClock),
                                 modifier = Modifier
@@ -5083,7 +5082,8 @@ private fun ChannelListRow(
         verticalAlignment = Alignment.CenterVertically
     ) {
         // ---- the channel
-        Row(Modifier.width(channelColWidth - 12.dp), verticalAlignment = Alignment.CenterVertically) {
+        // Narrower than the TV guide's channel column: the show on now needs the room.
+        Row(Modifier.width((channelColWidth - 12.dp).coerceAtMost(300.dp)), verticalAlignment = Alignment.CenterVertically) {
             if (settings.showChannelNumbers) {
                 LiveText(
                     channel.number.toString(),
@@ -5171,7 +5171,7 @@ private fun ChannelListRow(
             Spacer(Modifier.width(18.dp))
             LiveText(
                 "Next · " + titleMarks(next.title).title,
-                modifier = Modifier.widthIn(max = 260.dp).width(260.dp),
+                modifier = Modifier.width(220.dp),
                 color = dim,
                 size = gsp(12.5f)
             )
@@ -5337,7 +5337,7 @@ private fun NowSeenHeader(
                 LiveText(
                     text = p?.title?.let { titleMarks(it).title } ?: channel.name,
                     modifier = Modifier.fillMaxWidth(),
-                    size = if (small) 28.sp else 38.sp,
+                    size = if (small) 26.sp else 34.sp,
                     weight = FontWeight.ExtraBold,
                     maxLines = 1,
                     marquee = true
@@ -5348,7 +5348,7 @@ private fun NowSeenHeader(
                     channel.catchup?.let { "Catch-up" }
                 ).joinToString("  ·  ")
                 if (meta.isNotBlank()) LiveText(meta, color = NuvioTheme.colors.TextSecondary, size = 14.sp)
-                Spacer(Modifier.height(6.dp))
+                Spacer(Modifier.height(4.dp))
                 val about = rememberChannelAbout(channel, p)
                 ScrollingDescription(
                     text = about?.description?.takeIf { it.isNotBlank() } ?: p?.description ?: if (p == null) "No program information" else "",
@@ -5372,13 +5372,7 @@ private fun NowSeenHeader(
                         )
                     }
                 }
-                if (!small) {
-                    Spacer(Modifier.height(10.dp))
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        KeyHint("OK", "Watch")
-                        KeyHint("Hold OK", "Record · Remind · Multi-view")
-                    }
-                }
+
             }
         }
         if (!grid) preview()

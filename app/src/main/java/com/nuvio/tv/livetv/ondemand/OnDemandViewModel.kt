@@ -726,7 +726,31 @@ class OnDemandViewModel @Inject constructor(
     private suspend fun buildHomeRows(): List<com.nuvio.tv.domain.model.CatalogRow> =
         kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Default) { buildHomeRowsNow() }
 
-    private fun buildHomeRowsNow(): List<com.nuvio.tv.domain.model.CatalogRow> = homeGroups.mapNotNull { (c, name) ->
+    /**
+     * Nuvio Plus: "Featured" at the top: titles from the first groups (usually the provider's
+     * latest) that have full artwork, so the large picture at the top looks right from the start.
+     * A different order each day.
+     */
+    private fun featuredRow(): com.nuvio.tv.domain.model.CatalogRow? {
+        val pool = homeGroups.take(4).flatMap { (c, _) -> homeItems[c.uid].orEmpty().take(8) }
+            .distinctBy { it.uid }
+            .filter { !homeMatched[it.uid]?.background.isNullOrBlank() }
+        if (pool.size < 4) return null
+        val day = (System.currentTimeMillis() / 86_400_000L).toInt()
+        val picked = pool.shuffled(java.util.Random(day.toLong())).take(12)
+        return VodHomeIds.row(
+            uid = FEATURED_UID,
+            name = "Featured",
+            kind = picked.first().kind,
+            items = picked.map { item ->
+                VodHomeIds.toMeta(item, homeMatched[item.uid], posters[item.uid], names[item.uid] ?: OnDemandDatabase.displayTitle(item.name))
+            },
+            hasMore = false,
+            page = 1
+        )
+    }
+
+    private fun buildHomeRowsNow(): List<com.nuvio.tv.domain.model.CatalogRow> = listOfNotNull(featuredRow()) + homeGroups.mapNotNull { (c, name) ->
         val items = homeItems[c.uid].orEmpty()
         if (items.isEmpty()) return@mapNotNull null
         VodHomeIds.row(
@@ -1045,6 +1069,8 @@ class OnDemandViewModel @Inject constructor(
 
     private companion object {
         const val FIRST_ROWS = 6
+        /** The Featured row's id (not a provider group). */
+        const val FEATURED_UID = "np:featured"
         /** Nuvio Plus: the section last picked (Movies first until you pick another). */
         @Volatile var lastSection: VodKind? = OnDemandHomeTab.last
         /** Nuvio Plus: groups read at a time as you scroll down the page. */
