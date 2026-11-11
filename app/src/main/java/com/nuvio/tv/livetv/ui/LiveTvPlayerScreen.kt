@@ -1528,7 +1528,11 @@ private fun MatchFrameRate(
             )
             return@LaunchedEffect
         }
-        if (best.modeId == current.modeId) {
+        // Already at that refresh rate (some boxes list the same rate several times, e.g. with
+        // and without Dolby Vision): no switch. Switching anyway made the screen go dark and
+        // the TV show "Dolby Vision" on every channel change.
+        if (best.modeId == current.modeId || kotlin.math.abs(current.refreshRate - best.refreshRate) < 0.05f ||
+            activity.window.attributes.preferredDisplayModeId == best.modeId) {
             com.nuvio.tv.livetv.model.LiveTvLoadReport.add("Match frame rate: video %.3f fps, display already at %.3f Hz".format(fps, current.refreshRate))
             return@LaunchedEffect
         }
