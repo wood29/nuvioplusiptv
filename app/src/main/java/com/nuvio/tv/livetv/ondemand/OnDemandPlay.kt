@@ -121,4 +121,14 @@ object OnDemandTracking {
     fun take(): Track? = pending.also { pending = null }
 
     fun uidOf(contentId: String?): String? = contentId?.takeIf { it.startsWith(PREFIX) }?.removePrefix(PREFIX)
+
+    /** The episode after S[season]E[episode] in your provider's list (next season too), or null. */
+    suspend fun nextEpisode(context: Context, uid: String, season: Int, episode: Int): VodEpisode? {
+        val repo = onDemandRepository(context)
+        val item = repo.itemByUid(uid) ?: return null
+        val eps = repo.info(item)?.episodes.orEmpty()
+            .filter { it.season > 0 }
+            .sortedWith(compareBy<VodEpisode> { it.season }.thenBy { it.episode })
+        return eps.firstOrNull { it.season > season || (it.season == season && it.episode > episode) }
+    }
 }

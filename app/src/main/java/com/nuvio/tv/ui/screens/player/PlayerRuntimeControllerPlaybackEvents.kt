@@ -1035,6 +1035,31 @@ internal fun PlayerRuntimeController.saveWatchProgressInternal(position: Long, d
                         profileId = profileId,
                         broadcastTrackingHistory = false
                     )
+                    // Nuvio Plus: a series from your provider puts its next episode in
+                    // Continue Watching (Nuvio's own "next up" needs add-on data these don't have).
+                    val npUid = com.nuvio.tv.livetv.ondemand.OnDemandTracking.uidOf(normalizedProgress.contentId)
+                    val s = normalizedProgress.season
+                    val e = normalizedProgress.episode
+                    if (npUid != null && s != null && e != null) {
+                        runCatching {
+                            com.nuvio.tv.livetv.ondemand.OnDemandTracking.nextEpisode(context, npUid, s, e)
+                        }.getOrNull()?.let { next ->
+                            watchProgressRepository.saveProgress(
+                                normalizedProgress.copy(
+                                    videoId = "${normalizedProgress.contentId}:${next.season}:${next.episode}",
+                                    season = next.season,
+                                    episode = next.episode,
+                                    episodeTitle = next.title.takeIf { it.isNotBlank() },
+                                    position = 1L,
+                                    duration = 0L,
+                                    progressPercent = 0.1f,
+                                    lastWatched = System.currentTimeMillis() + 1
+                                ),
+                                profileId = profileId,
+                                syncRemote = syncRemote
+                            )
+                        }
+                    }
                 }
                 runCatching { tvRecommendationManager.onProgressRemoved(normalizedProgress.contentId) }
             } else if (!hasMarkedCurrentEpisodeCompleted) {
