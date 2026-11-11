@@ -141,6 +141,8 @@ fun LiveTvPlayerScreen(
     var controlFocus by remember { mutableStateOf<PanelControl?>(null) }
     /** The highlighted tile in the full panel's Recent row (0 TV Guide, 1… channels, then Clear), or null. */
     var recentFocus by remember { mutableStateOf<Int?>(null) }
+    // Full screen opened: the guide goes back to its usual view (only "TV Guide" asks for the grid).
+    LaunchedEffect(Unit) { LiveGuideOverride.grid.value = false }
     // TV Guide tile: opened when OK is let go, so the key's release doesn't land on the guide
     // (where it opened the channel full screen again, and the guide only flashed up).
     var guideOnOkUp by remember { mutableStateOf(false) }
@@ -424,7 +426,7 @@ fun LiveTvPlayerScreen(
                         }
                         isOk && e.nativeKeyEvent.repeatCount == 0 -> when {
                             // TV Guide: back to the guide.
-                            rf == 0 -> guideOnOkUp = true
+                            rf == 0 -> { LiveGuideOverride.grid.value = true; guideOnOkUp = true }
                             hasClear && rf >= lastTile -> {
                                 viewModel.clearRecent()
                                 recentFocus = 0

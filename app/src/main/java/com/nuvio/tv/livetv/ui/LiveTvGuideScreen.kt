@@ -221,7 +221,12 @@ fun LiveTvGuideScreen(
         fullscreen = true
     }
     val ui by viewModel.uiState.collectAsStateWithLifecycle()
-    val settings by viewModel.settings.collectAsStateWithLifecycle()
+    val savedSettings by viewModel.settings.collectAsStateWithLifecycle()
+    // Nuvio Plus: "TV Guide" in full screen always opens the time grid (even when the channel
+    // list is the usual view); the guide is back to normal once you leave it.
+    val gridOverride by LiveGuideOverride.grid.collectAsStateWithLifecycle()
+    androidx.compose.runtime.DisposableEffect(Unit) { onDispose { LiveGuideOverride.grid.value = false } }
+    val settings = if (gridOverride && savedSettings.guideLayout != "GRID") savedSettings.copy(guideLayout = "GRID") else savedSettings
     val user by viewModel.userState.collectAsStateWithLifecycle()
     // Channels being recorded, and until when (for the REC dot on their shows).
     val recordingsList by viewModel.recordings.collectAsStateWithLifecycle()
@@ -5410,4 +5415,10 @@ private fun KeyHint(key: String, what: String) {
         Spacer(Modifier.width(8.dp))
         LiveText(what, size = 13.sp, color = NuvioTheme.colors.TextSecondary)
     }
+}
+
+
+/** Nuvio Plus: set by full screen's "TV Guide" button: the guide shows the time grid. */
+object LiveGuideOverride {
+    val grid = kotlinx.coroutines.flow.MutableStateFlow(false)
 }
