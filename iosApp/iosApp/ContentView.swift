@@ -94,6 +94,8 @@ final class RootComposeViewController: UIViewController {
         ])
         self.leadingConstraint = leadingConstraint
         self.trailingConstraint = trailingConstraint
+        // Nuvio Plus: iOS 27 SDK parts only when built with Xcode 27 (GitHub's Macs have Xcode 26).
+        #if NUVIO_SDK27
         if #available(iOS 27.1, *) {
             registerForTraitChanges(UITraitCollection.systemTraitsAffectingVerticalBarEdge) {
                 (controller: RootComposeViewController, _: UITraitCollection) in
@@ -106,6 +108,7 @@ final class RootComposeViewController: UIViewController {
                 })
             }
         }
+        #endif
         contentController.didMove(toParent: self)
     }
 
@@ -123,6 +126,7 @@ final class RootComposeViewController: UIViewController {
 
     private func updateFold() {
         guard let hinge else { return }
+        #if NUVIO_SDK27
         guard #available(iOS 27.1, *), isHalfOpen,
               let fold = view.reservedRegions(kind: .division).first(where: { $0.frame.width > $0.frame.height })
         else {
@@ -130,6 +134,9 @@ final class RootComposeViewController: UIViewController {
             return
         }
         hinge.update(top: Double(fold.frame.minY), bottom: Double(fold.frame.maxY))
+        #else
+        hinge.clear()
+        #endif
     }
 
     private func updateVerticalBar() {
@@ -143,6 +150,7 @@ final class RootComposeViewController: UIViewController {
     }
 
     private var verticalBarInsets: NSDirectionalEdgeInsets {
+        #if NUVIO_SDK27
         guard #available(iOS 27.1, *) else { return .zero }
         let insets = view.safeAreaInsets
         let isRightToLeft = view.effectiveUserInterfaceLayoutDirection == .rightToLeft
@@ -154,6 +162,9 @@ final class RootComposeViewController: UIViewController {
         default:
             return .zero
         }
+        #else
+        return .zero
+        #endif
     }
 
     override var childForHomeIndicatorAutoHidden: UIViewController? {
@@ -1031,11 +1042,15 @@ private struct DetailDestinationView: View {
 private extension View {
     @ViewBuilder
     func verticalBarDisabled(_ disabled: Bool) -> some View {
+        #if NUVIO_SDK27
         if #available(iOS 27.1, *), disabled {
             toolbarVerticalBehavior(.disabled)
         } else {
             self
         }
+        #else
+        self
+        #endif
     }
 }
 
