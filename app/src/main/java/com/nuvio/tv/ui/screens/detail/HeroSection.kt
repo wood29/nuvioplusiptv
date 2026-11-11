@@ -21,6 +21,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -809,12 +810,29 @@ private fun MetaInfoRow(
             }
         }
 
+        // Nuvio Plus: where the title comes from (HBO, Netflix, Apple TV+…), as a white logo:
+        // the TV network for a series, else a streaming service among the studios.
+        val sourceLogo = remember(meta.networks, meta.productionCompanies) {
+            val streamers = listOf("netflix", "hbo", "max", "apple", "disney", "amazon", "prime", "hulu", "paramount", "peacock", "sky", "showtime", "starz", "fx", "amc", "bbc", "itv", "channel 4", "zdf", "ard", "orf", "arte", "canal+", "rtl", "prosieben")
+            meta.networks.firstOrNull { !it.logo.isNullOrBlank() }
+                ?: meta.productionCompanies.firstOrNull { c -> !c.logo.isNullOrBlank() && streamers.any { c.name.lowercase().contains(it) } }
+        }
         // Secondary row: Runtime, Age Rating, Status, Country, Language
-        if (ageRatingBadge != null || statusBadge != null || secondaryItems.isNotEmpty()) {
+        if (sourceLogo != null || ageRatingBadge != null || statusBadge != null || secondaryItems.isNotEmpty()) {
             Row(
                 horizontalArrangement = Arrangement.spacedBy(NuvioTheme.spacing.md),
                 verticalAlignment = Alignment.CenterVertically
             ) {
+                sourceLogo?.let { src ->
+                    AsyncImage(
+                        model = src.logo,
+                        contentDescription = src.name,
+                        contentScale = androidx.compose.ui.layout.ContentScale.Fit,
+                        colorFilter = androidx.compose.ui.graphics.ColorFilter.tint(androidx.compose.ui.graphics.Color.White, androidx.compose.ui.graphics.BlendMode.SrcIn),
+                        modifier = Modifier.height(22.dp).widthIn(max = 110.dp)
+                    )
+                    if (ageRatingBadge != null || statusBadge != null || secondaryItems.isNotEmpty()) MetaInfoDivider()
+                }
                 if (ageRatingBadge != null && statusBadge != null) {
                     CombinedMetaBadge(
                         leftText = ageRatingBadge,
