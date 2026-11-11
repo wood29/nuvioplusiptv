@@ -83,9 +83,18 @@ class OnDemandViewModel @Inject constructor(
     /** The provider's TMDB id as an IMDb id (what Nuvio and its addons use), if it has one. */
     private suspend fun imdbFor(item: VodItem): String? {
         imdbIds[item.uid]?.let { return it.ifBlank { null } }
-        val id = item.tmdbId?.toIntOrNull()?.let { t ->
-            runCatching { tmdb.tmdbToImdb(t, if (item.kind == VodKind.SERIES) "tv" else "movie") }.getOrNull()
-        }
+        val kind = if (item.kind == VodKind.SERIES) "tv" else "movie"
+        // Nuvio Plus: no TMDB id from the provider (new shows often have none): a TMDB search by
+        // the cleaned-up name and year, so the title still opens Nuvio's details page (cast,
+        // trailer, Library) instead of only the provider's episode list.
+        val tmdbId = item.tmdbId?.toIntOrNull()
+            ?: runCatching {
+                tmdbMetadata.searchTmdbId(
+                    OnDemandDatabase.displayTitle(item.name), item.year,
+                    if (item.kind == VodKind.SERIES) com.nuvio.tv.domain.model.ContentType.SERIES else com.nuvio.tv.domain.model.ContentType.MOVIE
+                )?.toIntOrNull()
+            }.getOrNull()
+        val id = tmdbId?.let { t -> runCatching { tmdb.tmdbToImdb(t, kind) }.getOrNull() }
         imdbIds[item.uid] = id.orEmpty()
         return id
     }
@@ -388,7 +397,7 @@ class OnDemandViewModel @Inject constructor(
         // The catalog search and the TMDB id lookup run at the same time, and neither may hold
         // the screen up for long: past a few seconds we open with whatever we have.
         val (hit, imdb) = kotlinx.coroutines.coroutineScope {
-            val idJob = async { kotlinx.coroutines.withTimeoutOrNull(3_000) { imdbFor(item) } }
+            val idJob = async { kotlinx.coroutines.withTimeoutOrNull(5_000) { imdbFor(item) } }
             val hitJob = async {
                 kotlinx.coroutines.withTimeoutOrNull(4_000) { matchAny(item, urgent = true) }
             }
