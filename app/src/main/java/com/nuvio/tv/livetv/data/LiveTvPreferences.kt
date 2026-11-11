@@ -1469,7 +1469,8 @@ class LiveTvPreferences @Inject constructor(
                     enabled = o.optBoolean("enabled", true),
                     lastUpdatedMs = o.optLong("lastUpdatedMs"),
                     lastError = o.optString("lastError").ifBlank { null },
-                    programCount = o.optInt("programCount")
+                    programCount = o.optInt("programCount"),
+                    preferred = o.optBoolean("preferred", false)
                 )
             }
         }.getOrDefault(emptyList())
@@ -1483,6 +1484,7 @@ class LiveTvPreferences @Inject constructor(
                     .put("id", s.id).put("name", s.name).put("url", s.url)
                     .put("enabled", s.enabled).put("lastUpdatedMs", s.lastUpdatedMs)
                     .put("lastError", s.lastError ?: "").put("programCount", s.programCount)
+                    .put("preferred", s.preferred)
             )
         }
         return arr.toString()

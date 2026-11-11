@@ -285,8 +285,8 @@ fun LiveTvPlayerScreen(
         numberBuffer = ""
         n?.let { viewModel.channelByNumber(it) }?.let { viewModel.preview(it) } ?: run { if (n != null) toast = "No channel $n" }
     }
-    LaunchedEffect(listVisible) {
-        if (!listVisible) {
+    LaunchedEffect(listVisible, laterOpen) {
+        if (!listVisible && !laterOpen) {
             // Overlay mode took the focus with it when it closed: take it back, trying a few
             // times (once isn't always enough), or the remote does nothing until you press OK.
             for (wait in longArrayOf(60, 150, 300, 600, 1000)) {
@@ -347,7 +347,7 @@ fun LiveTvPlayerScreen(
             ?: hintProgram?.takeIf { !LiveTvRepository.isPlaceholderTitle(it.title) }?.icon
     }
 
-    BackHandler(enabled = listVisible) { listVisible = false }
+    BackHandler(enabled = listVisible || laterOpen) { listVisible = false; laterOpen = false }
 
     CompositionLocalProvider(LocalLiveSolidHighlight provides (settings.solidHighlight || nowSeenLook())) {
     Box(
@@ -356,7 +356,7 @@ fun LiveTvPlayerScreen(
             .background(if (embedded) Color.Transparent else Color.Black)
             .focusRequester(rootFocus)
             .onPreviewKeyEvent { e ->
-                if (listVisible || dialog != PlayerDialog.NONE) return@onPreviewKeyEvent false
+                if (listVisible || laterOpen || dialog != PlayerDialog.NONE) return@onPreviewKeyEvent false
                 val isOk = e.key == Key.DirectionCenter || e.key == Key.Enter || e.key == Key.NumPadEnter
                 // ---- channel surfing: OK watches the channel on the bar, Back stays put
                 if (swallowOkUp && isOk) {
@@ -429,7 +429,7 @@ fun LiveTvPlayerScreen(
                             // TV Guide: back to the guide.
                             rf == 0 -> { LiveGuideOverride.grid.value = true; guideOnOkUp = true }
                             // Later: this channel's schedule over the picture.
-                            rf == 1 -> { closeFull(); laterOpen = true; listVisible = true }
+                            rf == 1 -> { closeFull(); laterOpen = true }
                             hasClear && rf >= lastTile -> {
                                 viewModel.clearRecent()
                                 recentFocus = 0
@@ -958,11 +958,16 @@ fun LiveTvPlayerScreen(
             }
         }
 
+        // Nuvio Plus: "Later" opens the full-screen mini guide (Now / Next / Later for nearby channels).
+        if (laterOpen) {
+            NpMiniGuide(viewModel = viewModel, onClose = { laterOpen = false })
+        }
+
         // Overlay mode (TiviMate style): channels, groups and each channel's schedule over the video.
         if (listVisible) {
             LiveTvOverlayMode(
                 viewModel = viewModel,
-                openOnSchedule = laterOpen,
+                openOnSchedule = false,
                 onClose = { listVisible = false; laterOpen = false },
                 onFindInNuvio = { title ->
                     listVisible = false

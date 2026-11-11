@@ -1666,7 +1666,9 @@ class LiveTvRepository @Inject constructor(
         val url: String,
         val userAgent: String,
         /** A playlist's own (built-in) guide: that playlist. */
-        val playlistId: String? = null
+        val playlistId: String? = null,
+        /** Nuvio Plus: "Prefer this guide" is on. */
+        val preferred: Boolean = false
     )
 
     /** Named EPG sources first (they win on conflicts), then EPG URLs embedded in playlists. */
@@ -1683,7 +1685,7 @@ class LiveTvRepository @Inject constructor(
                 pl.userAgent.isNotBlank() && host != null &&
                     hostOf(if (pl.isXtream) pl.xtreamBase() else pl.url) == host
             }?.userAgent.orEmpty()
-            targets += EpgTarget(src.id, src.id, src.name, src.url, ua)
+            targets += EpgTarget(src.id, src.id, src.name, src.url, ua, preferred = src.preferred)
         }
         val playlists = prefs.currentPlaylists().filter { it.liveEnabled && it.useEmbeddedEpg }
         for (pl in playlists) {
@@ -1984,7 +1986,7 @@ class LiveTvRepository @Inject constructor(
                 count += m.count
                 val real = m.placeholders * 10 < m.count * 8
                 // Higher is better; then more days ahead, then the guide's position.
-                val score = guideRank(real, idMatch, m.lastStop, order)
+                val score = guideRank(real, idMatch, m.lastStop, order) + if (real && target.preferred) PREFERRED_BOOST else 0L
                 chans.forEach { c ->
                     val cur = best[c.key]
                     if (cur == null || score > cur.score) best[c.key] = Candidate(score, target.fileId, xmlId)
@@ -2098,6 +2100,9 @@ class LiveTvRepository @Inject constructor(
      * another guide's week, so the same provider showed "until Saturday" on one TV and "until
      * Monday" on another depending on the order of their guides.
      */
+    /** A preferred guide's real listings beat everything else (real listings score 4,000,000). */
+    private val PREFERRED_BOOST = 10_000_000L
+
     private fun guideRank(real: Boolean, idMatch: Boolean, listings: List<EpgProgram>, order: Int): Long =
         guideRank(real, idMatch, listings.maxOfOrNull { it.stopMs } ?: 0L, order)
 
@@ -2260,7 +2265,8 @@ class LiveTvRepository @Inject constructor(
             list.forEach { c ->
                 val listings = cleanListings(programsBySource[c.sourceId]?.get(c.xmltvId).orEmpty())
                 if (listings.isEmpty()) return@forEach
-                val score = guideRank(!isPlaceholderListing(listings), c.idMatch, listings, c.order)
+                val real = !isPlaceholderListing(listings)
+                val score = guideRank(real, c.idMatch, listings, c.order) + if (real && targets.getOrNull(c.order)?.preferred == true) PREFERRED_BOOST else 0L
                 if (score > bestScore) { bestScore = score; best = c to listings }
             }
             best?.let { (c, listings) ->

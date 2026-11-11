@@ -1782,6 +1782,10 @@ internal fun LiveTvSettingsContent(
             actions = listOf(
                 "Edit" to { dialog = LiveDialog.EditEpg(d.source) },
                 "Update now" to { viewModel.saveEpg(d.source); close() },
+                // Nuvio Plus: this guide wins wherever it has listings (e.g. correct ORF times).
+                (if (d.source.preferred) "Stop preferring this guide" else "Prefer this guide") to {
+                    viewModel.saveEpg(d.source.copy(preferred = !d.source.preferred)); close()
+                },
                 (if (d.source.enabled) "Disable" else "Enable") to { viewModel.setEpgEnabled(d.source.id, !d.source.enabled); close() },
                 "Delete EPG source" to { dialog = LiveDialog.ConfirmDeleteEpg(d.source) }
             ),

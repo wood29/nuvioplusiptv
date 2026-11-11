@@ -156,7 +156,9 @@ data class EpgSource(
     val enabled: Boolean = true,
     val lastUpdatedMs: Long = 0L,
     val lastError: String? = null,
-    val programCount: Int = 0
+    val programCount: Int = 0,
+    /** Nuvio Plus: this guide wins wherever it has real listings for a channel (e.g. a better guide for Austrian channels). */
+    val preferred: Boolean = false
 )
 
 data class CatchupInfo(
