@@ -2039,9 +2039,9 @@ fun LiveTvGuideScreen(
                 onWatch = { menuTarget = null; viewModel.preview(target.channel); goFullscreen() },
                 onOtherPlayer = {
                     menuTarget = null
-                    val url = playback.liveUrlFor(target.channel)
+                    val url = viewModel.playback.liveUrlFor(target.channel)
                     // The guide's own player stops, so the other player gets the connection.
-                    runCatching { playback.stop() }
+                    runCatching { viewModel.playback.stop() }
                     val intent = android.content.Intent(android.content.Intent.ACTION_VIEW).apply {
                         setDataAndType(android.net.Uri.parse(url), "video/*")
                         putExtra("title", target.channel.name)
