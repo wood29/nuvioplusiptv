@@ -412,11 +412,14 @@ internal fun LiveFocusRow(
 
 @Composable
 internal fun focusedTextColor(focused: Boolean): Color =
-    if (focused && LocalLiveSolidHighlight.current) NuvioTheme.colors.OnSecondary else NuvioTheme.colors.TextPrimary
+    // Nuvio Plus themes highlight in white, so the text on it is dark whatever the theme's
+    // accent (Apple TV Glass, TiviMate and Cinema have white text on their accent).
+    if (focused && LocalLiveSolidHighlight.current) { if (nowSeenLook()) Color(0xFF0A0D12) else NuvioTheme.colors.OnSecondary }
+    else NuvioTheme.colors.TextPrimary
 
 @Composable
 internal fun focusedSecondaryTextColor(focused: Boolean): Color =
-    if (focused && LocalLiveSolidHighlight.current) NuvioTheme.colors.OnSecondary.copy(alpha = 0.8f)
+    if (focused && LocalLiveSolidHighlight.current) (if (nowSeenLook()) Color(0xFF0A0D12) else NuvioTheme.colors.OnSecondary).copy(alpha = 0.8f)
     else NuvioTheme.colors.TextSecondary
 
 /**
