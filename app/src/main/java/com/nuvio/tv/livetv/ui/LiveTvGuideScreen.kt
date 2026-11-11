@@ -860,6 +860,7 @@ fun LiveTvGuideScreen(
 
     CompositionLocalProvider(LocalLiveSolidHighlight provides (settings.solidHighlight || nowSeenLook()), LocalGuideDarkness provides settings.guideInfoBackground) {
     val hostActivity = androidx.compose.ui.platform.LocalContext.current as? com.nuvio.tv.MainActivity
+    val otherPlayerContext = androidx.compose.ui.platform.LocalContext.current
     // Where the preview window is (the video view sits there when not full screen).
     var rootBounds by remember { mutableStateOf<androidx.compose.ui.geometry.Rect?>(null) }
     var previewBounds by remember { mutableStateOf<androidx.compose.ui.geometry.Rect?>(null) }
@@ -2036,6 +2037,21 @@ fun LiveTvGuideScreen(
                 now = now,
                 onDismiss = { menuTarget = null },
                 onWatch = { menuTarget = null; viewModel.preview(target.channel); goFullscreen() },
+                onOtherPlayer = {
+                    menuTarget = null
+                    val url = playback.liveUrlFor(target.channel)
+                    // The guide's own player stops, so the other player gets the connection.
+                    runCatching { playback.stop() }
+                    val intent = android.content.Intent(android.content.Intent.ACTION_VIEW).apply {
+                        setDataAndType(android.net.Uri.parse(url), "video/*")
+                        putExtra("title", target.channel.name)
+                        addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+                    }
+                    val ok = runCatching {
+                        otherPlayerContext.startActivity(android.content.Intent.createChooser(intent, "Watch ${target.channel.name} in").addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK))
+                    }.isSuccess
+                    if (!ok) com.nuvio.tv.livetv.record.LiveTvNotice.show("No other player installed (VLC or MX Player from the Play Store)")
+                },
                 onMultiView = {
                     menuTarget = null
                     val playing = playback.channelKey?.let { k -> ui.channels.firstOrNull { it.key == k } ?: channels.firstOrNull { it.key == k } }
@@ -3658,7 +3674,9 @@ private fun ChannelContextMenu(
     onGuideDisplay: () -> Unit,
     onSettings: () -> Unit,
     /** Nuvio Plus: this channel (and the one playing) side by side. */
-    onMultiView: () -> Unit = {}
+    onMultiView: () -> Unit = {},
+    /** Nuvio Plus: hand the channel to another player app on the box. */
+    onOtherPlayer: () -> Unit = {}
 ) {
     val first = remember { FocusRequester() }
     val ch = target.channel
@@ -3674,6 +3692,7 @@ private fun ChannelContextMenu(
             item { MenuHeader("Watch", first = true) }
             item { MenuItem("Watch full screen", Modifier.focusRequester(first), onWatch) }
             item { MenuItem("Watch in multi-view (up to 4)", onClick = onMultiView) }
+            item { MenuItem("Watch in another player (VLC, MX Player…)", onClick = onOtherPlayer) }
             // On now, with catch-up or a recording running: start it over (right under Watch).
             if (canRestart && (program == null || (now >= program.startMs && now < program.stopMs))) item {
                 MenuItem(restartLabel, onClick = onRestart)
