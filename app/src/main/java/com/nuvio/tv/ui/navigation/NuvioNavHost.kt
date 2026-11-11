@@ -424,6 +424,18 @@ private fun PlaybackNavHost(
                 ServerCatalogDestination(navController, backStackEntry)
                 return@composable
             }
+            // Nuvio Plus: a title only your provider has (saved to the Library from On Demand):
+            // On Demand opens with its episodes, instead of a details page no add-on can fill.
+            com.nuvio.tv.livetv.ondemand.OnDemandTracking.uidOf(detailArgs?.getString("itemId"))?.let { uid ->
+                androidx.compose.runtime.LaunchedEffect(uid) {
+                    com.nuvio.tv.livetv.ondemand.OnDemandTracking.openRequest.value = uid
+                    navController.navigate(Screen.OnDemand.route) {
+                        popUpTo(Screen.Detail.route) { inclusive = true }
+                        launchSingleTop = true
+                    }
+                }
+                return@composable
+            }
             val savedState = backStackEntry.savedStateHandle
             val returnToHomeOnBack = detailArgs
                 ?.getString("returnToHomeOnBack")

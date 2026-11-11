@@ -113,6 +113,34 @@ internal fun ProviderDetailDialog(
                 Spacer(Modifier.height(8.dp))
                 LiveText(info?.plot ?: if (info == null) "Loading details…" else "", color = NuvioTheme.colors.TextSecondary, size = 13.sp, maxLines = 6)
                 Spacer(Modifier.height(12.dp))
+                // Nuvio Plus: Watchlist for titles only your provider has (opens back here from the Library).
+                if (!adult) {
+                    val ctx = androidx.compose.ui.platform.LocalContext.current
+                    val library = androidx.compose.runtime.remember {
+                        dagger.hilt.android.EntryPointAccessors.fromApplication(ctx.applicationContext, OnDemandEntryPoint::class.java).libraryRepository()
+                    }
+                    val itemType = if (item.kind == VodKind.SERIES) "series" else "movie"
+                    val libId = OnDemandTracking.PREFIX + item.uid
+                    val inList by androidx.compose.runtime.remember(libId) { library.isInLibrary(libId, itemType) }
+                        .collectAsStateWithLifecycle(initialValue = false)
+                    MenuItem(if (inList) "✓ In Watchlist" else "+ Watchlist") {
+                        scope.launch {
+                            runCatching {
+                                library.toggleDefault(
+                                    com.nuvio.tv.domain.model.LibraryEntryInput(
+                                        itemId = libId,
+                                        itemType = itemType,
+                                        title = OnDemandDatabase.displayTitle(item.name),
+                                        year = item.year,
+                                        poster = poster ?: info?.cover,
+                                        description = info?.plot
+                                    )
+                                )
+                            }
+                        }
+                    }
+                    Spacer(Modifier.height(6.dp))
+                }
                 if (item.kind == VodKind.MOVIE) {
                     val versions by produceState<List<OnDemandRepository.Version>>(initialValue = emptyList(), item.uid) {
                         value = viewModel.versions(item)

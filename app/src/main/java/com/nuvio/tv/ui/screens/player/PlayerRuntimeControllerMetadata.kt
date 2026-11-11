@@ -18,6 +18,30 @@ import kotlinx.coroutines.launch
 
 internal fun PlayerRuntimeController.fetchMetaDetails(id: String?, type: String?) {
     if (id.isNullOrBlank() || type.isNullOrBlank()) return
+    // Nuvio Plus: a series straight from your provider: its episode list comes from the
+    // provider (no add-on knows it), so "next episode" works like for any other series.
+    com.nuvio.tv.livetv.ondemand.OnDemandTracking.uidOf(id)?.let { uid ->
+        metaFetchJob = scope.launch {
+            val eps = runCatching { com.nuvio.tv.livetv.ondemand.OnDemandTracking.episodes(context, uid) }.getOrDefault(emptyList())
+            if (eps.isNotEmpty()) {
+                metaVideos = eps.map { e ->
+                    com.nuvio.tv.domain.model.Video(
+                        id = "$id:${e.season}:${e.episode}",
+                        title = e.title,
+                        released = null,
+                        thumbnail = e.image,
+                        season = e.season,
+                        episode = e.episode,
+                        overview = e.plot,
+                        available = true
+                    )
+                }
+                recomputeNextEpisode(resetVisibility = false)
+                _uiState.update { it.copy(isNextEpisodeMetadataResolved = true) }
+            }
+        }
+        return
+    }
 
     metaFetchJob = scope.launch {
         when (

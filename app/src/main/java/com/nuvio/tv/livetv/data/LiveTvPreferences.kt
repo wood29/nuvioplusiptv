@@ -116,7 +116,8 @@ class LiveTvPreferences @Inject constructor(
         val showQualityBadges = booleanPreferencesKey("show_quality_badges")
         val showFrameRate = booleanPreferencesKey("show_frame_rate")
         val matchFrameRate = booleanPreferencesKey("match_frame_rate")
-        val frameRateMode = stringPreferencesKey("frame_rate_mode")
+        // Nuvio Plus: a new key, so everyone starts with "On start" (50 Hz for European channels).
+        val frameRateMode = stringPreferencesKey("np_frame_rate_mode")
         val onDemandInSidebar = booleanPreferencesKey("on_demand_in_sidebar")
         val onDemandEnabled = booleanPreferencesKey("on_demand_enabled")
         val recordingsInSidebar = booleanPreferencesKey("recordings_in_sidebar")
@@ -399,7 +400,7 @@ class LiveTvPreferences @Inject constructor(
             showQualityBadges = p[Keys.showQualityBadges] ?: d.showQualityBadges,
             showFrameRate = p[Keys.showFrameRate] ?: d.showFrameRate,
             // Before the three choices it was on or off; on worked like "On start/stop".
-            frameRateMode = p[Keys.frameRateMode] ?: if (p[Keys.matchFrameRate] == true) "START_STOP" else d.frameRateMode,
+            frameRateMode = p[Keys.frameRateMode] ?: d.frameRateMode,
             onDemandInSidebar = p[Keys.onDemandInSidebar] ?: d.onDemandInSidebar,
             // Missing on older setups: On, so "off" from before becomes "Off the menu only" (stream list and Search come back).
             onDemandEnabled = p[Keys.onDemandEnabled] ?: d.onDemandEnabled,

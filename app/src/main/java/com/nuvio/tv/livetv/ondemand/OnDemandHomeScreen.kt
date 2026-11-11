@@ -532,6 +532,13 @@ fun OnDemandHomeScreen(
             onOpenDetail(id, type, addonBaseUrl.ifBlank { null }, optionsUid.orEmpty())
         }
     )
+    // Nuvio Plus: a provider-only title opened from the Library.
+    val openRequest by OnDemandTracking.openRequest.collectAsStateWithLifecycle()
+    LaunchedEffect(openRequest) {
+        val uid = openRequest ?: return@LaunchedEffect
+        OnDemandTracking.openRequest.value = null
+        runCatching { onDemandRepository(context).itemByUid(uid) }.getOrNull()?.let { providerItem = it }
+    }
     providerItem?.let { item ->
         ProviderDetailDialog(
             item = item,

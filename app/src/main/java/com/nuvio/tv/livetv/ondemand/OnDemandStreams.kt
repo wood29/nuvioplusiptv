@@ -22,6 +22,7 @@ interface OnDemandEntryPoint {
     fun onDemandRepository(): OnDemandRepository
     fun tmdbService(): TmdbService
     fun liveTvPreferences(): com.nuvio.tv.livetv.data.LiveTvPreferences
+    fun libraryRepository(): com.nuvio.tv.domain.repository.LibraryRepository
 }
 
 fun onDemandRepository(context: Context): OnDemandRepository =

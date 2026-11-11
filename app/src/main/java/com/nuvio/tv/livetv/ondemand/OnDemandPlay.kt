@@ -115,12 +115,24 @@ object OnDemandTracking {
 
     @Volatile private var pending: Track? = null
 
+    /** A provider-only title to open in On Demand (from the Library). */
+    val openRequest = kotlinx.coroutines.flow.MutableStateFlow<String?>(null)
+
     fun set(t: Track) { pending = t }
 
     /** What's about to play (once). */
     fun take(): Track? = pending.also { pending = null }
 
     fun uidOf(contentId: String?): String? = contentId?.takeIf { it.startsWith(PREFIX) }?.removePrefix(PREFIX)
+
+    /** Every episode your provider lists for [uid], in order. */
+    suspend fun episodes(context: Context, uid: String): List<VodEpisode> {
+        val repo = onDemandRepository(context)
+        val item = repo.itemByUid(uid) ?: return emptyList()
+        return repo.info(item)?.episodes.orEmpty()
+            .filter { it.season > 0 }
+            .sortedWith(compareBy<VodEpisode> { it.season }.thenBy { it.episode })
+    }
 
     /** The episode after S[season]E[episode] in your provider's list (next season too), or null. */
     suspend fun nextEpisode(context: Context, uid: String, season: Int, episode: Int): VodEpisode? {

@@ -2030,6 +2030,35 @@ internal fun PlayerRuntimeController.playNextEpisode(userInitiated: Boolean = fa
         playNextCloudLibraryFile(nextVideo = nextVideo, userInitiated = userInitiated)
         return
     }
+    // Nuvio Plus: the next episode of a series straight from your provider.
+    com.nuvio.tv.livetv.ondemand.OnDemandTracking.uidOf(contentId)?.let { uid ->
+        _uiState.update { it.copy(postPlayMode = PostPlayMode.AutoPlay(nextEpisode = nextInfo, searching = true), playbackEnded = false) }
+        nextEpisodeAutoPlayJob?.cancel()
+        nextEpisodeAutoPlayJob = scope.launch {
+            val r = runCatching {
+                com.nuvio.tv.livetv.ondemand.OnDemandPlay.resolve(context, uid, nextVideo.season, nextVideo.episode)
+            }.getOrNull()
+            if (r == null) {
+                _uiState.update { it.copy(postPlayMode = null, postPlayDismissedForCurrentEpisode = true) }
+                return@launch
+            }
+            val stream = Stream(
+                name = com.nuvio.tv.livetv.ondemand.OnDemandStreams.GROUP_NAME,
+                title = r.title,
+                description = null,
+                url = r.url,
+                ytId = null,
+                infoHash = null,
+                fileIdx = null,
+                externalUrl = null,
+                behaviorHints = null,
+                addonName = com.nuvio.tv.livetv.ondemand.OnDemandStreams.GROUP_NAME,
+                addonLogo = null
+            )
+            switchToEpisodeStream(stream = stream, forcedTargetVideo = nextVideo, isAutoPlay = !userInitiated)
+        }
+        return
+    }
 
     val episodeForMode = state.nextEpisode ?: nextInfo
     _uiState.update {

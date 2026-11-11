@@ -360,7 +360,7 @@ data class LiveTvSettings(
      * Switch the TV's refresh rate to match the video (auto frame rate), as Nuvio's own player
      * setting: "OFF", "START" (switch when playback starts) or "START_STOP" (and put it back after).
      */
-    val frameRateMode: String = "OFF",
+    val frameRateMode: String = "START",
     /** Show On Demand in Nuvio's side menu (when there's something to show). */
     val onDemandInSidebar: Boolean = true,
     /**
