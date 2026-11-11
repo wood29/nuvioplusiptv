@@ -363,7 +363,17 @@ class LiveTvViewModel @Inject constructor(
             // "Playlist order" keeps your own order here; Number / Name sort these too.
             // Nuvio Plus: Favorites keep your own order (Move up/down works whatever the sort is).
             groupId == ChannelGroup.FAVORITES -> favorites
-            groupId == ChannelGroup.RECENT -> recent
+            // Nuvio Plus: the order stays put while you're in Recently watched, so watching a
+            // channel doesn't shuffle the list under the cursor (the highlight then sat on another
+            // channel than the one playing). New ones go on top; it re-sorts when you come back.
+            groupId == ChannelGroup.RECENT -> {
+                val frozen = recentFrozenOrder
+                if (frozen == null) { recentFrozenOrder = recent.map { it.key }; recent }
+                else {
+                    val pos = frozen.withIndex().associate { (i, k) -> k to i }
+                    recent.sortedBy { pos[it.key] ?: -1 }
+                }
+            }
             groupId == ChannelGroup.SEARCH -> {
                 val q = query.trim()
                 if (q.isEmpty()) emptyList() else sorted(visible.filter {
@@ -504,8 +514,12 @@ class LiveTvViewModel @Inject constructor(
     // ------------------------------------------------------------ actions
 
     fun selectGroup(id: String) {
+        if (id != session.currentGroupId.value) recentFrozenOrder = null
         session.currentGroupId.value = id
     }
+
+    /** Recently watched's order while it's being browsed (see the channel list). */
+    @Volatile private var recentFrozenOrder: List<String>? = null
 
     /** Nuvio Plus: remembers / gives back the row you were on in a group (while the app is open). */
     fun rememberRow(groupId: String, row: Int) { session.lastRows[groupId] = row }

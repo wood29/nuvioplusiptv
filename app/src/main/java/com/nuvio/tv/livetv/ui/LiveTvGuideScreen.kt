@@ -672,6 +672,12 @@ fun LiveTvGuideScreen(
             }
             // Browse by channel name: from the shows, Back goes to the channel name first.
             settings.browseByChannelName && !nameFocus && !groupsOpen -> nameFocus = true
+            // Nuvio Plus: Back first jumps to the channel that's playing (OK then opens it full
+            // screen), so you don't have to scroll around looking for it.
+            !groupsOpen && channels.indexOfFirst { it.key == playback.channelKey }.let { it >= 0 && it != row } -> {
+                row = channels.indexOfFirst { it.key == playback.channelKey }
+                scope.launch { listState.animateScrollToItem((row - 2).coerceAtLeast(0)) }
+            }
             // Back from the channels: the group list, with the group you're in highlighted.
             !groupsOpen -> focusGroups()
             else -> openSidebar()

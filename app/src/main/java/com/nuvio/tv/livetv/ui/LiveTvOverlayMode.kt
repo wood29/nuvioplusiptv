@@ -121,9 +121,8 @@ private fun odp(v: Float): androidx.compose.ui.unit.Dp = (v * LocalOverlayScale.
 private fun OverlayModeContent(
     viewModel: LiveTvViewModel,
     onClose: () -> Unit,
-    onFindInNuvio: (String,
+    onFindInNuvio: (String) -> Unit,
     openOnSchedule: Boolean = false
-) -> Unit
 ) {
     val ui by viewModel.uiState.collectAsStateWithLifecycle()
     val programs by viewModel.programs.collectAsStateWithLifecycle()
