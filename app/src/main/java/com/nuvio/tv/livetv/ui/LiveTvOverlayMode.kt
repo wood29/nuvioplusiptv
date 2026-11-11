@@ -80,7 +80,9 @@ private sealed interface ScheduleRow {
 internal fun LiveTvOverlayMode(
     viewModel: LiveTvViewModel,
     onClose: () -> Unit,
-    onFindInNuvio: (String) -> Unit
+    onFindInNuvio: (String) -> Unit,
+    /** Nuvio Plus: open straight on the playing channel's schedule ("Later" in full screen). */
+    openOnSchedule: Boolean = false
 ) {
     // Guide Size (Settings → Live TV) sets the size of overlay mode too: text, icons and rows.
     val sizeSettings by viewModel.settings.collectAsStateWithLifecycle()
@@ -94,7 +96,7 @@ internal fun LiveTvOverlayMode(
         LocalOverlayScale provides textScale,
         LocalOverlayRowScale provides rowScale
     ) {
-        OverlayModeContent(viewModel, onClose, onFindInNuvio)
+        OverlayModeContent(viewModel, onClose, onFindInNuvio, openOnSchedule)
     }
 }
 
@@ -119,7 +121,9 @@ private fun odp(v: Float): androidx.compose.ui.unit.Dp = (v * LocalOverlayScale.
 private fun OverlayModeContent(
     viewModel: LiveTvViewModel,
     onClose: () -> Unit,
-    onFindInNuvio: (String) -> Unit
+    onFindInNuvio: (String,
+    openOnSchedule: Boolean = false
+) -> Unit
 ) {
     val ui by viewModel.uiState.collectAsStateWithLifecycle()
     val programs by viewModel.programs.collectAsStateWithLifecycle()
@@ -214,6 +218,10 @@ private fun OverlayModeContent(
     fun openSchedule(ch: LiveChannel) {
         scheduleChannel = ch
         level = OverlayLevel.SCHEDULE
+    }
+    LaunchedEffect(Unit) {
+        if (!openOnSchedule) return@LaunchedEffect
+        viewModel.channelByKey(playback.channelKey)?.let { openSchedule(it) }
     }
     // Land on what's on now when a schedule opens.
     // The full schedule (all days) for the channel being browsed, from the guide database.

@@ -26,6 +26,7 @@ import androidx.compose.material.icons.filled.DeleteSweep
 import androidx.compose.material.icons.filled.FilterNone
 import androidx.compose.material.icons.filled.Forward30
 import androidx.compose.material.icons.filled.GridView
+import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.PushPin
@@ -510,9 +511,19 @@ private fun RecentRow(recent: List<PanelRecent>, focus: Int?, title: String, sho
                     LiveText("TV Guide", size = 9.sp, weight = FontWeight.SemiBold, color = fg)
                 }
             }
+            // Nuvio Plus: what's on later on this channel (its schedule over the picture).
+            item(key = "later") {
+                val f = focus == 1
+                val fg = focusedTextColor(f)
+                RecentTile(focused = f, width = 56.dp) {
+                    Icon(Icons.Default.Schedule, contentDescription = null, tint = fg, modifier = Modifier.size(14.dp))
+                    Spacer(Modifier.height(1.dp))
+                    LiveText("Later", size = 9.sp, weight = FontWeight.SemiBold, color = fg)
+                }
+            }
             recent.forEachIndexed { i, r ->
                 item(key = "ch:" + r.channel.key) {
-                    val f = focus == i + 1
+                    val f = focus == i + 2
                     val fg = focusedTextColor(f)
                     val fgDim = focusedSecondaryTextColor(f)
                     RecentTile(focused = f, width = 86.dp, progress = r.progress) {
@@ -524,7 +535,7 @@ private fun RecentRow(recent: List<PanelRecent>, focus: Int?, title: String, sho
                 }
             }
             if (showClear) item(key = "clear") {
-                val f = focus == recent.size + 1
+                val f = focus == recent.size + 2
                 val fg = if (f) focusedTextColor(true) else colors.TextSecondary
                 RecentTile(focused = f, width = 56.dp) {
                     Icon(Icons.Default.DeleteSweep, contentDescription = null, tint = fg, modifier = Modifier.size(14.dp))

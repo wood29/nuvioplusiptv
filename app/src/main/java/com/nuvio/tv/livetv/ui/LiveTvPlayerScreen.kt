@@ -141,6 +141,7 @@ fun LiveTvPlayerScreen(
     var controlFocus by remember { mutableStateOf<PanelControl?>(null) }
     /** The highlighted tile in the full panel's Recent row (0 TV Guide, 1… channels, then Clear), or null. */
     var recentFocus by remember { mutableStateOf<Int?>(null) }
+    var laterOpen by remember { mutableStateOf(false) }
     // Full screen opened: the guide goes back to its usual view (only "TV Guide" asks for the grid).
     LaunchedEffect(Unit) { LiveGuideOverride.grid.value = false }
     // TV Guide tile: opened when OK is let go, so the key's release doesn't land on the guide
@@ -414,7 +415,7 @@ fun LiveTvPlayerScreen(
                     val recentList = viewModel.panelRowChannels(playback.channelKey)
                     // Clear is only in Recent (favorites are cleared in the guide).
                     val hasClear = settings.panelRow == "RECENT"
-                    val lastTile = recentList.size + if (hasClear) 1 else 0
+                    val lastTile = recentList.size + 1 + if (hasClear) 1 else 0
                     when {
                         e.key == Key.DirectionLeft -> recentFocus = (rf - 1).coerceAtLeast(0)
                         e.key == Key.DirectionRight -> recentFocus = (rf + 1).coerceAtMost(lastTile)
@@ -427,12 +428,14 @@ fun LiveTvPlayerScreen(
                         isOk && e.nativeKeyEvent.repeatCount == 0 -> when {
                             // TV Guide: back to the guide.
                             rf == 0 -> { LiveGuideOverride.grid.value = true; guideOnOkUp = true }
+                            // Later: this channel's schedule over the picture.
+                            rf == 1 -> { closeFull(); laterOpen = true; listVisible = true }
                             hasClear && rf >= lastTile -> {
                                 viewModel.clearRecent()
                                 recentFocus = 0
                                 toast = "Recently watched cleared"
                             }
-                            else -> recentList.getOrNull(rf - 1)?.let { ch ->
+                            else -> recentList.getOrNull(rf - 2)?.let { ch ->
                                 closeFull()
                                 viewModel.preview(ch)
                                 showBanner()
@@ -486,7 +489,7 @@ fun LiveTvPlayerScreen(
                         e.key == Key.DirectionDown -> {
                             // Down from the buttons: into the Recent row (first channel, else TV Guide).
                             if (settings.panelRow != "OFF" && panelFull) {
-                                recentFocus = if (viewModel.panelRowChannels(playback.channelKey).isNotEmpty()) 1 else 0
+                                recentFocus = if (viewModel.panelRowChannels(playback.channelKey).isNotEmpty()) 2 else 1
                             }
                             return@onPreviewKeyEvent true
                         }
@@ -959,7 +962,8 @@ fun LiveTvPlayerScreen(
         if (listVisible) {
             LiveTvOverlayMode(
                 viewModel = viewModel,
-                onClose = { listVisible = false },
+                openOnSchedule = laterOpen,
+                onClose = { listVisible = false; laterOpen = false },
                 onFindInNuvio = { title ->
                     listVisible = false
                     LiveTvSearchBridge.request(title)
