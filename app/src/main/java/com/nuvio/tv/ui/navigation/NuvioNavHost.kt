@@ -1223,7 +1223,7 @@ private fun PlaybackNavHost(
                                 val contentType = args?.getString("contentType").orEmpty()
                                 val returnToHomeOnBack = args?.getString("returnToHomeOnBack")
                                     ?.toBooleanStrictOrNull() == true
-                                if (contentId.isNotBlank()) {
+                                if (contentId.isNotBlank() && com.nuvio.tv.livetv.ondemand.OnDemandTracking.uidOf(contentId) == null) {
                                     navController.navigate(
                                         Screen.Detail.createRoute(
                                             itemId = contentId,
@@ -1250,7 +1250,7 @@ private fun PlaybackNavHost(
                                 ?.toBooleanStrictOrNull() == true
                             val focusSeason = args?.getString("season")?.toIntOrNull()
                             val focusEpisode = args?.getString("episode")?.toIntOrNull()
-                            if (contentId.isNotBlank()) {
+                            if (contentId.isNotBlank() && com.nuvio.tv.livetv.ondemand.OnDemandTracking.uidOf(contentId) == null) {
                                 val detailEntry = navController.currentBackStack.value
                                     .lastOrNull {
                                         val itemId = it.arguments?.getString("itemId").orEmpty()
