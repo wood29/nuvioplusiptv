@@ -1032,7 +1032,22 @@ fun LiveTvGuideScreen(
                     val next = windowStart + dayMs
                     windowStart = if (next > now + settings.epgFutureDays * dayMs) floorSlot(System.currentTimeMillis()) else next
                 },
-                onDown = { runCatching { gridFocus.requestFocus() } }
+                onDown = { runCatching { gridFocus.requestFocus() } },
+                // Nuvio Plus: jump buttons (time grid): Now · 20:15 · 22:00 · Tomorrow.
+                jumps = if (settings.guideLayout == "GRID") listOf("Now", "20:15", "22:00", "Tomorrow 20:15") else emptyList(),
+                onJump = { label ->
+                    if (label == "Now") resetToNow()
+                    else {
+                        val zone = java.time.ZoneId.systemDefault()
+                        val (h, m) = if (label.endsWith("22:00")) 22 to 0 else 20 to 15
+                        val day = java.time.LocalDate.now(zone).plusDays(if (label.startsWith("Tomorrow")) 1 else 0)
+                        val at = day.atTime(h, m).atZone(zone).toInstant().toEpochMilli()
+                        windowStart = floorSlot(at)
+                        cursorMs = at + 60_000L
+                        column = GuideColumn.PROGRAM
+                    }
+                    runCatching { gridFocus.requestFocus() }
+                }
             )
 
             // ---------------------------------------------------------------- groups + guide
@@ -2195,6 +2210,17 @@ fun LiveTvGuideScreen(
                 onRestart = {
                     infoTarget = null
                     if (viewModel.watchFromStart(target.channel)) goFullscreen()
+                },
+                alsoShown = remember(target) {
+                    val prog = target.block?.program
+                    if (prog == null || prog.title.isBlank()) emptyList() else {
+                        val byKey = (ui.channels + channels).associateBy { it.key }
+                        programs.entries.flatMap { (k, list) ->
+                            val ch = byKey[k] ?: return@flatMap emptyList()
+                            list.filter { it.title.equals(prog.title, ignoreCase = true) && it.startMs > now && !(k == target.channel.key && it.startMs == prog.startMs) }
+                                .map { ch to it }
+                        }.sortedBy { it.second.startMs }.take(4)
+                    }
                 }
             )
         }
@@ -4412,76 +4438,121 @@ private fun ProgramInfoDialog(
     recordLabel: String? = null,
     onRecord: (EpgProgram) -> Unit = {},
     canRestart: Boolean = false,
-    onRestart: () -> Unit = {}
+    onRestart: () -> Unit = {},
+    /** Nuvio Plus: other airings of the same show (repeats, the next episodes), soonest first. */
+    alsoShown: List<Pair<LiveChannel, EpgProgram>> = emptyList()
 ) {
     val first = remember { FocusRequester() }
     val block = target.block
     val p = rememberShowDetails(target.channel.key, block?.program)
     val infoBell = com.nuvio.tv.livetv.calendar.rememberLiveBell(p, target.channel)
-    LiveDialog(onDismiss = onDismiss, width = 640.dp) {
-        LiveText(p?.title ?: target.channel.name, size = 24.sp, weight = FontWeight.Bold, maxLines = 2)
-        Spacer(Modifier.height(6.dp))
-        if (block != null) {
-            val meta = listOfNotNull(
-                "${target.channel.number}  ${target.channel.name}",
-                formatDayClock(block.startMs, now, use24h) + " – " + formatClock(block.stopMs, use24h),
-                p?.episode?.takeIf { showEpisode }, p?.category
-            ).joinToString("  ·  ")
-            LiveText(meta, color = NuvioTheme.colors.TextSecondary, size = 14.sp, maxLines = 2)
-        }
-        Spacer(Modifier.height(12.dp))
-        ScrollingDescription(p?.description ?: "No description available.", color = NuvioTheme.colors.TextSecondary, size = 16.sp, maxLines = 10)
-        Spacer(Modifier.height(18.dp))
-        // Scrolls sideways if the buttons don't all fit.
-        Row(
-            horizontalArrangement = Arrangement.spacedBy(10.dp),
-            modifier = Modifier.horizontalScroll(androidx.compose.foundation.rememberScrollState())
-        ) {
-            val live = block != null && now >= block.startMs && now < block.stopMs
-            val archive = p != null && p.stopMs <= now && CatchupUrlBuilder.isAvailable(target.channel.catchup, p.startMs, now)
-            val upcoming = p != null && block != null && block.startMs > now
-            // For a show that hasn't started, streaming it through Nuvio is the main action.
-            if (upcoming) {
-                LiveFocusRow(modifier = Modifier.focusRequester(first), onClick = { onFind(p!!) }) { f ->
-                    LiveText("Find & stream in Nuvio", color = focusedTextColor(f))
-                }
+    val colors = NuvioTheme.colors
+    // Nuvio Plus: a full page (mockup 12) instead of a small window: picture, the whole
+    // description, who's in it, the actions, and when else it's on.
+    androidx.compose.ui.window.Dialog(
+        onDismissRequest = onDismiss,
+        properties = androidx.compose.ui.window.DialogProperties(usePlatformDefaultWidth = false, decorFitsSystemWindows = false)
+    ) {
+        Box(Modifier.fillMaxSize().background(colors.Background)) {
+            val art = p?.icon ?: target.channel.logo?.takeIf { false }
+            if (!art.isNullOrBlank()) {
+                coil3.compose.AsyncImage(
+                    model = art, contentDescription = null, contentScale = androidx.compose.ui.layout.ContentScale.Crop,
+                    modifier = Modifier.align(Alignment.TopEnd).fillMaxWidth(0.62f).fillMaxHeight(0.66f)
+                )
             }
-            when {
-                live -> LiveFocusRow(modifier = Modifier.focusRequester(first), onClick = onWatch) { f -> LiveText("Watch", color = focusedTextColor(f)) }
-                archive -> LiveFocusRow(modifier = Modifier.focusRequester(first), onClick = { onCatchup(p!!) }) { f -> LiveText("Play from archive", color = focusedTextColor(f)) }
-                upcoming -> LiveFocusRow(onClick = onWatch) { f -> LiveText("Watch channel now", color = focusedTextColor(f)) }
-                else -> LiveFocusRow(modifier = Modifier.focusRequester(first), onClick = onWatch) { f -> LiveText("Watch channel now", color = focusedTextColor(f)) }
-            }
-            if (p != null && !upcoming) {
-                LiveFocusRow(onClick = { onFind(p) }) { f -> LiveText("Find & stream in Nuvio", color = focusedTextColor(f)) }
-            }
-            // On now, on a catch-up channel: start it over.
-            if (p != null && now >= p.startMs && now < p.stopMs && canRestart) {
-                LiveFocusRow(onClick = onRestart) { f -> LiveText("Watch from the beginning", color = focusedTextColor(f)) }
-            }
-            // Reminders: a message a minute before it starts, wherever you are in Nuvio.
-            if (p != null && upcoming) {
-                LiveFocusRow(onClick = { onRemind(p) }) { f ->
-                    LiveText(if (reminderSet) "Cancel reminder" else "Remind me", color = focusedTextColor(f))
-                }
-            }
-            if (p != null && recordLabel != null) {
-                LiveFocusRow(onClick = { onRecord(p) }) { f -> LiveText(recordLabel, color = focusedTextColor(f)) }
-            }
-            // The Calendar's bell (follow this show / put this movie on the Calendar).
-            infoBell?.let { b ->
-                LiveFocusRow(onClick = b.toggle) { f ->
-                    androidx.tv.material3.Icon(
-                        if (b.on) Icons.Default.NotificationsActive else Icons.Default.NotificationsNone,
-                        contentDescription = null, tint = focusedTextColor(f), modifier = Modifier.size(16.dp)
+            Box(
+                Modifier.fillMaxSize().background(
+                    androidx.compose.ui.graphics.Brush.horizontalGradient(
+                        0f to colors.Background, 0.42f to colors.Background.copy(alpha = 0.9f), 1f to Color.Transparent
                     )
-                    LiveText(if (b.on) (if (b.isMovie) "On your Calendar" else "Bell on") else "Bell", color = focusedTextColor(f))
+                )
+            )
+            Box(Modifier.fillMaxSize().background(androidx.compose.ui.graphics.Brush.verticalGradient(0.45f to Color.Transparent, 0.7f to colors.Background)))
+            Column(Modifier.fillMaxSize().padding(start = 56.dp, end = 56.dp, top = 40.dp, bottom = 28.dp)) {
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    if (!target.channel.logo.isNullOrBlank()) ChannelLogo(target.channel.logo, 30.dp)
+                    LiveText(
+                        listOfNotNull(
+                            "${target.channel.number}  ${target.channel.name}",
+                            block?.let { formatDayClock(it.startMs, now, use24h) + " – " + formatClock(it.stopMs, use24h) }
+                        ).joinToString("  ·  "),
+                        color = colors.TextSecondary, size = 15.sp
+                    )
+                    if (block != null && now >= block.startMs && now < block.stopMs) LiveTag("LIVE", LIVE_RED, Color.White)
+                }
+                Spacer(Modifier.height(12.dp))
+                LiveText(p?.title ?: target.channel.name, size = 38.sp, weight = FontWeight.ExtraBold, maxLines = 2, modifier = Modifier.fillMaxWidth(0.6f))
+                Spacer(Modifier.height(8.dp))
+                val meta = listOfNotNull(
+                    p?.episode?.takeIf { showEpisode }, p?.category, p?.year?.toString(),
+                    block?.let { "${((it.stopMs - it.startMs) / 60_000L)} min" }
+                )
+                if (meta.isNotEmpty()) LiveText(meta.joinToString("  ·  "), color = colors.TextPrimary, size = 15.sp)
+                Spacer(Modifier.height(12.dp))
+                Box(Modifier.fillMaxWidth(0.55f)) {
+                    ScrollingDescription(p?.description ?: "No description available.", color = colors.TextSecondary, size = 16.sp, maxLines = 7)
+                }
+                if (!p?.people.isNullOrEmpty()) {
+                    Spacer(Modifier.height(8.dp))
+                    LiveText("With " + p!!.people.take(6).joinToString(", "), color = colors.TextTertiary, size = 14.sp, maxLines = 2, modifier = Modifier.fillMaxWidth(0.55f))
+                }
+                Spacer(Modifier.height(18.dp))
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                    modifier = Modifier.horizontalScroll(androidx.compose.foundation.rememberScrollState())
+                ) {
+                    val live = block != null && now >= block.startMs && now < block.stopMs
+                    val archive = p != null && p.stopMs <= now && CatchupUrlBuilder.isAvailable(target.channel.catchup, p.startMs, now)
+                    val upcoming = p != null && block != null && block.startMs > now
+                    when {
+                        live -> LiveFocusRow(modifier = Modifier.focusRequester(first), onClick = onWatch) { f -> LiveText("Watch", color = focusedTextColor(f)) }
+                        archive -> LiveFocusRow(modifier = Modifier.focusRequester(first), onClick = { onCatchup(p!!) }) { f -> LiveText("Play from archive", color = focusedTextColor(f)) }
+                        upcoming -> LiveFocusRow(modifier = Modifier.focusRequester(first), onClick = { onRemind(p!!) }) { f ->
+                            LiveText(if (reminderSet) "Cancel reminder" else "Remind me", color = focusedTextColor(f))
+                        }
+                        else -> LiveFocusRow(modifier = Modifier.focusRequester(first), onClick = onWatch) { f -> LiveText("Watch channel now", color = focusedTextColor(f)) }
+                    }
+                    if (p != null && recordLabel != null) {
+                        LiveFocusRow(onClick = { onRecord(p) }) { f -> LiveText(recordLabel, color = focusedTextColor(f)) }
+                    }
+                    if (p != null && now >= p.startMs && now < p.stopMs && canRestart) {
+                        LiveFocusRow(onClick = onRestart) { f -> LiveText("Watch from the beginning", color = focusedTextColor(f)) }
+                    }
+                    // Follow the show (the Calendar's bell): every episode goes on your Calendar, with a reminder.
+                    infoBell?.let { b ->
+                        LiveFocusRow(onClick = b.toggle) { f ->
+                            androidx.tv.material3.Icon(
+                                if (b.on) Icons.Default.NotificationsActive else Icons.Default.NotificationsNone,
+                                contentDescription = null, tint = focusedTextColor(f), modifier = Modifier.size(16.dp)
+                            )
+                            LiveText(if (b.on) (if (b.isMovie) "On your Calendar" else "Following") else (if (b.isMovie) "Add to Calendar" else "Follow show"), color = focusedTextColor(f))
+                        }
+                    }
+                    if (upcoming) LiveFocusRow(onClick = onWatch) { f -> LiveText("Watch channel now", color = focusedTextColor(f)) }
+                    if (p != null) LiveFocusRow(onClick = { onFind(p) }) { f -> LiveText("Find & stream in Nuvio", color = focusedTextColor(f)) }
+                }
+                Spacer(Modifier.weight(1f))
+                if (alsoShown.isNotEmpty()) {
+                    LiveText("Also shown", size = 18.sp, weight = FontWeight.Bold)
+                    Spacer(Modifier.height(10.dp))
+                    Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                        alsoShown.take(4).forEach { (ch, other) ->
+                            Column(
+                                Modifier.width(250.dp).clip(RoundedCornerShape(12.dp)).background(colors.BackgroundCard).padding(horizontal = 14.dp, vertical = 10.dp),
+                                verticalArrangement = Arrangement.spacedBy(3.dp)
+                            ) {
+                                LiveText(formatDayClock(other.startMs, now, use24h), color = colors.TextSecondary, size = 12.sp)
+                                LiveText(other.episode?.takeIf { showEpisode && it.isNotBlank() } ?: other.title, size = 14.sp, weight = FontWeight.Bold, maxLines = 1)
+                                LiveText(ch.name, color = colors.TextTertiary, size = 12.sp, maxLines = 1)
+                            }
+                        }
+                    }
                 }
             }
-            LiveFocusRow(onClick = onDismiss) { f -> LiveText("Close", color = focusedTextColor(f)) }
         }
     }
-    LaunchedEffect(Unit) { delay(60); runCatching { first.requestFocus() } }
+    LaunchedEffect(Unit) { delay(80); runCatching { first.requestFocus() } }
 }
 
 @Composable
@@ -5228,7 +5299,9 @@ private fun GuideChoices(
     dayLabel: String?,
     onGroup: () -> Unit,
     onDay: () -> Unit,
-    onDown: () -> Unit
+    onDown: () -> Unit,
+    jumps: List<String> = emptyList(),
+    onJump: (String) -> Unit = {}
 ) {
     Row(
         modifier = Modifier
@@ -5242,6 +5315,7 @@ private fun GuideChoices(
     ) {
         ChoiceChip(groupTitle, filled = true, onClick = onGroup)
         if (dayLabel != null) ChoiceChip(dayLabel, filled = false, onClick = onDay)
+        jumps.forEach { j -> ChoiceChip(j, filled = false, onClick = { onJump(j) }) }
         LiveText("$channelCount channels", color = NuvioTheme.colors.TextSecondary, size = 14.sp)
     }
 }

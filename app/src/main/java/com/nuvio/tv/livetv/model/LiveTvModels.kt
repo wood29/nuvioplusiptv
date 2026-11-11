@@ -497,7 +497,7 @@ data class LiveTvSettings(
     /** The backdrop behind the guide, Sports hub and On Demand: "auto" (match the theme, the default), "onyx", or an app icon color: "original", "arctic", "emerald", "rose", "copper", "graphite". */
     val guideBackdrop: String = "auto",
     /** Nuvio Plus: how Live TV lists channels: "LIST" (what's on now and next, NowSeen style) or "GRID" (the TV guide timeline). */
-    val guideLayout: String = "LIST",
+    val guideLayout: String = "GRID",
     /** The row of recently watched channels at the bottom of the full info panel (OK). */
     val recentInPanel: Boolean = true,
     /** The row at the bottom of the full info panel: "RECENT", "FAVORITES" or "OFF". */

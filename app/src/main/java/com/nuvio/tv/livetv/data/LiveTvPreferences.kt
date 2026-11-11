@@ -192,7 +192,7 @@ class LiveTvPreferences @Inject constructor(
         val panelBackground = stringPreferencesKey("panel_background")
         val guideInfoBackground = stringPreferencesKey("guide_info_background")
         val guideBackdrop = stringPreferencesKey("guide_backdrop")
-        val guideLayout = stringPreferencesKey("np_guide_layout")
+        val guideLayout = stringPreferencesKey("np_guide_layout_v2")
         val recentInPanel = booleanPreferencesKey("recent_in_panel")
         val panelRow = stringPreferencesKey("panel_row")
         val channelSurf = booleanPreferencesKey("channel_surf")
