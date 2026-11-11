@@ -375,6 +375,8 @@ fun LiveTvGuideScreen(
     /** Schedule a Recording (long-press menu): the channel it's for. */
     var manualRecordingFor by remember { mutableStateOf<LiveChannel?>(null) }
     var infoTarget by remember { mutableStateOf<MenuTarget?>(null) }
+    // Nuvio Plus: the channel whose full schedule is open (hold OK → Channel schedule).
+    var scheduleChannel by remember { mutableStateOf<LiveChannel?>(null) }
     var searchOpen by remember { mutableStateOf(false) }
     var textPrompt by remember { mutableStateOf<TextPrompt?>(null) }
     var groupPickerFor by remember { mutableStateOf<LiveChannel?>(null) }
@@ -2063,6 +2065,7 @@ fun LiveTvGuideScreen(
                 now = now,
                 onDismiss = { menuTarget = null },
                 onWatch = { menuTarget = null; viewModel.preview(target.channel); goFullscreen() },
+                onChannelSchedule = { menuTarget = null; scheduleChannel = target.channel },
                 onOtherPlayer = {
                     menuTarget = null
                     val url = viewModel.playback.liveUrlFor(target.channel)
@@ -2187,6 +2190,18 @@ fun LiveTvGuideScreen(
                 onChange = { f -> viewModel.updateSettings(f) },
                 onSettings = { guideGearOpen = false; onOpenSettings() },
                 onDismiss = { guideGearOpen = false; scope.launch { delay(60); runCatching { gridFocus.requestFocus() } } }
+            )
+        }
+        scheduleChannel?.let { sch ->
+            LaunchedEffect(sch.key) { viewModel.ensureChannelSchedule(sch.key) }
+            NpChannelSchedule(
+                channel = sch,
+                list = programs[sch.key].orEmpty(),
+                now = now,
+                use24h = settings.use24HourClock,
+                reminders = user.reminders.filter { it.channelKey == sch.key }.map { it.startMs }.toSet(),
+                onDismiss = { scheduleChannel = null },
+                onOpen = { p -> infoTarget = MenuTarget(sch, GuideBlock(p.startMs, p.stopMs, p)) }
             )
         }
         infoTarget?.let { target ->
@@ -3713,7 +3728,9 @@ private fun ChannelContextMenu(
     /** Nuvio Plus: this channel (and the one playing) side by side. */
     onMultiView: () -> Unit = {},
     /** Nuvio Plus: hand the channel to another player app on the box. */
-    onOtherPlayer: () -> Unit = {}
+    onOtherPlayer: () -> Unit = {},
+    /** Nuvio Plus: this channel's whole schedule, every day the guide has. */
+    onChannelSchedule: () -> Unit = {}
 ) {
     val first = remember { FocusRequester() }
     val ch = target.channel
@@ -3730,6 +3747,7 @@ private fun ChannelContextMenu(
             item { MenuItem("Watch full screen", Modifier.focusRequester(first), onWatch) }
             item { MenuItem("Watch in multi-view (up to 4)", onClick = onMultiView) }
             item { MenuItem("Watch in another player (VLC, MX Player…)", onClick = onOtherPlayer) }
+            item { MenuItem("Channel schedule (all days)", onClick = onChannelSchedule) }
             // On now, with catch-up or a recording running: start it over (right under Watch).
             if (canRestart && (program == null || (now >= program.startMs && now < program.stopMs))) item {
                 MenuItem(restartLabel, onClick = onRestart)
@@ -5501,4 +5519,80 @@ private fun KeyHint(key: String, what: String) {
 /** Nuvio Plus: set by full screen's "TV Guide" button: the guide shows the time grid. */
 object LiveGuideOverride {
     val grid = kotlinx.coroutines.flow.MutableStateFlow(false)
+}
+
+
+/** Nuvio Plus: one channel's full schedule, day by day. OK on a show opens its details page. */
+@Composable
+private fun NpChannelSchedule(
+    channel: LiveChannel,
+    list: List<EpgProgram>,
+    now: Long,
+    use24h: Boolean,
+    reminders: Set<Long>,
+    onDismiss: () -> Unit,
+    onOpen: (EpgProgram) -> Unit
+) {
+    val colors = NuvioTheme.colors
+    val state = androidx.compose.foundation.lazy.rememberLazyListState()
+    val focusOnNow = remember { FocusRequester() }
+    val dayFmt = remember { java.text.SimpleDateFormat("EEEE d MMMM", java.util.Locale.getDefault()) }
+    // Rows: a day heading, then that day's shows.
+    val rows: List<Any> = remember(list) {
+        val out = ArrayList<Any>()
+        var lastDay = ""
+        list.forEach { p ->
+            val d = dayFmt.format(java.util.Date(p.startMs))
+            if (d != lastDay) { out += d; lastDay = d }
+            out += p
+        }
+        out
+    }
+    val nowRow = rows.indexOfFirst { it is EpgProgram && now < it.stopMs }.coerceAtLeast(0)
+    androidx.compose.ui.window.Dialog(
+        onDismissRequest = onDismiss,
+        properties = androidx.compose.ui.window.DialogProperties(usePlatformDefaultWidth = false, decorFitsSystemWindows = false)
+    ) {
+        Column(Modifier.fillMaxSize().background(colors.Background).padding(horizontal = 64.dp, vertical = 32.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
+                if (!channel.logo.isNullOrBlank()) ChannelLogo(channel.logo, 40.dp)
+                Column {
+                    LiveText("${channel.number}  ${channel.name}", size = 26.sp, weight = FontWeight.ExtraBold)
+                    LiveText("Full schedule  ·  OK for details", color = colors.TextSecondary, size = 14.sp)
+                }
+            }
+            Spacer(Modifier.height(16.dp))
+            if (rows.isEmpty()) {
+                LiveText("No listings for this channel yet.", color = colors.TextSecondary)
+            }
+            androidx.compose.foundation.lazy.LazyColumn(state = state, verticalArrangement = Arrangement.spacedBy(4.dp), modifier = Modifier.fillMaxWidth()) {
+                items(rows.size) { i ->
+                    when (val r = rows[i]) {
+                        is String -> LiveText(r, size = 16.sp, weight = FontWeight.Bold, color = colors.Secondary, modifier = Modifier.padding(top = 14.dp, bottom = 4.dp))
+                        is EpgProgram -> {
+                            val live = now >= r.startMs && now < r.stopMs
+                            LiveFocusRow(
+                                modifier = Modifier.fillMaxWidth().then(if (i == nowRow) Modifier.focusRequester(focusOnNow) else Modifier),
+                                onClick = { onOpen(r) }
+                            ) { f ->
+                                LiveText(formatClock(r.startMs, use24h), color = focusedSecondaryTextColor(f), size = 15.sp, modifier = Modifier.width(70.dp))
+                                LiveText(
+                                    r.title + (r.episode?.takeIf { it.isNotBlank() }?.let { "  ·  $it" } ?: ""),
+                                    color = if (r.stopMs <= now && !f) colors.TextTertiary else focusedTextColor(f),
+                                    size = 15.sp, maxLines = 1, modifier = Modifier.weight(1f)
+                                )
+                                if (r.startMs in reminders) androidx.tv.material3.Icon(Icons.Default.NotificationsActive, null, tint = focusedTextColor(f), modifier = Modifier.size(16.dp))
+                                if (live) LiveTag("LIVE", LIVE_RED, Color.White)
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+    LaunchedEffect(rows.size) {
+        if (rows.isEmpty()) return@LaunchedEffect
+        state.scrollToItem((nowRow - 2).coerceAtLeast(0))
+        delay(80); runCatching { focusOnNow.requestFocus() }
+    }
 }
