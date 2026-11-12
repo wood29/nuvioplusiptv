@@ -536,7 +536,7 @@ internal fun LiveTvSettingsContent(
                     )
                     SettingsToggleRow(
                         "Allow the Channel Manager App",
-                        "The Nuvio Plus Channel Manager on your Windows PC finds this box by itself while Nuvio Plus is open. Changes still need your OK here",
+                        "The avonioTV Channel Manager on your Windows PC finds this box by itself while avonioTV is open. Changes still need your OK here",
                         s.channelManagerOnNetwork,
                         { update { it.copy(channelManagerOnNetwork = !it.channelManagerOnNetwork) } }
                     )

@@ -608,7 +608,7 @@ private fun AppTheme.localizedName(): String = when (this) {
     AppTheme.AMBER -> stringResource(R.string.theme_color_amber)
     AppTheme.ROSE -> stringResource(R.string.theme_color_rose)
     AppTheme.WHITE -> stringResource(R.string.theme_color_white)
-    AppTheme.NUVIO_PLUS -> "Nuvio+"
+    AppTheme.NUVIO_PLUS -> "avonioTV"
     AppTheme.NOWSEEN -> "NowSeen"
     AppTheme.TIVIMATE -> "TiviMate Classic"
     AppTheme.PLEX_AMBER -> "Plex Amber"

@@ -63,9 +63,9 @@ class AppIconManager @Inject constructor(
      * launcher sees it as new and shows the new icon and banner.
      */
     fun refreshArtworkOnce() {
-        if (brandingPrefs.getBoolean("np_logo_refreshed_v1", false)) return
+        if (brandingPrefs.getBoolean("np_logo_refreshed_v2_avonio", false)) return
         val next = if (currentOption() == AppIconOption.ARCTIC_BLUE) AppIconOption.ORIGINAL else AppIconOption.ARCTIC_BLUE
-        if (activate(next, iptvBranding())) brandingPrefs.edit().putBoolean("np_logo_refreshed_v1", true).apply()
+        if (activate(next, iptvBranding())) brandingPrefs.edit().putBoolean("np_logo_refreshed_v2_avonio", true).apply()
     }
 
     /** Live TV fork: "+ IPTV" on the icon on or off, keeping the chosen color. */

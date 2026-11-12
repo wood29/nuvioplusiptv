@@ -1,0 +1,6 @@
+AvonioTV — Complete logo set
+
+Open 08_Brand_Guide/VISUAL_GUIDE.html in a browser for a visual index, colour codes and usage notes.
+Read 08_Brand_Guide/BRAND_AND_DEVELOPER_GUIDE.md for platform setup instructions.
+Use 02_Logos for full stacked/horizontal logos, 03_Universal_Icons for symbol-only icons, and the platform-specific folders for integration.
+The approved designs are preserved. Large exports are resized raster artwork; no vector master is included.

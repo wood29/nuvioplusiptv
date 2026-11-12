@@ -15,7 +15,7 @@ enum class AppTheme(val displayName: String) {
     ROSE("Rose"),
     WHITE("White"),
     /** Nuvio Plus: the default, in the logo's colours (navy, teal "+", blue). */
-    NUVIO_PLUS("Nuvio+"),
+    NUVIO_PLUS("avonioTV"),
     /** Nuvio Plus: the NowSeen look — deep navy, white highlight pills. */
     NOWSEEN("NowSeen"),
     /** Nuvio Plus themes, built on the NowSeen layout with their own colours. */

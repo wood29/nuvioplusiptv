@@ -67,7 +67,7 @@ internal fun HomeViewModel.observeNpRecommendationsPipeline() {
                 NpHomeRecommendations.basis = key
                 NpHomeRecommendations.row.value = if (items.size < 4) null else CatalogRow(
                     addonId = "np-recommendations",
-                    addonName = "Nuvio Plus",
+                    addonName = "avonioTV",
                     addonBaseUrl = "",
                     catalogId = NpHomeRecommendations.CATALOG_ID,
                     catalogName = "Recommended for you",
