@@ -78,7 +78,7 @@ jobs:
           pip3 install --break-system-packages pyjwt cryptography >/dev/null 2>&1 || pip3 install pyjwt cryptography >/dev/null
           python3 scripts/asc_register_ids.py --write-key "$RUNNER_TEMP/keys/AuthKey_$ASC_KEY_ID.p8"
           # Our own app IDs (not Nuvio's).
-          sed -i '' 's/PRODUCT_BUNDLE_IDENTIFIER = com.nuvio.media;/PRODUCT_BUNDLE_IDENTIFIER = com.wood29.nuvioplus;/; s/PRODUCT_BUNDLE_IDENTIFIER = com.nuvio.media.DownloadsWidgetExtension;/PRODUCT_BUNDLE_IDENTIFIER = com.wood29.nuvioplus.DownloadsWidget;/' iosApp/iosApp.xcodeproj/project.pbxproj
+          sed -i '' 's/PRODUCT_BUNDLE_IDENTIFIER = com.nuvio.media;/PRODUCT_BUNDLE_IDENTIFIER = com.wood29.avoniotv;/; s/PRODUCT_BUNDLE_IDENTIFIER = com.nuvio.media.DownloadsWidgetExtension;/PRODUCT_BUNDLE_IDENTIFIER = com.wood29.avoniotv.DownloadsWidget;/' iosApp/iosApp.xcodeproj/project.pbxproj
           grep -n "com.wood29" iosApp/iosApp.xcodeproj/project.pbxproj
       - name: Prepare iOS dependencies
         run: ./scripts/prepare-ios-dependencies.sh
@@ -92,7 +92,7 @@ jobs:
             -authenticationKeyID "$ASC_KEY_ID" -authenticationKeyIssuerID "$ASC_ISSUER_ID" \
             DEVELOPMENT_TEAM="$TEAM" CODE_SIGN_STYLE=Automatic \
             CURRENT_PROJECT_VERSION="${{ github.run_number }}" \
-            INFOPLIST_KEY_CFBundleDisplayName="Nuvio+" \
+            INFOPLIST_KEY_CFBundleDisplayName="avonioTV" \
             INFOPLIST_KEY_ITSAppUsesNonExemptEncryption=NO \
             archive
       - name: Upload to TestFlight

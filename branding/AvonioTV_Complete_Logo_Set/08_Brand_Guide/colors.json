@@ -1,0 +1,31 @@
+{
+  "brand": "AvonioTV",
+  "palette": {
+    "navy": "#030C24",
+    "blue": "#0066FF",
+    "cyan": "#00C8ED",
+    "teal": "#00E5BF",
+    "white": "#FFFFFF",
+    "light_surface": "#F4F7FB",
+    "muted_text": "#A7B4CC"
+  },
+  "gradient": {
+    "type": "linear",
+    "angle_css": "45deg",
+    "stops": [
+      {
+        "offset": 0,
+        "color": "#0066FF"
+      },
+      {
+        "offset": 0.52,
+        "color": "#00C8ED"
+      },
+      {
+        "offset": 1,
+        "color": "#00E5BF"
+      }
+    ]
+  },
+  "note": "Standardized implementation colours chosen to match approved artwork. Original raster gradients contain additional shades and texture; these are not a claim of exact uniform source pixels."
+}

@@ -15,7 +15,7 @@ KEY_ID = os.environ["ASC_KEY_ID"].strip(); ISSUER = os.environ["ASC_ISSUER_ID"].
 P8 = clean_p8(os.environ["ASC_KEY_P8"])
 if len(sys.argv) > 2 and sys.argv[1] == "--write-key":
     open(sys.argv[2], "w").write(P8); print("key file written"); sys.exit(0)
-IDS = [("com.wood29.nuvioplus", "Nuvio Plus"), ("com.wood29.nuvioplus.DownloadsWidget", "Nuvio Plus Downloads Widget")]
+IDS = [("com.wood29.avoniotv", "avonioTV"), ("com.wood29.avoniotv.DownloadsWidget", "avonioTV Downloads Widget")]
 
 def token():
     now = int(time.time())
@@ -41,5 +41,5 @@ for ident, name in IDS:
     s, d = call("POST", "/v1/bundleIds", {"data": {"type": "bundleIds", "attributes": {"identifier": ident, "name": name, "platform": "IOS"}}})
     print(("registered: " if s == 201 else f"failed ({s}): ") + ident, "" if s == 201 else json.dumps(d)[:400])
     if s != 201: sys.exit(1)
-s, apps = call("GET", "/v1/apps?filter[bundleId]=com.wood29.nuvioplus")
+s, apps = call("GET", "/v1/apps?filter[bundleId]=com.wood29.avoniotv")
 print("App Store Connect app entry:", "found" if apps.get("data") else "not created yet")

@@ -1,0 +1,2730 @@
+{
+  "brand": "AvonioTV",
+  "date": "2026-11-12",
+  "source_type": "approved raster artwork",
+  "native_crops": {
+    "stacked": [
+      908,
+      775
+    ],
+    "horizontal": [
+      1339,
+      338
+    ],
+    "symbol": [
+      509,
+      562
+    ],
+    "wordmark": [
+      962,
+      172
+    ]
+  },
+  "files": [
+    {
+      "path": "01_Approved_Originals/approved_horizontal.png",
+      "bytes": 806495,
+      "sha256": "cb55a5442912767787154a2f3fb4f16ff69692dc2e4b528a2b8e8907a2cbd8fa",
+      "width": 1774,
+      "height": 887,
+      "mode": "RGB"
+    },
+    {
+      "path": "01_Approved_Originals/approved_stacked.png",
+      "bytes": 836390,
+      "sha256": "9757b52a20c898b317e713b32d94ac99a6f6ba83553fa797bf617ff5fd225f9d",
+      "width": 1254,
+      "height": 1254,
+      "mode": "RGB"
+    },
+    {
+      "path": "02_Logos/horizontal/avonioTV_horizontal_color_transparent_1280w.png",
+      "bytes": 175288,
+      "sha256": "d9632a97331cbf7bf9b008c3bb334cef28babbb403dcd10705c40509248f7f6c",
+      "width": 1280,
+      "height": 323,
+      "mode": "RGBA"
+    },
+    {
+      "path": "02_Logos/horizontal/avonioTV_horizontal_color_transparent_1920w.png",
+      "bytes": 312168,
+      "sha256": "41526268c8b264b88036747e9d6e80b6477f1f630b2262b5140eaf07b25cad62",
+      "width": 1920,
+      "height": 485,
+      "mode": "RGBA"
+    },
+    {
+      "path": "02_Logos/horizontal/avonioTV_horizontal_color_transparent_240w.png",
+      "bytes": 15193,
+      "sha256": "67f31575491e333aed6044411c51326a44ad8698874ac8d466111593de122352",
+      "width": 240,
+      "height": 61,
+      "mode": "RGBA"
+    },
+    {
+      "path": "02_Logos/horizontal/avonioTV_horizontal_color_transparent_2560w.png",
+      "bytes": 456092,
+      "sha256": "b747da75d8d35835200f326d41bd6bfc7863a8d7dadc148c1b9853e11d7999dc",
+      "width": 2560,
+      "height": 646,
+      "mode": "RGBA"
+    },
+    {
+      "path": "02_Logos/horizontal/avonioTV_horizontal_color_transparent_320w.png",
+      "bytes": 22972,
+      "sha256": "ba7e40efea272e27675023036a77cdbef48f1ce42043f2ac5f54f7c0413ba06a",
+      "width": 320,
+      "height": 81,
+      "mode": "RGBA"
+    },
+    {
+      "path": "02_Logos/horizontal/avonioTV_horizontal_color_transparent_3840w.png",
+      "bytes": 793544,
+      "sha256": "e5ac583e22c6cd8c3bfc80ce9cceefc5c57b4f872e082edc9351c5ce859195c3",
+      "width": 3840,
+      "height": 969,
+      "mode": "RGBA"
+    },
+    {
+      "path": "02_Logos/horizontal/avonioTV_horizontal_color_transparent_480w.png",
+      "bytes": 41568,
+      "sha256": "cc33f767c71a3754a9f4e5fb2fc8688f08aa5064ed10b6b6c67dff91e542c7ad",
+      "width": 480,
+      "height": 121,
+      "mode": "RGBA"
+    },
+    {
+      "path": "02_Logos/horizontal/avonioTV_horizontal_color_transparent_640w.png",
+      "bytes": 63325,
+      "sha256": "b54f8f2c44530296e1f60d19296cbbdd9af15300a6a51218889b29387eeb9b67",
+      "width": 640,
+      "height": 162,
+      "mode": "RGBA"
+    },
+    {
+      "path": "02_Logos/horizontal/avonioTV_horizontal_color_transparent_960w.png",
+      "bytes": 116527,
+      "sha256": "febc904ccea10e87b0d76e8cf22fbb7674177f57ba5985e27acea8d8aadd02c6",
+      "width": 960,
+      "height": 242,
+      "mode": "RGBA"
+    },
+    {
+      "path": "02_Logos/horizontal/avonioTV_horizontal_navy_transparent_1280w.png",
+      "bytes": 42610,
+      "sha256": "3014d973bc720cfefddaf43624b2e4ce13d6d0ca992fb16ab74a70df35939414",
+      "width": 1280,
+      "height": 323,
+      "mode": "RGBA"
+    },
+    {
+      "path": "02_Logos/horizontal/avonioTV_horizontal_navy_transparent_1920w.png",
+      "bytes": 83175,
+      "sha256": "79230e6aedfd38e93b294b2902f9c416cefd015b99d9b5ac4e6afc1bc63235fc",
+      "width": 1920,
+      "height": 485,
+      "mode": "RGBA"
+    },
+    {
+      "path": "02_Logos/horizontal/avonioTV_horizontal_navy_transparent_240w.png",
+      "bytes": 6830,
+      "sha256": "c48c41a857fa431d4ffb0670eea050b4dfee334ab8f672faf6cc739ce37d8658",
+      "width": 240,
+      "height": 61,
+      "mode": "RGBA"
+    },
+    {
+      "path": "02_Logos/horizontal/avonioTV_horizontal_navy_transparent_2560w.png",
+      "bytes": 131401,
+      "sha256": "b1d2a31a8f5a1f56fbf05f5a2dd8a82ef1c2daacffceb49bdcb8cc294df60363",
+      "width": 2560,
+      "height": 646,
+      "mode": "RGBA"
+    },
+    {
+      "path": "02_Logos/horizontal/avonioTV_horizontal_navy_transparent_320w.png",
+      "bytes": 9307,
+      "sha256": "0d83a6f0b0d2bcbf2138ed9565a5bf16a12029bd632034a442ba175dcaf42b44",
+      "width": 320,
+      "height": 81,
+      "mode": "RGBA"
+    },
+    {
+      "path": "02_Logos/horizontal/avonioTV_horizontal_navy_transparent_3840w.png",
+      "bytes": 239186,
+      "sha256": "30b08be27d9482e7d0feabadb70008ba4c0a6dee76a148ff4218349cecefa4dd",
+      "width": 3840,
+      "height": 969,
+      "mode": "RGBA"
+    },
+    {
+      "path": "02_Logos/horizontal/avonioTV_horizontal_navy_transparent_480w.png",
+      "bytes": 14463,
+      "sha256": "c5ebff4e45ab9396cb7f1bdcd9d6d67f096b51726ea8f2fd0d8b8bcb853c8349",
+      "width": 480,
+      "height": 121,
+      "mode": "RGBA"
+    },
+    {
+      "path": "02_Logos/horizontal/avonioTV_horizontal_navy_transparent_640w.png",
+      "bytes": 19658,
+      "sha256": "47bb3cdea0f819b592282fd74a2755220752e297ffd067c4e56313114e5c6eb5",
+      "width": 640,
+      "height": 162,
+      "mode": "RGBA"
+    },
+    {
+      "path": "02_Logos/horizontal/avonioTV_horizontal_navy_transparent_960w.png",
+      "bytes": 31080,
+      "sha256": "2542b96403ec85d60eed0f037040f26597f2a948675cbd0e9a1a7932108355f5",
+      "width": 960,
+      "height": 242,
+      "mode": "RGBA"
+    },
+    {
+      "path": "02_Logos/horizontal/avonioTV_horizontal_on_navy_1280w.png",
+      "bytes": 140264,
+      "sha256": "0fa6cb5dbd54bb3cba7c05b03e43d0c1cd4e2cd454ff44e40d645cfb882e600e",
+      "width": 1280,
+      "height": 323,
+      "mode": "RGB"
+    },
+    {
+      "path": "02_Logos/horizontal/avonioTV_horizontal_on_navy_1920w.png",
+      "bytes": 247232,
+      "sha256": "0e2c43a3b606ae4faa7d7065adcc50a85f54026d2395e413e4de47038c907c05",
+      "width": 1920,
+      "height": 485,
+      "mode": "RGB"
+    },
+    {
+      "path": "02_Logos/horizontal/avonioTV_horizontal_on_navy_240w.png",
+      "bytes": 12703,
+      "sha256": "88da81af5aa4e7e6c6fec7cdc9767e4978b4946c5d2cd1a4142f6bc1797f4b72",
+      "width": 240,
+      "height": 61,
+      "mode": "RGB"
+    },
+    {
+      "path": "02_Logos/horizontal/avonioTV_horizontal_on_navy_2560w.png",
+      "bytes": 353060,
+      "sha256": "45737175caec4705e749f59e45f0e7285ff2b693b661209c189e0c7555dbfeba",
+      "width": 2560,
+      "height": 646,
+      "mode": "RGB"
+    },
+    {
+      "path": "02_Logos/horizontal/avonioTV_horizontal_on_navy_320w.png",
+      "bytes": 18586,
+      "sha256": "0e121f96a09282999764a52feb7ca4c60f3b84f9012e4c15930c10a3e0d3a679",
+      "width": 320,
+      "height": 81,
+      "mode": "RGB"
+    },
+    {
+      "path": "02_Logos/horizontal/avonioTV_horizontal_on_navy_3840w.png",
+      "bytes": 595247,
+      "sha256": "685147cf46bfebb7af69b8d2e20f29a43eddf7deaf8491a0d105c502c87870a0",
+      "width": 3840,
+      "height": 969,
+      "mode": "RGB"
+    },
+    {
+      "path": "02_Logos/horizontal/avonioTV_horizontal_on_navy_480w.png",
+      "bytes": 33199,
+      "sha256": "7e5a10672709952e2d7c01ad75f82e0ec30d2d5331de9057a83e9945be0fa170",
+      "width": 480,
+      "height": 121,
+      "mode": "RGB"
+    },
+    {
+      "path": "02_Logos/horizontal/avonioTV_horizontal_on_navy_640w.png",
+      "bytes": 50076,
+      "sha256": "fa3320060988cc0e619ad223416952ae64aff54642442895cd25e000189a0a7d",
+      "width": 640,
+      "height": 162,
+      "mode": "RGB"
+    },
+    {
+      "path": "02_Logos/horizontal/avonioTV_horizontal_on_navy_960w.png",
+      "bytes": 92188,
+      "sha256": "d116c980f3bb83ddcc867612a08d3432fc02146b0fb4c401c3b42c74c327ef8e",
+      "width": 960,
+      "height": 242,
+      "mode": "RGB"
+    },
+    {
+      "path": "02_Logos/horizontal/avonioTV_horizontal_transparent_native.png",
+      "bytes": 158704,
+      "sha256": "ee05dbdae88329ae92b14b041f64c045433969573f44639d594ac6c5ca7d1e51",
+      "width": 1339,
+      "height": 338,
+      "mode": "RGBA"
+    },
+    {
+      "path": "02_Logos/horizontal/avonioTV_horizontal_white_transparent_1280w.png",
+      "bytes": 42237,
+      "sha256": "a24d0c19f2abc8883f8618e231b6717c81e7343de72a8313c5557149b506d423",
+      "width": 1280,
+      "height": 323,
+      "mode": "RGBA"
+    },
+    {
+      "path": "02_Logos/horizontal/avonioTV_horizontal_white_transparent_1920w.png",
+      "bytes": 82535,
+      "sha256": "7ec1c5f158b223b48bf4d2a83a09197e0b534c647d9ac2efb75a3c43353bdce8",
+      "width": 1920,
+      "height": 485,
+      "mode": "RGBA"
+    },
+    {
+      "path": "02_Logos/horizontal/avonioTV_horizontal_white_transparent_240w.png",
+      "bytes": 6459,
+      "sha256": "76a9821045e374090754213f884ac7b5330d27679e5f6695f886964f087388cb",
+      "width": 240,
+      "height": 61,
+      "mode": "RGBA"
+    },
+    {
+      "path": "02_Logos/horizontal/avonioTV_horizontal_white_transparent_2560w.png",
+      "bytes": 130788,
+      "sha256": "7287a3ee5cf5e0245eb57eaf77d43995872aa928a8dfbf0257dedd97d865a9c0",
+      "width": 2560,
+      "height": 646,
+      "mode": "RGBA"
+    },
+    {
+      "path": "02_Logos/horizontal/avonioTV_horizontal_white_transparent_320w.png",
+      "bytes": 8888,
+      "sha256": "d058d3628fc6cc2de53c08a9bdc3e118272385840f27057a02bffbd06a657190",
+      "width": 320,
+      "height": 81,
+      "mode": "RGBA"
+    },
+    {
+      "path": "02_Logos/horizontal/avonioTV_horizontal_white_transparent_3840w.png",
+      "bytes": 238955,
+      "sha256": "00b79a1181b17c3643c000678fe8f34f365d66437eeaaa52b68dc58298a4d87f",
+      "width": 3840,
+      "height": 969,
+      "mode": "RGBA"
+    },
+    {
+      "path": "02_Logos/horizontal/avonioTV_horizontal_white_transparent_480w.png",
+      "bytes": 14230,
+      "sha256": "600345fa3f9e0c68b274b3f8c88266954947487aff9c39c8c600b55adb3678a5",
+      "width": 480,
+      "height": 121,
+      "mode": "RGBA"
+    },
+    {
+      "path": "02_Logos/horizontal/avonioTV_horizontal_white_transparent_640w.png",
+      "bytes": 19516,
+      "sha256": "76515ec7c7abde1834294552412cfbd4e7ad614e5925388cb5e2296ee3b17c3c",
+      "width": 640,
+      "height": 162,
+      "mode": "RGBA"
+    },
+    {
+      "path": "02_Logos/horizontal/avonioTV_horizontal_white_transparent_960w.png",
+      "bytes": 30849,
+      "sha256": "17218f6e17edab1925c30605a4f661fd8f5c46d6a23db218b71174e656ecbc4d",
+      "width": 960,
+      "height": 242,
+      "mode": "RGBA"
+    },
+    {
+      "path": "02_Logos/stacked/avonioTV_stacked_color_transparent_1280w.png",
+      "bytes": 428819,
+      "sha256": "ef6a046e9597d411db9778159f25fd31af739c6bf1a7f8af2c68008371f978b8",
+      "width": 1280,
+      "height": 1093,
+      "mode": "RGBA"
+    },
+    {
+      "path": "02_Logos/stacked/avonioTV_stacked_color_transparent_1920w.png",
+      "bytes": 697930,
+      "sha256": "38363d77b125da7708529128c4b932975205446f3cb04610bfdeeacf559430b4",
+      "width": 1920,
+      "height": 1639,
+      "mode": "RGBA"
+    },
+    {
+      "path": "02_Logos/stacked/avonioTV_stacked_color_transparent_240w.png",
+      "bytes": 35226,
+      "sha256": "12c5dd0e4f80182650361ec2d390b2a91117af20f05dca2c158a7973a1214da7",
+      "width": 240,
+      "height": 205,
+      "mode": "RGBA"
+    },
+    {
+      "path": "02_Logos/stacked/avonioTV_stacked_color_transparent_2560w.png",
+      "bytes": 1010660,
+      "sha256": "be953c6ac37ea5e5d4fdf58abd86ddb4787793cafb8230ce268ee8a31d36648b",
+      "width": 2560,
+      "height": 2185,
+      "mode": "RGBA"
+    },
+    {
+      "path": "02_Logos/stacked/avonioTV_stacked_color_transparent_320w.png",
+      "bytes": 54708,
+      "sha256": "df31bf57a82e5be5203d15dc33839ec587d4107345587e9fc9d23e4af6cb0bca",
+      "width": 320,
+      "height": 273,
+      "mode": "RGBA"
+    },
+    {
+      "path": "02_Logos/stacked/avonioTV_stacked_color_transparent_3840w.png",
+      "bytes": 1758899,
+      "sha256": "aee852b8030e52c22ed3521d899ca3a81f110214072dcd7a41016f99e8cc1634",
+      "width": 3840,
+      "height": 3278,
+      "mode": "RGBA"
+    },
+    {
+      "path": "02_Logos/stacked/avonioTV_stacked_color_transparent_480w.png",
+      "bytes": 102654,
+      "sha256": "99d82cf4128f782d53d4152270c494279aefe0e71b2645e860b052a7f53a5444",
+      "width": 480,
+      "height": 410,
+      "mode": "RGBA"
+    },
+    {
+      "path": "02_Logos/stacked/avonioTV_stacked_color_transparent_640w.png",
+      "bytes": 160408,
+      "sha256": "d6e7d7efaaaa7619710c4e984534ea7b066114f8f817e46119ee06acf22d0cda",
+      "width": 640,
+      "height": 546,
+      "mode": "RGBA"
+    },
+    {
+      "path": "02_Logos/stacked/avonioTV_stacked_color_transparent_960w.png",
+      "bytes": 294090,
+      "sha256": "d177f82537b4784c9a2739c7d5333e0e0f70879056a46f8964a63b9ca81b805a",
+      "width": 960,
+      "height": 819,
+      "mode": "RGBA"
+    },
+    {
+      "path": "02_Logos/stacked/avonioTV_stacked_navy_transparent_1280w.png",
+      "bytes": 99839,
+      "sha256": "a88c644f0068e552f34eabf763f52dd47a0769d6c8f7f719e4ed1859a0c89656",
+      "width": 1280,
+      "height": 1093,
+      "mode": "RGBA"
+    },
+    {
+      "path": "02_Logos/stacked/avonioTV_stacked_navy_transparent_1920w.png",
+      "bytes": 190119,
+      "sha256": "05e7a6203a0dcaa38d7d00deec197f1f35fa76d9ef1d0724d6bbaeb0b1322b3f",
+      "width": 1920,
+      "height": 1639,
+      "mode": "RGBA"
+    },
+    {
+      "path": "02_Logos/stacked/avonioTV_stacked_navy_transparent_240w.png",
+      "bytes": 12498,
+      "sha256": "59086630f6aa415f4b5a3179c94790a34216a878b7603aa746aeccdd1508129d",
+      "width": 240,
+      "height": 205,
+      "mode": "RGBA"
+    },
+    {
+      "path": "02_Logos/stacked/avonioTV_stacked_navy_transparent_2560w.png",
+      "bytes": 291757,
+      "sha256": "796377c0312cdf3432e542ea23e8fc4e847a9bf79a0a383c4b72b6f249e32540",
+      "width": 2560,
+      "height": 2185,
+      "mode": "RGBA"
+    },
+    {
+      "path": "02_Logos/stacked/avonioTV_stacked_navy_transparent_320w.png",
+      "bytes": 17070,
+      "sha256": "98df36babe6479236fc56d417bcd3be0b4418870974e3d746a6c04f5b2c5a31f",
+      "width": 320,
+      "height": 273,
+      "mode": "RGBA"
+    },
+    {
+      "path": "02_Logos/stacked/avonioTV_stacked_navy_transparent_3840w.png",
+      "bytes": 532243,
+      "sha256": "ac0a146a4c8aca30048cad2c225557aa81c9a49558f8240560d521a20d799846",
+      "width": 3840,
+      "height": 3278,
+      "mode": "RGBA"
+    },
+    {
+      "path": "02_Logos/stacked/avonioTV_stacked_navy_transparent_480w.png",
+      "bytes": 27057,
+      "sha256": "e28eb4e585ee13d738f5d5f13e9a6ceeba416504b8d301e8c22db1558312df9a",
+      "width": 480,
+      "height": 410,
+      "mode": "RGBA"
+    },
+    {
+      "path": "02_Logos/stacked/avonioTV_stacked_navy_transparent_640w.png",
+      "bytes": 37926,
+      "sha256": "dd9751f3a9f310e6411f1fa09ca9deb25fed6d349aacc1728078d2bb14037b1f",
+      "width": 640,
+      "height": 546,
+      "mode": "RGBA"
+    },
+    {
+      "path": "02_Logos/stacked/avonioTV_stacked_navy_transparent_960w.png",
+      "bytes": 60359,
+      "sha256": "eb60b9ff0aacbd38b3787da4ce30693b5a89bf53c83510bdbcb00810db2c7957",
+      "width": 960,
+      "height": 819,
+      "mode": "RGBA"
+    },
+    {
+      "path": "02_Logos/stacked/avonioTV_stacked_on_navy_1280w.png",
+      "bytes": 342308,
+      "sha256": "a943cb57a6e5851a4ce182f57a2625bec04a59a839eb951d6ee9e9c4eae21d85",
+      "width": 1280,
+      "height": 1093,
+      "mode": "RGB"
+    },
+    {
+      "path": "02_Logos/stacked/avonioTV_stacked_on_navy_1920w.png",
+      "bytes": 552554,
+      "sha256": "ebe354d67e670491d4d9bf8aa88dbaa566ccb3f8317e871a653073cd0b0cf7fe",
+      "width": 1920,
+      "height": 1639,
+      "mode": "RGB"
+    },
+    {
+      "path": "02_Logos/stacked/avonioTV_stacked_on_navy_240w.png",
+      "bytes": 28585,
+      "sha256": "143592add09ef1f0119e8565bdd91c8c530199454e77cedd25c81c958805aa72",
+      "width": 240,
+      "height": 205,
+      "mode": "RGB"
+    },
+    {
+      "path": "02_Logos/stacked/avonioTV_stacked_on_navy_2560w.png",
+      "bytes": 776490,
+      "sha256": "3017f717cc539f23499a519b1a78f14d4a53852166cfbd790cea4962604bc1b9",
+      "width": 2560,
+      "height": 2185,
+      "mode": "RGB"
+    },
+    {
+      "path": "02_Logos/stacked/avonioTV_stacked_on_navy_320w.png",
+      "bytes": 43833,
+      "sha256": "5f6842d2ced393793e8902f43d89ac5bbf5bca71a7af1260abca47ddddc0b848",
+      "width": 320,
+      "height": 273,
+      "mode": "RGB"
+    },
+    {
+      "path": "02_Logos/stacked/avonioTV_stacked_on_navy_3840w.png",
+      "bytes": 1305592,
+      "sha256": "b9d2f016713fce02677242cc16b90499ee81911d88d0edadacbfbb0623c6ab34",
+      "width": 3840,
+      "height": 3278,
+      "mode": "RGB"
+    },
+    {
+      "path": "02_Logos/stacked/avonioTV_stacked_on_navy_480w.png",
+      "bytes": 80816,
+      "sha256": "1e2164e4fd958b10bfb0e223c23132c8f5e35d8912853c40888eb4f4b5857e15",
+      "width": 480,
+      "height": 410,
+      "mode": "RGB"
+    },
+    {
+      "path": "02_Logos/stacked/avonioTV_stacked_on_navy_640w.png",
+      "bytes": 126475,
+      "sha256": "4ad084b246bb42f0c4692d919383e9751eb4c6baaf85619a4ea3d5c884fbd50a",
+      "width": 640,
+      "height": 546,
+      "mode": "RGB"
+    },
+    {
+      "path": "02_Logos/stacked/avonioTV_stacked_on_navy_960w.png",
+      "bytes": 233420,
+      "sha256": "9eb92673ddc0f9345c61e1d5a219f03688c475b5ba27fc7604cd8eab37f6b250",
+      "width": 960,
+      "height": 819,
+      "mode": "RGB"
+    },
+    {
+      "path": "02_Logos/stacked/avonioTV_stacked_transparent_native.png",
+      "bytes": 235754,
+      "sha256": "d7d99675bb3bef80c950166e863d2a79926aab89398ee6f60351d4b6beb66313",
+      "width": 908,
+      "height": 775,
+      "mode": "RGBA"
+    },
+    {
+      "path": "02_Logos/stacked/avonioTV_stacked_white_transparent_1280w.png",
+      "bytes": 98478,
+      "sha256": "be2a726389a37bab933351bbd0b66ec5f2f89c71431d07d12eaedcb2ad1c93dc",
+      "width": 1280,
+      "height": 1093,
+      "mode": "RGBA"
+    },
+    {
+      "path": "02_Logos/stacked/avonioTV_stacked_white_transparent_1920w.png",
+      "bytes": 188516,
+      "sha256": "fe5ac9193bcdcd9ba54f566178102d22ee994abc34f066707660101a60932d9c",
+      "width": 1920,
+      "height": 1639,
+      "mode": "RGBA"
+    },
+    {
+      "path": "02_Logos/stacked/avonioTV_stacked_white_transparent_240w.png",
+      "bytes": 11963,
+      "sha256": "46d46b1a3a9e73d0e8f86b955c612faa850832adbba9e44b6d6c206f15173316",
+      "width": 240,
+      "height": 205,
+      "mode": "RGBA"
+    },
+    {
+      "path": "02_Logos/stacked/avonioTV_stacked_white_transparent_2560w.png",
+      "bytes": 290632,
+      "sha256": "66cdaa05ce95419a2c8dc56aa5a9209ca3e1a69f214f7fecf6a7839bbd5feb4a",
+      "width": 2560,
+      "height": 2185,
+      "mode": "RGBA"
+    },
+    {
+      "path": "02_Logos/stacked/avonioTV_stacked_white_transparent_320w.png",
+      "bytes": 16472,
+      "sha256": "c94d0f35ca6944a16e05dcf497ce78536968dbafac5c9a2ee331fae711af1be7",
+      "width": 320,
+      "height": 273,
+      "mode": "RGBA"
+    },
+    {
+      "path": "02_Logos/stacked/avonioTV_stacked_white_transparent_3840w.png",
+      "bytes": 531502,
+      "sha256": "3902ef7db6992e8b2009abe7319f6606734ce7291425bb66eee218bbc88fabe3",
+      "width": 3840,
+      "height": 3278,
+      "mode": "RGBA"
+    },
+    {
+      "path": "02_Logos/stacked/avonioTV_stacked_white_transparent_480w.png",
+      "bytes": 26368,
+      "sha256": "5b993403e53853e0efcb355b91eccf50dc0a82b12708273176327dd3c40680f2",
+      "width": 480,
+      "height": 410,
+      "mode": "RGBA"
+    },
+    {
+      "path": "02_Logos/stacked/avonioTV_stacked_white_transparent_640w.png",
+      "bytes": 36942,
+      "sha256": "8ee14d5b3a11c5cabe122fd5fb9d26e8608f6be46cfd43d3ef6e1919ac1ce62f",
+      "width": 640,
+      "height": 546,
+      "mode": "RGBA"
+    },
+    {
+      "path": "02_Logos/stacked/avonioTV_stacked_white_transparent_960w.png",
+      "bytes": 59290,
+      "sha256": "0b468d9bab72757612dba6768002f6855423bf312d9cda59dbc7c4f32db57c0f",
+      "width": 960,
+      "height": 819,
+      "mode": "RGBA"
+    },
+    {
+      "path": "02_Logos/symbol/avonioTV_symbol_color_transparent_1024w.png",
+      "bytes": 358394,
+      "sha256": "5d0b37613c8f4789a5d68ee5f37c8ed70eb01c343431ef5037952c0f1b91c131",
+      "width": 1024,
+      "height": 1131,
+      "mode": "RGBA"
+    },
+    {
+      "path": "02_Logos/symbol/avonioTV_symbol_color_transparent_128w.png",
+      "bytes": 18441,
+      "sha256": "869b7545118c2c612bd568b6ebc701b34cb6b6b598bc69d1d5d5c7d03a236634",
+      "width": 128,
+      "height": 141,
+      "mode": "RGBA"
+    },
+    {
+      "path": "02_Logos/symbol/avonioTV_symbol_color_transparent_2048w.png",
+      "bytes": 845189,
+      "sha256": "c2a589372efd44530eed3a26c3304d990d46a5b0a0f281ad5827d9e5786e4746",
+      "width": 2048,
+      "height": 2261,
+      "mode": "RGBA"
+    },
+    {
+      "path": "02_Logos/symbol/avonioTV_symbol_color_transparent_256w.png",
+      "bytes": 53619,
+      "sha256": "dcb647399b5e406f17f303ce8e406d17c3a63e363e4d799bbdfdbbb45a01fbbb",
+      "width": 256,
+      "height": 283,
+      "mode": "RGBA"
+    },
+    {
+      "path": "02_Logos/symbol/avonioTV_symbol_color_transparent_512w.png",
+      "bytes": 155994,
+      "sha256": "dee47648526e8621a5bca885945ea800e25d93527ca4fb5a37dd65a85d4aa9bc",
+      "width": 512,
+      "height": 565,
+      "mode": "RGBA"
+    },
+    {
+      "path": "02_Logos/symbol/avonioTV_symbol_navy_transparent_1024w.png",
+      "bytes": 82290,
+      "sha256": "5c68c1f6a0ebebb9a2091e46bc988fe49cde5f3db9b923842fa8237882ca28d1",
+      "width": 1024,
+      "height": 1131,
+      "mode": "RGBA"
+    },
+    {
+      "path": "02_Logos/symbol/avonioTV_symbol_navy_transparent_128w.png",
+      "bytes": 5882,
+      "sha256": "3cd1ab498654d63baba8c483a0753fcbc707aa320291467d0b6663579c65263d",
+      "width": 128,
+      "height": 141,
+      "mode": "RGBA"
+    },
+    {
+      "path": "02_Logos/symbol/avonioTV_symbol_navy_transparent_2048w.png",
+      "bytes": 242368,
+      "sha256": "31a05051b49edeeb5c5127c5330d8ae06d797efaa75693e119bbe46e8a49a0ca",
+      "width": 2048,
+      "height": 2261,
+      "mode": "RGBA"
+    },
+    {
+      "path": "02_Logos/symbol/avonioTV_symbol_navy_transparent_256w.png",
+      "bytes": 11974,
+      "sha256": "0dcf3b9464cb1619a1e5554984d091919265452f2ebb708b6af5a472fd9879b0",
+      "width": 256,
+      "height": 283,
+      "mode": "RGBA"
+    },
+    {
+      "path": "02_Logos/symbol/avonioTV_symbol_navy_transparent_512w.png",
+      "bytes": 24302,
+      "sha256": "06b0d65dd524224a321e0149266dc977be054dcaf954b89369be40c4d2e3a3a0",
+      "width": 512,
+      "height": 565,
+      "mode": "RGBA"
+    },
+    {
+      "path": "02_Logos/symbol/avonioTV_symbol_on_navy_1024w.png",
+      "bytes": 293074,
+      "sha256": "29f6ddc7f598869e430fe352581750704be8482439d7af96154608829318a946",
+      "width": 1024,
+      "height": 1131,
+      "mode": "RGB"
+    },
+    {
+      "path": "02_Logos/symbol/avonioTV_symbol_on_navy_128w.png",
+      "bytes": 14685,
+      "sha256": "b9b1c0c870b7f936178e31376cdd47c2fd0699a829fb572b2d5f4b697853fc74",
+      "width": 128,
+      "height": 141,
+      "mode": "RGB"
+    },
+    {
+      "path": "02_Logos/symbol/avonioTV_symbol_on_navy_2048w.png",
+      "bytes": 639031,
+      "sha256": "ec0db03815b655be966c939dfd06736c8bb8f2c63918b855f9b68ee7479359c8",
+      "width": 2048,
+      "height": 2261,
+      "mode": "RGB"
+    },
+    {
+      "path": "02_Logos/symbol/avonioTV_symbol_on_navy_256w.png",
+      "bytes": 42772,
+      "sha256": "4a5a730d655f92b3fbafa47a0b090bf5755336e761f3e86b3b6bcea2c91c26c7",
+      "width": 256,
+      "height": 283,
+      "mode": "RGB"
+    },
+    {
+      "path": "02_Logos/symbol/avonioTV_symbol_on_navy_512w.png",
+      "bytes": 126134,
+      "sha256": "6bb2c0be0d01d2f73cca5239b28075105d114b558ae41019eafab4ad42696ec3",
+      "width": 512,
+      "height": 565,
+      "mode": "RGB"
+    },
+    {
+      "path": "02_Logos/symbol/avonioTV_symbol_transparent_native.png",
+      "bytes": 140517,
+      "sha256": "b8c85ae55cb3f99ddb0addb1ce6828da5dacf1829bba041cec9907b01621bdf9",
+      "width": 509,
+      "height": 562,
+      "mode": "RGBA"
+    },
+    {
+      "path": "02_Logos/symbol/avonioTV_symbol_white_transparent_1024w.png",
+      "bytes": 81448,
+      "sha256": "277c250318155f42cb92743953de480ccb32f14f4b82227b846a0c26f092722b",
+      "width": 1024,
+      "height": 1131,
+      "mode": "RGBA"
+    },
+    {
+      "path": "02_Logos/symbol/avonioTV_symbol_white_transparent_128w.png",
+      "bytes": 5664,
+      "sha256": "19a90f353fe0528a256a7beeb988b76e662e4090aa4b98049e49ea8b7b7d60e0",
+      "width": 128,
+      "height": 141,
+      "mode": "RGBA"
+    },
+    {
+      "path": "02_Logos/symbol/avonioTV_symbol_white_transparent_2048w.png",
+      "bytes": 242204,
+      "sha256": "e1b8e77464491c9b78701c0f0c22358a7e972cba3e9f334f59679e4dc41184a2",
+      "width": 2048,
+      "height": 2261,
+      "mode": "RGBA"
+    },
+    {
+      "path": "02_Logos/symbol/avonioTV_symbol_white_transparent_256w.png",
+      "bytes": 11449,
+      "sha256": "354ea211f2382f472c15b4900c58d9e19ba5f6bbfe9288093ef3b3a910cce585",
+      "width": 256,
+      "height": 283,
+      "mode": "RGBA"
+    },
+    {
+      "path": "02_Logos/symbol/avonioTV_symbol_white_transparent_512w.png",
+      "bytes": 23391,
+      "sha256": "5a74792d36ba36b7065b3697fb34e36bd22ecead651edf48d554d6115eb5e179",
+      "width": 512,
+      "height": 565,
+      "mode": "RGBA"
+    },
+    {
+      "path": "02_Logos/wordmark/avonioTV_wordmark_color_transparent_1280w.png",
+      "bytes": 166097,
+      "sha256": "f12fdf9a7e6eb26a04f77239e8e6f2e12459544d99bec2ca20b8bd9b23a0ca5f",
+      "width": 1280,
+      "height": 229,
+      "mode": "RGBA"
+    },
+    {
+      "path": "02_Logos/wordmark/avonioTV_wordmark_color_transparent_1920w.png",
+      "bytes": 288202,
+      "sha256": "1dff6cdaedc3dade67c4e20defe5225c11597671ffac292082378a9f88a853ec",
+      "width": 1920,
+      "height": 343,
+      "mode": "RGBA"
+    },
+    {
+      "path": "02_Logos/wordmark/avonioTV_wordmark_color_transparent_240w.png",
+      "bytes": 13607,
+      "sha256": "0e92bed8dee5df86721cf9bd233b5f311fe6461db0ebee2157214789aa25df41",
+      "width": 240,
+      "height": 43,
+      "mode": "RGBA"
+    },
+    {
+      "path": "02_Logos/wordmark/avonioTV_wordmark_color_transparent_2560w.png",
+      "bytes": 431883,
+      "sha256": "721b899974971ffd2e73a7981502247d762596b238013aa0f9b7a2c045546c6e",
+      "width": 2560,
+      "height": 458,
+      "mode": "RGBA"
+    },
+    {
+      "path": "02_Logos/wordmark/avonioTV_wordmark_color_transparent_320w.png",
+      "bytes": 21311,
+      "sha256": "14758073d46a6dfc51c4e65d89174fbb5a947b3ab8f045bfeff5bf66574a2975",
+      "width": 320,
+      "height": 57,
+      "mode": "RGBA"
+    },
+    {
+      "path": "02_Logos/wordmark/avonioTV_wordmark_color_transparent_3840w.png",
+      "bytes": 776466,
+      "sha256": "971698d4136057971dcea703f34d1c538f19d6d4fd32deeb03f606596fb00377",
+      "width": 3840,
+      "height": 687,
+      "mode": "RGBA"
+    },
+    {
+      "path": "02_Logos/wordmark/avonioTV_wordmark_color_transparent_480w.png",
+      "bytes": 40041,
+      "sha256": "fd2879d47b60cc6c75fa6219e52312fd25f80c7c9f30eba9e621fade0b33ecad",
+      "width": 480,
+      "height": 86,
+      "mode": "RGBA"
+    },
+    {
+      "path": "02_Logos/wordmark/avonioTV_wordmark_color_transparent_640w.png",
+      "bytes": 60464,
+      "sha256": "f733d6bcb6a86a44f8254030fabf2be028647bf2489e6bb15004c200ae245734",
+      "width": 640,
+      "height": 114,
+      "mode": "RGBA"
+    },
+    {
+      "path": "02_Logos/wordmark/avonioTV_wordmark_color_transparent_960w.png",
+      "bytes": 100461,
+      "sha256": "65f5b4ca4f2f0accd8e757ab9757a2152e8a142015399b9cd70115421a9a048d",
+      "width": 960,
+      "height": 172,
+      "mode": "RGBA"
+    },
+    {
+      "path": "02_Logos/wordmark/avonioTV_wordmark_navy_transparent_1280w.png",
+      "bytes": 42990,
+      "sha256": "9363a82ac4a6451cc3efb5ae8a385b53812d152924e7bcd270eaeddaa844e6df",
+      "width": 1280,
+      "height": 229,
+      "mode": "RGBA"
+    },
+    {
+      "path": "02_Logos/wordmark/avonioTV_wordmark_navy_transparent_1920w.png",
+      "bytes": 82551,
+      "sha256": "c703913008985e34fd73c6599ae4183743b8db96555cd6a1eb700ccb0a9b4d9b",
+      "width": 1920,
+      "height": 343,
+      "mode": "RGBA"
+    },
+    {
+      "path": "02_Logos/wordmark/avonioTV_wordmark_navy_transparent_240w.png",
+      "bytes": 6002,
+      "sha256": "20f5a607e05be5afcb9abb87d66365c6d88acd9ba40473a4564c2dc51d04cb19",
+      "width": 240,
+      "height": 43,
+      "mode": "RGBA"
+    },
+    {
+      "path": "02_Logos/wordmark/avonioTV_wordmark_navy_transparent_2560w.png",
+      "bytes": 129882,
+      "sha256": "dddd6fc26c9e23f13d3911c714efefef3ea254d006048f59ad21db3142f866a1",
+      "width": 2560,
+      "height": 458,
+      "mode": "RGBA"
+    },
+    {
+      "path": "02_Logos/wordmark/avonioTV_wordmark_navy_transparent_320w.png",
+      "bytes": 8180,
+      "sha256": "befdafc6b059976c34fe684cd2d6ecc7f59ecdcd62449c8997e9794fb7cf5e39",
+      "width": 320,
+      "height": 57,
+      "mode": "RGBA"
+    },
+    {
+      "path": "02_Logos/wordmark/avonioTV_wordmark_navy_transparent_3840w.png",
+      "bytes": 235728,
+      "sha256": "f02939cf9b3bad600044a275cd19ecd79efd5dd708aa9ab509fb2a8df1300cea",
+      "width": 3840,
+      "height": 687,
+      "mode": "RGBA"
+    },
+    {
+      "path": "02_Logos/wordmark/avonioTV_wordmark_navy_transparent_480w.png",
+      "bytes": 12558,
+      "sha256": "071b47cc809794b1dffaf9736b14c20cf73a7bc727a05cb1f4ed325b62cae72b",
+      "width": 480,
+      "height": 86,
+      "mode": "RGBA"
+    },
+    {
+      "path": "02_Logos/wordmark/avonioTV_wordmark_navy_transparent_640w.png",
+      "bytes": 16945,
+      "sha256": "5a7bc15b5ce1d39fc9db53c6461023e7174cfebbb069f0bbcec879638524df8d",
+      "width": 640,
+      "height": 114,
+      "mode": "RGBA"
+    },
+    {
+      "path": "02_Logos/wordmark/avonioTV_wordmark_navy_transparent_960w.png",
+      "bytes": 21102,
+      "sha256": "e93028bd1dee36ad37a17e76f3afd392cc986996a192f7138a34639793b6e32d",
+      "width": 960,
+      "height": 172,
+      "mode": "RGBA"
+    },
+    {
+      "path": "02_Logos/wordmark/avonioTV_wordmark_on_navy_1280w.png",
+      "bytes": 130740,
+      "sha256": "0bd983cb9bc0d060bc82424c02fd81ceab594afdb4174910cc13d86cef0e5975",
+      "width": 1280,
+      "height": 229,
+      "mode": "RGB"
+    },
+    {
+      "path": "02_Logos/wordmark/avonioTV_wordmark_on_navy_1920w.png",
+      "bytes": 220927,
+      "sha256": "9fe3cdd1114bee34ef4dc515aacefb450b44e689ac4a041451b433594b1d0a74",
+      "width": 1920,
+      "height": 343,
+      "mode": "RGB"
+    },
+    {
+      "path": "02_Logos/wordmark/avonioTV_wordmark_on_navy_240w.png",
+      "bytes": 12030,
+      "sha256": "c2398ce3c319ca39d1bb65590eec32d15dab12c1fbae7b13b0100f9a5d061150",
+      "width": 240,
+      "height": 43,
+      "mode": "RGB"
+    },
+    {
+      "path": "02_Logos/wordmark/avonioTV_wordmark_on_navy_2560w.png",
+      "bytes": 323017,
+      "sha256": "3e8858145f5793615a766edc8db85e4edc6ab34ad34272d2d0a114f4e680c2e0",
+      "width": 2560,
+      "height": 458,
+      "mode": "RGB"
+    },
+    {
+      "path": "02_Logos/wordmark/avonioTV_wordmark_on_navy_320w.png",
+      "bytes": 18038,
+      "sha256": "a8aeb72eb331de44004ae64bc542e91484fdaa6177c0789c9e82335acfc45488",
+      "width": 320,
+      "height": 57,
+      "mode": "RGB"
+    },
+    {
+      "path": "02_Logos/wordmark/avonioTV_wordmark_on_navy_3840w.png",
+      "bytes": 565827,
+      "sha256": "47c35c142c795caed3acca140cd06c8d3ef45e78972537b4035b167176d14cea",
+      "width": 3840,
+      "height": 687,
+      "mode": "RGB"
+    },
+    {
+      "path": "02_Logos/wordmark/avonioTV_wordmark_on_navy_480w.png",
+      "bytes": 32390,
+      "sha256": "53aaedc2563e0d223ab70cf018351fac113caf2318ed20beadbfb70350d24682",
+      "width": 480,
+      "height": 86,
+      "mode": "RGB"
+    },
+    {
+      "path": "02_Logos/wordmark/avonioTV_wordmark_on_navy_640w.png",
+      "bytes": 48501,
+      "sha256": "518546d37ee3956fc4ed627c738eec7c495d0c4d246395ee7eb47bb3709fc594",
+      "width": 640,
+      "height": 114,
+      "mode": "RGB"
+    },
+    {
+      "path": "02_Logos/wordmark/avonioTV_wordmark_on_navy_960w.png",
+      "bytes": 82938,
+      "sha256": "fca65a65a35d52bff7cbe7f01847f7e676a513511eb30ce953ca2e178997d5de",
+      "width": 960,
+      "height": 172,
+      "mode": "RGB"
+    },
+    {
+      "path": "02_Logos/wordmark/avonioTV_wordmark_transparent_native.png",
+      "bytes": 91741,
+      "sha256": "1dd2820ba9688e6464adbba8aad0110b8f989fe1ef1c01f1f0f827e84b464d9a",
+      "width": 962,
+      "height": 172,
+      "mode": "RGBA"
+    },
+    {
+      "path": "02_Logos/wordmark/avonioTV_wordmark_white_transparent_1280w.png",
+      "bytes": 42766,
+      "sha256": "c9ba42cb55442c38194b44c941357c89d9349844480a64abfacad0aec1d1ebac",
+      "width": 1280,
+      "height": 229,
+      "mode": "RGBA"
+    },
+    {
+      "path": "02_Logos/wordmark/avonioTV_wordmark_white_transparent_1920w.png",
+      "bytes": 82166,
+      "sha256": "2d71bcfbe85ea2d939f3a3924ed9ea64dc2fdeea9d15871533ba64fe45f6c28c",
+      "width": 1920,
+      "height": 343,
+      "mode": "RGBA"
+    },
+    {
+      "path": "02_Logos/wordmark/avonioTV_wordmark_white_transparent_240w.png",
+      "bytes": 5693,
+      "sha256": "214eb89f929e22788be6210af14264a6990767e2dc7d9f23e1e40c41b862205c",
+      "width": 240,
+      "height": 43,
+      "mode": "RGBA"
+    },
+    {
+      "path": "02_Logos/wordmark/avonioTV_wordmark_white_transparent_2560w.png",
+      "bytes": 129643,
+      "sha256": "f9d4d38934b8ab99027534893232c62f608559a28eb3a94574699529b0dcf89f",
+      "width": 2560,
+      "height": 458,
+      "mode": "RGBA"
+    },
+    {
+      "path": "02_Logos/wordmark/avonioTV_wordmark_white_transparent_320w.png",
+      "bytes": 7940,
+      "sha256": "47191f82f5eda79b786b3db9daec3891b7ea5f9d68d456e33c779856e120fd0b",
+      "width": 320,
+      "height": 57,
+      "mode": "RGBA"
+    },
+    {
+      "path": "02_Logos/wordmark/avonioTV_wordmark_white_transparent_3840w.png",
+      "bytes": 235691,
+      "sha256": "2e4a59f34924645c6949a33e98900daa46c7b467f6d7f77ff12654aff4e8c278",
+      "width": 3840,
+      "height": 687,
+      "mode": "RGBA"
+    },
+    {
+      "path": "02_Logos/wordmark/avonioTV_wordmark_white_transparent_480w.png",
+      "bytes": 12492,
+      "sha256": "6cb0b51b75fb9ec11a6a9d6a3e9ece76899fceb73d0329457b958458cdf2c655",
+      "width": 480,
+      "height": 86,
+      "mode": "RGBA"
+    },
+    {
+      "path": "02_Logos/wordmark/avonioTV_wordmark_white_transparent_640w.png",
+      "bytes": 16888,
+      "sha256": "85ef8b401bec8000d6c5f233f25e048c6224479e9edb7b25ec44b78b638f97c0",
+      "width": 640,
+      "height": 114,
+      "mode": "RGBA"
+    },
+    {
+      "path": "02_Logos/wordmark/avonioTV_wordmark_white_transparent_960w.png",
+      "bytes": 21070,
+      "sha256": "54c4c369ce9260ec464ca02a74cb49a7dd66eaae4a5d96b7a5926156aacab240",
+      "width": 960,
+      "height": 172,
+      "mode": "RGBA"
+    },
+    {
+      "path": "03_Universal_Icons/opaque/avonioTV_icon_1024.png",
+      "bytes": 181442,
+      "sha256": "4da91867065db8e9645de25cacd514eced17deb539fbba4ca21b329cc8f5ce64",
+      "width": 1024,
+      "height": 1024,
+      "mode": "RGB"
+    },
+    {
+      "path": "03_Universal_Icons/opaque/avonioTV_icon_120.png",
+      "bytes": 7170,
+      "sha256": "86a3af7a6fb0b231af0b9283257df5a8964bbb9786e7d6aad5bebeac8ca03d58",
+      "width": 120,
+      "height": 120,
+      "mode": "RGB"
+    },
+    {
+      "path": "03_Universal_Icons/opaque/avonioTV_icon_128.png",
+      "bytes": 7770,
+      "sha256": "b81da6b13902d276cbc99b705427acb8426ecfdf49511f99922cec10053ada63",
+      "width": 128,
+      "height": 128,
+      "mode": "RGB"
+    },
+    {
+      "path": "03_Universal_Icons/opaque/avonioTV_icon_152.png",
+      "bytes": 9882,
+      "sha256": "05fa6dcc7faecbac76f7b53c8d5c23270ef2963930bbf653d506906345d9b42c",
+      "width": 152,
+      "height": 152,
+      "mode": "RGB"
+    },
+    {
+      "path": "03_Universal_Icons/opaque/avonioTV_icon_16.png",
+      "bytes": 794,
+      "sha256": "7616db3c4182e0cc9a39e015c8e952964ec08ce25ca19d7d392b4e78edd711af",
+      "width": 16,
+      "height": 16,
+      "mode": "RGB"
+    },
+    {
+      "path": "03_Universal_Icons/opaque/avonioTV_icon_160.png",
+      "bytes": 10641,
+      "sha256": "5b420525e3cd9b5bcab1c5cb99fa71b3069ffb5422ef2f7d1c3668d9bd0bd20b",
+      "width": 160,
+      "height": 160,
+      "mode": "RGB"
+    },
+    {
+      "path": "03_Universal_Icons/opaque/avonioTV_icon_167.png",
+      "bytes": 11259,
+      "sha256": "f192a91156ca5e9df910a97b63a6e52f5f5154f954ceccbdd79bbcfb6e780000",
+      "width": 167,
+      "height": 167,
+      "mode": "RGB"
+    },
+    {
+      "path": "03_Universal_Icons/opaque/avonioTV_icon_180.png",
+      "bytes": 12559,
+      "sha256": "e2ababb547bde14629144e6b6ea604ef79a19d33406ff4267651ce8c2fab21e6",
+      "width": 180,
+      "height": 180,
+      "mode": "RGB"
+    },
+    {
+      "path": "03_Universal_Icons/opaque/avonioTV_icon_192.png",
+      "bytes": 13771,
+      "sha256": "fc6022dc7a83c4af062e92b87c131a084f5d1329bc6ef3a5da43923023a07c40",
+      "width": 192,
+      "height": 192,
+      "mode": "RGB"
+    },
+    {
+      "path": "03_Universal_Icons/opaque/avonioTV_icon_20.png",
+      "bytes": 927,
+      "sha256": "435771e38ed23a6d9d576c93b0f00e310de1354d4d97f2dc90fff42a977dee52",
+      "width": 20,
+      "height": 20,
+      "mode": "RGB"
+    },
+    {
+      "path": "03_Universal_Icons/opaque/avonioTV_icon_2048.png",
+      "bytes": 394490,
+      "sha256": "290e1a472b4953c1dde3f942a3d4bd7c55102740f4f68a2b7a15dcb6fd01bcc6",
+      "width": 2048,
+      "height": 2048,
+      "mode": "RGB"
+    },
+    {
+      "path": "03_Universal_Icons/opaque/avonioTV_icon_24.png",
+      "bytes": 1077,
+      "sha256": "4a362b75aa6f01b61049b91632ad50d78c45232711f4633c0858fed8b4f6ed24",
+      "width": 24,
+      "height": 24,
+      "mode": "RGB"
+    },
+    {
+      "path": "03_Universal_Icons/opaque/avonioTV_icon_240.png",
+      "bytes": 19329,
+      "sha256": "2bd6d413992bc974a0199c190969d7c1380dc6d8dd137904f5ca8334a4114ce6",
+      "width": 240,
+      "height": 240,
+      "mode": "RGB"
+    },
+    {
+      "path": "03_Universal_Icons/opaque/avonioTV_icon_256.png",
+      "bytes": 21517,
+      "sha256": "068e13ef03675277de27c60fee89a2f7a18de8c5032fde498a45bcea382285a4",
+      "width": 256,
+      "height": 256,
+      "mode": "RGB"
+    },
+    {
+      "path": "03_Universal_Icons/opaque/avonioTV_icon_29.png",
+      "bytes": 1306,
+      "sha256": "59e55d4d385609a0eb834f71b5ce26708775eb30121092e9442a78197e0f1cf2",
+      "width": 29,
+      "height": 29,
+      "mode": "RGB"
+    },
+    {
+      "path": "03_Universal_Icons/opaque/avonioTV_icon_32.png",
+      "bytes": 1422,
+      "sha256": "92aa393d96f1412cafd79c0794ae05903a4eea8b77e78f5f7a0b4e4a2408c4f9",
+      "width": 32,
+      "height": 32,
+      "mode": "RGB"
+    },
+    {
+      "path": "03_Universal_Icons/opaque/avonioTV_icon_320.png",
+      "bytes": 30012,
+      "sha256": "45c2d938add6799d9693113d5d7fc84e10b80b9be791c778ba52c8228f8a6889",
+      "width": 320,
+      "height": 320,
+      "mode": "RGB"
+    },
+    {
+      "path": "03_Universal_Icons/opaque/avonioTV_icon_384.png",
+      "bytes": 39661,
+      "sha256": "5724050ee7564cc8f3cc82c01d73a6127dfc060c0bcc918f830ad2fc8abd8c1d",
+      "width": 384,
+      "height": 384,
+      "mode": "RGB"
+    },
+    {
+      "path": "03_Universal_Icons/opaque/avonioTV_icon_40.png",
+      "bytes": 1789,
+      "sha256": "087d32187dc9794193b2dcbaa0bd82d4dab6d5edf2370f6fbb3844413753cedd",
+      "width": 40,
+      "height": 40,
+      "mode": "RGB"
+    },
+    {
+      "path": "03_Universal_Icons/opaque/avonioTV_icon_48.png",
+      "bytes": 2206,
+      "sha256": "a3f485e8d4986cb433636f536d2c139a2e8a049ed953595437696aba7130aea6",
+      "width": 48,
+      "height": 48,
+      "mode": "RGB"
+    },
+    {
+      "path": "03_Universal_Icons/opaque/avonioTV_icon_512.png",
+      "bytes": 63210,
+      "sha256": "a52f3f3edc9c1efaaf9d054f22879b336e34df462ca3852aa4e2cd8918763df3",
+      "width": 512,
+      "height": 512,
+      "mode": "RGB"
+    },
+    {
+      "path": "03_Universal_Icons/opaque/avonioTV_icon_58.png",
+      "bytes": 2754,
+      "sha256": "9f6c343a2cf6124ecfe5a7c03802b3cc6e5be5ab35baeadbb7818f93f056bc02",
+      "width": 58,
+      "height": 58,
+      "mode": "RGB"
+    },
+    {
+      "path": "03_Universal_Icons/opaque/avonioTV_icon_60.png",
+      "bytes": 2890,
+      "sha256": "9cc6bffb8c8055dceef25f41fd0d705030c7f4d7c8be72e7aa81e12acf48894d",
+      "width": 60,
+      "height": 60,
+      "mode": "RGB"
+    },
+    {
+      "path": "03_Universal_Icons/opaque/avonioTV_icon_64.png",
+      "bytes": 3135,
+      "sha256": "f5f2ab7a4a4bcceb3b8da7ea61eec856c573e132ff92586cc071e7785b92cc73",
+      "width": 64,
+      "height": 64,
+      "mode": "RGB"
+    },
+    {
+      "path": "03_Universal_Icons/opaque/avonioTV_icon_76.png",
+      "bytes": 3862,
+      "sha256": "d02474dfa4a448b20a2946d346573e86c28e32060cee7fb848d6a86d257f5720",
+      "width": 76,
+      "height": 76,
+      "mode": "RGB"
+    },
+    {
+      "path": "03_Universal_Icons/opaque/avonioTV_icon_80.png",
+      "bytes": 4127,
+      "sha256": "f773993638692a545a25d53e1f53908b22d324a91763e9f5a04c0c360255b0a0",
+      "width": 80,
+      "height": 80,
+      "mode": "RGB"
+    },
+    {
+      "path": "03_Universal_Icons/opaque/avonioTV_icon_87.png",
+      "bytes": 4629,
+      "sha256": "529e84c7837af97cd654d6af6b4cea66d4a02eaa52d7dae495a20b1192c871ed",
+      "width": 87,
+      "height": 87,
+      "mode": "RGB"
+    },
+    {
+      "path": "03_Universal_Icons/opaque/avonioTV_icon_96.png",
+      "bytes": 5240,
+      "sha256": "f5b71e3aff4b94b0cec62f92893a4ffdb99d7d0a09be27048e8ea85b9bc14e75",
+      "width": 96,
+      "height": 96,
+      "mode": "RGB"
+    },
+    {
+      "path": "03_Universal_Icons/transparent/avonioTV_symbol_1024.png",
+      "bytes": 224405,
+      "sha256": "2160e6f9dac579dda55090e625e6893b545a416f94fb2d19ba671f9ca1c693b0",
+      "width": 1024,
+      "height": 1024,
+      "mode": "RGBA"
+    },
+    {
+      "path": "03_Universal_Icons/transparent/avonioTV_symbol_120.png",
+      "bytes": 8874,
+      "sha256": "8ad35356d86d19c2aa7f2384691a159296d943b130deb9b60f33540c822eb647",
+      "width": 120,
+      "height": 120,
+      "mode": "RGBA"
+    },
+    {
+      "path": "03_Universal_Icons/transparent/avonioTV_symbol_128.png",
+      "bytes": 9597,
+      "sha256": "c339143cf3efe7158c9d2b1b98f64159919163a1800a9f6b0883f2936ffc5364",
+      "width": 128,
+      "height": 128,
+      "mode": "RGBA"
+    },
+    {
+      "path": "03_Universal_Icons/transparent/avonioTV_symbol_152.png",
+      "bytes": 12156,
+      "sha256": "1ddd3fc6f1ab1a666056630114380b662b5cbbca0d1f5d7bcb7a1c0e26148316",
+      "width": 152,
+      "height": 152,
+      "mode": "RGBA"
+    },
+    {
+      "path": "03_Universal_Icons/transparent/avonioTV_symbol_16.png",
+      "bytes": 838,
+      "sha256": "d21bd1d9221810e6f5deeacb530c348d985dae60d2c50ace9504aa9863f3a92f",
+      "width": 16,
+      "height": 16,
+      "mode": "RGBA"
+    },
+    {
+      "path": "03_Universal_Icons/transparent/avonioTV_symbol_160.png",
+      "bytes": 13115,
+      "sha256": "0cdee3d2b462fbf690fcdb45d6efda066cdf84f37810e2ae428b30b194081861",
+      "width": 160,
+      "height": 160,
+      "mode": "RGBA"
+    },
+    {
+      "path": "03_Universal_Icons/transparent/avonioTV_symbol_167.png",
+      "bytes": 13988,
+      "sha256": "6e4208a05456f921146866ca3f67f34f74f6b9a5adc07c7b872e1ab5b1ea1bec",
+      "width": 167,
+      "height": 167,
+      "mode": "RGBA"
+    },
+    {
+      "path": "03_Universal_Icons/transparent/avonioTV_symbol_180.png",
+      "bytes": 15520,
+      "sha256": "cdbc1a87a9d08b2a69b82f78ef38869f81306a0e33f5b330a0663dea78e9a64a",
+      "width": 180,
+      "height": 180,
+      "mode": "RGBA"
+    },
+    {
+      "path": "03_Universal_Icons/transparent/avonioTV_symbol_192.png",
+      "bytes": 17102,
+      "sha256": "c322f3d743fa8e7ef4529547ecaf15dfcfa1533a9517cdb3ea564c7268f439ed",
+      "width": 192,
+      "height": 192,
+      "mode": "RGBA"
+    },
+    {
+      "path": "03_Universal_Icons/transparent/avonioTV_symbol_20.png",
+      "bytes": 973,
+      "sha256": "d6208df4fc0666cf572184420b07389c6c7fccddc92bd84b59c66e14b4708489",
+      "width": 20,
+      "height": 20,
+      "mode": "RGBA"
+    },
+    {
+      "path": "03_Universal_Icons/transparent/avonioTV_symbol_2048.png",
+      "bytes": 493550,
+      "sha256": "ea8e20c6a10d2993467552c010c5c439b1acee73dccd034a12d7114ef5fa33d9",
+      "width": 2048,
+      "height": 2048,
+      "mode": "RGBA"
+    },
+    {
+      "path": "03_Universal_Icons/transparent/avonioTV_symbol_24.png",
+      "bytes": 1173,
+      "sha256": "0ca780bb4635379b848002bc40ec919a04a9e8bd99b173bf0f8cf380bb630b5b",
+      "width": 24,
+      "height": 24,
+      "mode": "RGBA"
+    },
+    {
+      "path": "03_Universal_Icons/transparent/avonioTV_symbol_240.png",
+      "bytes": 24067,
+      "sha256": "165bcb05a22931bae66686c0400ff93a719b43cbbf2e50c5a10083f8a671dda0",
+      "width": 240,
+      "height": 240,
+      "mode": "RGBA"
+    },
+    {
+      "path": "03_Universal_Icons/transparent/avonioTV_symbol_256.png",
+      "bytes": 26808,
+      "sha256": "e88d4faabf14c9f05816942c9776de725d34579cc8142da3892d2110d0305074",
+      "width": 256,
+      "height": 256,
+      "mode": "RGBA"
+    },
+    {
+      "path": "03_Universal_Icons/transparent/avonioTV_symbol_29.png",
+      "bytes": 1418,
+      "sha256": "5fb1bbd2c3505d1739319184f4343ffe4a397a5b76f9e9090b64342dc4685611",
+      "width": 29,
+      "height": 29,
+      "mode": "RGBA"
+    },
+    {
+      "path": "03_Universal_Icons/transparent/avonioTV_symbol_32.png",
+      "bytes": 1579,
+      "sha256": "56cd3fcd749c68fd36960b23f60438597604ce751fb375c38367f377c2ae9bd7",
+      "width": 32,
+      "height": 32,
+      "mode": "RGBA"
+    },
+    {
+      "path": "03_Universal_Icons/transparent/avonioTV_symbol_320.png",
+      "bytes": 37621,
+      "sha256": "c4a8850ca722dcb3c673a418673bc74a77c2afb77a972d2f781319a59433683c",
+      "width": 320,
+      "height": 320,
+      "mode": "RGBA"
+    },
+    {
+      "path": "03_Universal_Icons/transparent/avonioTV_symbol_384.png",
+      "bytes": 49817,
+      "sha256": "9b57b24507fb68279772eec93a08dc35221cb2f979502f4973bf031189de0959",
+      "width": 384,
+      "height": 384,
+      "mode": "RGBA"
+    },
+    {
+      "path": "03_Universal_Icons/transparent/avonioTV_symbol_40.png",
+      "bytes": 2044,
+      "sha256": "1bf509ac25c75be7a140158b88c8f9df6ef27675a01bb5798bd70ac38ac321c9",
+      "width": 40,
+      "height": 40,
+      "mode": "RGBA"
+    },
+    {
+      "path": "03_Universal_Icons/transparent/avonioTV_symbol_48.png",
+      "bytes": 2589,
+      "sha256": "3ca93eb63a1ebda06b7edf964b829b80814f2cde1b5c11b8873cd33a7949fcf4",
+      "width": 48,
+      "height": 48,
+      "mode": "RGBA"
+    },
+    {
+      "path": "03_Universal_Icons/transparent/avonioTV_symbol_512.png",
+      "bytes": 79382,
+      "sha256": "1835435919481c3e079959e4afed8c74153b19e744c4928d9413b9f0e497cc30",
+      "width": 512,
+      "height": 512,
+      "mode": "RGBA"
+    },
+    {
+      "path": "03_Universal_Icons/transparent/avonioTV_symbol_58.png",
+      "bytes": 3295,
+      "sha256": "eae72218cef98da34dda047a803e81d95f3b6fb9dc4bf5e7d6169ca98d769849",
+      "width": 58,
+      "height": 58,
+      "mode": "RGBA"
+    },
+    {
+      "path": "03_Universal_Icons/transparent/avonioTV_symbol_60.png",
+      "bytes": 3460,
+      "sha256": "e697d79a028b886566c1c55435e9da4c78ce18451feaf54b611ff9061cfcfcf6",
+      "width": 60,
+      "height": 60,
+      "mode": "RGBA"
+    },
+    {
+      "path": "03_Universal_Icons/transparent/avonioTV_symbol_64.png",
+      "bytes": 3774,
+      "sha256": "208f25cc5b712e0b4f183078e59b083620c009d323ded1462b38071944776026",
+      "width": 64,
+      "height": 64,
+      "mode": "RGBA"
+    },
+    {
+      "path": "03_Universal_Icons/transparent/avonioTV_symbol_76.png",
+      "bytes": 4746,
+      "sha256": "d7996657788fd8f6c6edcb8f0b4f6b702d2f794239cbdf663e1347aeb291759a",
+      "width": 76,
+      "height": 76,
+      "mode": "RGBA"
+    },
+    {
+      "path": "03_Universal_Icons/transparent/avonioTV_symbol_80.png",
+      "bytes": 5038,
+      "sha256": "6887af251fe374aa9f26ba9fb22dc2ed6413269a5d28dcb4bdb7f986ba2ec4d6",
+      "width": 80,
+      "height": 80,
+      "mode": "RGBA"
+    },
+    {
+      "path": "03_Universal_Icons/transparent/avonioTV_symbol_87.png",
+      "bytes": 5688,
+      "sha256": "173009143a063586bda26c6065fe4b607e6e22712a814fd19e1ecccbff678e64",
+      "width": 87,
+      "height": 87,
+      "mode": "RGBA"
+    },
+    {
+      "path": "03_Universal_Icons/transparent/avonioTV_symbol_96.png",
+      "bytes": 6410,
+      "sha256": "ed5fa73782835922c81c00ef8fed3d81ff58068aa28d3d8205af42562f2ec54a",
+      "width": 96,
+      "height": 96,
+      "mode": "RGBA"
+    },
+    {
+      "path": "04_Apple/AppleTV/horizontal/1280x768/background.png",
+      "bytes": 4380,
+      "sha256": "9005f15ed0c5fdb801a95f8921ee759ac2b9f7a18ed40ff8dce69b107927df44",
+      "width": 1280,
+      "height": 768,
+      "mode": "RGB"
+    },
+    {
+      "path": "04_Apple/AppleTV/horizontal/1280x768/foreground.png",
+      "bytes": 112291,
+      "sha256": "906c916b5dde121fd41831b27289a7f24235aa09add7a68de50fd83beb6786ae",
+      "width": 1280,
+      "height": 768,
+      "mode": "RGBA"
+    },
+    {
+      "path": "04_Apple/AppleTV/horizontal/1280x768/preview.png",
+      "bytes": 90494,
+      "sha256": "c3f1a65ae531c5a7d7409f652f230fd333b4c503da22c3fc0705f692d5d81e41",
+      "width": 1280,
+      "height": 768,
+      "mode": "RGB"
+    },
+    {
+      "path": "04_Apple/AppleTV/horizontal/400x240/background.png",
+      "bytes": 1044,
+      "sha256": "cec16264263d02d2a9f77cc920214aa1f141fd4f06579b241f5375ab5f054dd1",
+      "width": 400,
+      "height": 240,
+      "mode": "RGB"
+    },
+    {
+      "path": "04_Apple/AppleTV/horizontal/400x240/foreground.png",
+      "bytes": 20175,
+      "sha256": "5bccd492149430ed1c1382563467af77bd17c1f1a4f0f92682dd0cb9dbd25504",
+      "width": 400,
+      "height": 240,
+      "mode": "RGBA"
+    },
+    {
+      "path": "04_Apple/AppleTV/horizontal/400x240/preview.png",
+      "bytes": 16822,
+      "sha256": "2c67c5ff96591c8b0e196593a8ebf9ee1d67803ae79f90e245e2eb2cb6389012",
+      "width": 400,
+      "height": 240,
+      "mode": "RGB"
+    },
+    {
+      "path": "04_Apple/AppleTV/horizontal/800x480/background.png",
+      "bytes": 2243,
+      "sha256": "971a12b7039dfee266aaa655b16ae7917dfb6e7d021c3928b2363c9cd375fe33",
+      "width": 800,
+      "height": 480,
+      "mode": "RGB"
+    },
+    {
+      "path": "04_Apple/AppleTV/horizontal/800x480/foreground.png",
+      "bytes": 56274,
+      "sha256": "a065d6c863388e6c8f776bd6257a72a98ff9aafe1d9c335286f11f7be5bd582a",
+      "width": 800,
+      "height": 480,
+      "mode": "RGBA"
+    },
+    {
+      "path": "04_Apple/AppleTV/horizontal/800x480/preview.png",
+      "bytes": 45176,
+      "sha256": "653fd26fd74faa5ca2d678c5497f6f7c57859066f8010e0bfc4fec099549ce73",
+      "width": 800,
+      "height": 480,
+      "mode": "RGB"
+    },
+    {
+      "path": "04_Apple/AppleTV/stacked/1280x768/background.png",
+      "bytes": 4380,
+      "sha256": "9005f15ed0c5fdb801a95f8921ee759ac2b9f7a18ed40ff8dce69b107927df44",
+      "width": 1280,
+      "height": 768,
+      "mode": "RGB"
+    },
+    {
+      "path": "04_Apple/AppleTV/stacked/1280x768/foreground.png",
+      "bytes": 144569,
+      "sha256": "3e55e74a0d281b21fdc3ab40303e12c91fa4e19e5aa9d40225187876063a2d65",
+      "width": 1280,
+      "height": 768,
+      "mode": "RGBA"
+    },
+    {
+      "path": "04_Apple/AppleTV/stacked/1280x768/preview.png",
+      "bytes": 115189,
+      "sha256": "8b2b1872ce4a194d01f3f6892bc4bc326e2231a2bc664488ce9135a72da9f96f",
+      "width": 1280,
+      "height": 768,
+      "mode": "RGB"
+    },
+    {
+      "path": "04_Apple/AppleTV/stacked/400x240/background.png",
+      "bytes": 1044,
+      "sha256": "cec16264263d02d2a9f77cc920214aa1f141fd4f06579b241f5375ab5f054dd1",
+      "width": 400,
+      "height": 240,
+      "mode": "RGB"
+    },
+    {
+      "path": "04_Apple/AppleTV/stacked/400x240/foreground.png",
+      "bytes": 23818,
+      "sha256": "d55cacddd3b7cbbc79b95fc59b71b8e53ab9795634860be3446b42ea2b77a512",
+      "width": 400,
+      "height": 240,
+      "mode": "RGBA"
+    },
+    {
+      "path": "04_Apple/AppleTV/stacked/400x240/preview.png",
+      "bytes": 19708,
+      "sha256": "22e72b82dbc9c9f56fbe8ebf1873e4845f5772a7e49214d6645d7370d95945ce",
+      "width": 400,
+      "height": 240,
+      "mode": "RGB"
+    },
+    {
+      "path": "04_Apple/AppleTV/stacked/800x480/background.png",
+      "bytes": 2243,
+      "sha256": "971a12b7039dfee266aaa655b16ae7917dfb6e7d021c3928b2363c9cd375fe33",
+      "width": 800,
+      "height": 480,
+      "mode": "RGB"
+    },
+    {
+      "path": "04_Apple/AppleTV/stacked/800x480/foreground.png",
+      "bytes": 69462,
+      "sha256": "e2d600cf5af660cdf330c3af1053a677419d4cd439edf4010749a412aeb8a614",
+      "width": 800,
+      "height": 480,
+      "mode": "RGBA"
+    },
+    {
+      "path": "04_Apple/AppleTV/stacked/800x480/preview.png",
+      "bytes": 55308,
+      "sha256": "a058c86c6ce8eef04bf885d3840678b4610c3c97545df44120763999a8edd738",
+      "width": 800,
+      "height": 480,
+      "mode": "RGB"
+    },
+    {
+      "path": "04_Apple/AppleTV/symbol/1280x768/background.png",
+      "bytes": 4380,
+      "sha256": "9005f15ed0c5fdb801a95f8921ee759ac2b9f7a18ed40ff8dce69b107927df44",
+      "width": 1280,
+      "height": 768,
+      "mode": "RGB"
+    },
+    {
+      "path": "04_Apple/AppleTV/symbol/1280x768/foreground.png",
+      "bytes": 142356,
+      "sha256": "737f783992c1b1b84937b82518d585ff3e81ae6e31c573e2fd9904fa20437cb7",
+      "width": 1280,
+      "height": 768,
+      "mode": "RGBA"
+    },
+    {
+      "path": "04_Apple/AppleTV/symbol/1280x768/preview.png",
+      "bytes": 114283,
+      "sha256": "63faa90ce5ee8e10d3ba24d1dbf6d25eadfae91264a0f592e1234b4e6dadb71b",
+      "width": 1280,
+      "height": 768,
+      "mode": "RGB"
+    },
+    {
+      "path": "04_Apple/AppleTV/symbol/400x240/background.png",
+      "bytes": 1044,
+      "sha256": "cec16264263d02d2a9f77cc920214aa1f141fd4f06579b241f5375ab5f054dd1",
+      "width": 400,
+      "height": 240,
+      "mode": "RGB"
+    },
+    {
+      "path": "04_Apple/AppleTV/symbol/400x240/foreground.png",
+      "bytes": 22589,
+      "sha256": "ecd44addf9ee6e720352c2db7f3c39832d1180eec75fd76b1ca0df8db3cbc081",
+      "width": 400,
+      "height": 240,
+      "mode": "RGBA"
+    },
+    {
+      "path": "04_Apple/AppleTV/symbol/400x240/preview.png",
+      "bytes": 18052,
+      "sha256": "0796ad0199d618a568c7f236f9910df38104a91d679a4d1c9adda042cc543653",
+      "width": 400,
+      "height": 240,
+      "mode": "RGB"
+    },
+    {
+      "path": "04_Apple/AppleTV/symbol/800x480/background.png",
+      "bytes": 2243,
+      "sha256": "971a12b7039dfee266aaa655b16ae7917dfb6e7d021c3928b2363c9cd375fe33",
+      "width": 800,
+      "height": 480,
+      "mode": "RGB"
+    },
+    {
+      "path": "04_Apple/AppleTV/symbol/800x480/foreground.png",
+      "bytes": 67199,
+      "sha256": "159dfba35468deb51ee2a3f1b1a7b00fad597e82f31fc64cd013975e3874ea2d",
+      "width": 800,
+      "height": 480,
+      "mode": "RGBA"
+    },
+    {
+      "path": "04_Apple/AppleTV/symbol/800x480/preview.png",
+      "bytes": 53589,
+      "sha256": "21a582090845ba33e7a82dfdc1753716ad0defcd871e5ace63dd924457fa1f94",
+      "width": 800,
+      "height": 480,
+      "mode": "RGB"
+    },
+    {
+      "path": "04_Apple/AppleTV/Top_Shelf/horizontal_1920x720.png",
+      "bytes": 165767,
+      "sha256": "fb7871572c5c51bad246a818eebcf61fa295b919cb16c6415a70b716d287cff0",
+      "width": 1920,
+      "height": 720,
+      "mode": "RGB"
+    },
+    {
+      "path": "04_Apple/AppleTV/Top_Shelf/horizontal_2320x720.png",
+      "bytes": 215536,
+      "sha256": "d8b79d75ba6b5f0e575aabe0993afb937ca03f944e5245d93f86b4b23c703f87",
+      "width": 2320,
+      "height": 720,
+      "mode": "RGB"
+    },
+    {
+      "path": "04_Apple/AppleTV/Top_Shelf/horizontal_3840x1440.png",
+      "bytes": 409424,
+      "sha256": "033439c6ae1c09be0364c3502e78baac9a930e5872e608da52b2b0f9a25e8684",
+      "width": 3840,
+      "height": 1440,
+      "mode": "RGB"
+    },
+    {
+      "path": "04_Apple/AppleTV/Top_Shelf/horizontal_4640x1440.png",
+      "bytes": 521148,
+      "sha256": "85ff712f59d86c8cb4e305f08d98413a35448a5b96828dcddc5f3de46b8c0607",
+      "width": 4640,
+      "height": 1440,
+      "mode": "RGB"
+    },
+    {
+      "path": "04_Apple/AppleTV/Top_Shelf/stacked_1920x720.png",
+      "bytes": 132184,
+      "sha256": "9f225d350dd3f50d457de92409b92774b15cd101bc94292a75df14b24fa0bf0e",
+      "width": 1920,
+      "height": 720,
+      "mode": "RGB"
+    },
+    {
+      "path": "04_Apple/AppleTV/Top_Shelf/stacked_2320x720.png",
+      "bytes": 134439,
+      "sha256": "6677b2f9bf4a3d7b6a23973f67a0121ae8fd8d4e0f431e5b50d71c43d6230d75",
+      "width": 2320,
+      "height": 720,
+      "mode": "RGB"
+    },
+    {
+      "path": "04_Apple/AppleTV/Top_Shelf/stacked_3840x1440.png",
+      "bytes": 363392,
+      "sha256": "3b5c7eb09f843b7efb0d4c0ee1148c41b4c3e915f5401204faa788d68d127352",
+      "width": 3840,
+      "height": 1440,
+      "mode": "RGB"
+    },
+    {
+      "path": "04_Apple/AppleTV/Top_Shelf/stacked_4640x1440.png",
+      "bytes": 367608,
+      "sha256": "8a379980790dc1a16788ca671d2644cdfea9a2c5e8df0c1b634969ccc8d5843a",
+      "width": 4640,
+      "height": 1440,
+      "mode": "RGB"
+    },
+    {
+      "path": "04_Apple/Icon_Composer_Inputs/background_1024.png",
+      "bytes": 4924,
+      "sha256": "d14adadc7c57defd1dcae688be3387829b62005fc95814e87bb998847293dcc5",
+      "width": 1024,
+      "height": 1024,
+      "mode": "RGB"
+    },
+    {
+      "path": "04_Apple/Icon_Composer_Inputs/foreground_1024.png",
+      "bytes": 224405,
+      "sha256": "2160e6f9dac579dda55090e625e6893b545a416f94fb2d19ba671f9ca1c693b0",
+      "width": 1024,
+      "height": 1024,
+      "mode": "RGBA"
+    },
+    {
+      "path": "04_Apple/Icon_Composer_Inputs/foreground_mono_1024.png",
+      "bytes": 42708,
+      "sha256": "0d2f0f78605d58cd061d0520957b3722282e35c65c8cbec5528d96e4201c8839",
+      "width": 1024,
+      "height": 1024,
+      "mode": "RGBA"
+    },
+    {
+      "path": "04_Apple/iPhone_iPad/AppIcon.appiconset/Contents.json",
+      "bytes": 2360,
+      "sha256": "fd32de3222c0339876305b36958a42095bf0bd6937c3d41a84e1f35c3c516b21"
+    },
+    {
+      "path": "04_Apple/iPhone_iPad/AppIcon.appiconset/ios-marketing_1024pt_1x.png",
+      "bytes": 181442,
+      "sha256": "4da91867065db8e9645de25cacd514eced17deb539fbba4ca21b329cc8f5ce64",
+      "width": 1024,
+      "height": 1024,
+      "mode": "RGB"
+    },
+    {
+      "path": "04_Apple/iPhone_iPad/AppIcon.appiconset/ipad_20pt_1x.png",
+      "bytes": 927,
+      "sha256": "435771e38ed23a6d9d576c93b0f00e310de1354d4d97f2dc90fff42a977dee52",
+      "width": 20,
+      "height": 20,
+      "mode": "RGB"
+    },
+    {
+      "path": "04_Apple/iPhone_iPad/AppIcon.appiconset/ipad_20pt_2x.png",
+      "bytes": 1789,
+      "sha256": "087d32187dc9794193b2dcbaa0bd82d4dab6d5edf2370f6fbb3844413753cedd",
+      "width": 40,
+      "height": 40,
+      "mode": "RGB"
+    },
+    {
+      "path": "04_Apple/iPhone_iPad/AppIcon.appiconset/ipad_29pt_1x.png",
+      "bytes": 1306,
+      "sha256": "59e55d4d385609a0eb834f71b5ce26708775eb30121092e9442a78197e0f1cf2",
+      "width": 29,
+      "height": 29,
+      "mode": "RGB"
+    },
+    {
+      "path": "04_Apple/iPhone_iPad/AppIcon.appiconset/ipad_29pt_2x.png",
+      "bytes": 2754,
+      "sha256": "9f6c343a2cf6124ecfe5a7c03802b3cc6e5be5ab35baeadbb7818f93f056bc02",
+      "width": 58,
+      "height": 58,
+      "mode": "RGB"
+    },
+    {
+      "path": "04_Apple/iPhone_iPad/AppIcon.appiconset/ipad_40pt_1x.png",
+      "bytes": 1789,
+      "sha256": "087d32187dc9794193b2dcbaa0bd82d4dab6d5edf2370f6fbb3844413753cedd",
+      "width": 40,
+      "height": 40,
+      "mode": "RGB"
+    },
+    {
+      "path": "04_Apple/iPhone_iPad/AppIcon.appiconset/ipad_40pt_2x.png",
+      "bytes": 4127,
+      "sha256": "f773993638692a545a25d53e1f53908b22d324a91763e9f5a04c0c360255b0a0",
+      "width": 80,
+      "height": 80,
+      "mode": "RGB"
+    },
+    {
+      "path": "04_Apple/iPhone_iPad/AppIcon.appiconset/ipad_76pt_1x.png",
+      "bytes": 3862,
+      "sha256": "d02474dfa4a448b20a2946d346573e86c28e32060cee7fb848d6a86d257f5720",
+      "width": 76,
+      "height": 76,
+      "mode": "RGB"
+    },
+    {
+      "path": "04_Apple/iPhone_iPad/AppIcon.appiconset/ipad_76pt_2x.png",
+      "bytes": 9882,
+      "sha256": "05fa6dcc7faecbac76f7b53c8d5c23270ef2963930bbf653d506906345d9b42c",
+      "width": 152,
+      "height": 152,
+      "mode": "RGB"
+    },
+    {
+      "path": "04_Apple/iPhone_iPad/AppIcon.appiconset/ipad_83.5pt_2x.png",
+      "bytes": 11259,
+      "sha256": "f192a91156ca5e9df910a97b63a6e52f5f5154f954ceccbdd79bbcfb6e780000",
+      "width": 167,
+      "height": 167,
+      "mode": "RGB"
+    },
+    {
+      "path": "04_Apple/iPhone_iPad/AppIcon.appiconset/iphone_20pt_2x.png",
+      "bytes": 1789,
+      "sha256": "087d32187dc9794193b2dcbaa0bd82d4dab6d5edf2370f6fbb3844413753cedd",
+      "width": 40,
+      "height": 40,
+      "mode": "RGB"
+    },
+    {
+      "path": "04_Apple/iPhone_iPad/AppIcon.appiconset/iphone_20pt_3x.png",
+      "bytes": 2890,
+      "sha256": "9cc6bffb8c8055dceef25f41fd0d705030c7f4d7c8be72e7aa81e12acf48894d",
+      "width": 60,
+      "height": 60,
+      "mode": "RGB"
+    },
+    {
+      "path": "04_Apple/iPhone_iPad/AppIcon.appiconset/iphone_29pt_2x.png",
+      "bytes": 2754,
+      "sha256": "9f6c343a2cf6124ecfe5a7c03802b3cc6e5be5ab35baeadbb7818f93f056bc02",
+      "width": 58,
+      "height": 58,
+      "mode": "RGB"
+    },
+    {
+      "path": "04_Apple/iPhone_iPad/AppIcon.appiconset/iphone_29pt_3x.png",
+      "bytes": 4629,
+      "sha256": "529e84c7837af97cd654d6af6b4cea66d4a02eaa52d7dae495a20b1192c871ed",
+      "width": 87,
+      "height": 87,
+      "mode": "RGB"
+    },
+    {
+      "path": "04_Apple/iPhone_iPad/AppIcon.appiconset/iphone_40pt_2x.png",
+      "bytes": 4127,
+      "sha256": "f773993638692a545a25d53e1f53908b22d324a91763e9f5a04c0c360255b0a0",
+      "width": 80,
+      "height": 80,
+      "mode": "RGB"
+    },
+    {
+      "path": "04_Apple/iPhone_iPad/AppIcon.appiconset/iphone_40pt_3x.png",
+      "bytes": 7170,
+      "sha256": "86a3af7a6fb0b231af0b9283257df5a8964bbb9786e7d6aad5bebeac8ca03d58",
+      "width": 120,
+      "height": 120,
+      "mode": "RGB"
+    },
+    {
+      "path": "04_Apple/iPhone_iPad/AppIcon.appiconset/iphone_60pt_2x.png",
+      "bytes": 7170,
+      "sha256": "86a3af7a6fb0b231af0b9283257df5a8964bbb9786e7d6aad5bebeac8ca03d58",
+      "width": 120,
+      "height": 120,
+      "mode": "RGB"
+    },
+    {
+      "path": "04_Apple/iPhone_iPad/AppIcon.appiconset/iphone_60pt_3x.png",
+      "bytes": 12559,
+      "sha256": "e2ababb547bde14629144e6b6ea604ef79a19d33406ff4267651ce8c2fab21e6",
+      "width": 180,
+      "height": 180,
+      "mode": "RGB"
+    },
+    {
+      "path": "04_Apple/iPhone_iPad/AppIcon_1024.png",
+      "bytes": 181442,
+      "sha256": "4da91867065db8e9645de25cacd514eced17deb539fbba4ca21b329cc8f5ce64",
+      "width": 1024,
+      "height": 1024,
+      "mode": "RGB"
+    },
+    {
+      "path": "04_Apple/Mac/AppIcon.appiconset/Contents.json",
+      "bytes": 1323,
+      "sha256": "b2ac94bb86253acc310de7c511a3bbc5b945cc2d319f7c899c68e23dbcd2ce9f"
+    },
+    {
+      "path": "04_Apple/Mac/AppIcon.appiconset/icon_128x128.png",
+      "bytes": 9164,
+      "sha256": "6f1b84607c5dc5efbf48084c5ca6113be89c4797ed55b7f0106c52203b9149dd",
+      "width": 128,
+      "height": 128,
+      "mode": "RGBA"
+    },
+    {
+      "path": "04_Apple/Mac/AppIcon.appiconset/icon_128x128@2x.png",
+      "bytes": 19194,
+      "sha256": "049d3da5573b75c3a08a359ee101c247cb97cd77e66cfdee9f44c47cdf4e131b",
+      "width": 256,
+      "height": 256,
+      "mode": "RGBA"
+    },
+    {
+      "path": "04_Apple/Mac/AppIcon.appiconset/icon_16x16.png",
+      "bytes": 986,
+      "sha256": "4d01a234ff890e37f20c876ec4c16312e0f962882b805a7af0962d18a4a8ec09",
+      "width": 16,
+      "height": 16,
+      "mode": "RGBA"
+    },
+    {
+      "path": "04_Apple/Mac/AppIcon.appiconset/icon_16x16@2x.png",
+      "bytes": 1812,
+      "sha256": "8f8fa8ad2f98e0d8ab3d4da26238b01d88a303470332bf5f109ebb0cc224c6da",
+      "width": 32,
+      "height": 32,
+      "mode": "RGBA"
+    },
+    {
+      "path": "04_Apple/Mac/AppIcon.appiconset/icon_256x256.png",
+      "bytes": 19194,
+      "sha256": "049d3da5573b75c3a08a359ee101c247cb97cd77e66cfdee9f44c47cdf4e131b",
+      "width": 256,
+      "height": 256,
+      "mode": "RGBA"
+    },
+    {
+      "path": "04_Apple/Mac/AppIcon.appiconset/icon_256x256@2x.png",
+      "bytes": 56797,
+      "sha256": "db3d249dca40cf298f76a2f41842cd8e8ad8ae1b14401e9e0281bec288c7f0dc",
+      "width": 512,
+      "height": 512,
+      "mode": "RGBA"
+    },
+    {
+      "path": "04_Apple/Mac/AppIcon.appiconset/icon_32x32.png",
+      "bytes": 1812,
+      "sha256": "8f8fa8ad2f98e0d8ab3d4da26238b01d88a303470332bf5f109ebb0cc224c6da",
+      "width": 32,
+      "height": 32,
+      "mode": "RGBA"
+    },
+    {
+      "path": "04_Apple/Mac/AppIcon.appiconset/icon_32x32@2x.png",
+      "bytes": 3785,
+      "sha256": "31dcaa89dc98ca93b79ac122d16ac850915874f431aff421db0077f2a9b0de5a",
+      "width": 64,
+      "height": 64,
+      "mode": "RGBA"
+    },
+    {
+      "path": "04_Apple/Mac/AppIcon.appiconset/icon_512x512.png",
+      "bytes": 56797,
+      "sha256": "db3d249dca40cf298f76a2f41842cd8e8ad8ae1b14401e9e0281bec288c7f0dc",
+      "width": 512,
+      "height": 512,
+      "mode": "RGBA"
+    },
+    {
+      "path": "04_Apple/Mac/AppIcon.appiconset/icon_512x512@2x.png",
+      "bytes": 169324,
+      "sha256": "f4cb49af7213dc93155ef82c7ff729d9adc9545e9b51d416cf057ff8b689814a",
+      "width": 1024,
+      "height": 1024,
+      "mode": "RGBA"
+    },
+    {
+      "path": "04_Apple/Mac/AvonioTV.icns",
+      "bytes": 364686,
+      "sha256": "aadde9501c50d0bb9af33f02235ab8275cac2519cbc5fe7f46d4988ac4a6954a"
+    },
+    {
+      "path": "05_Android_TV/AndroidManifest_example.xml",
+      "bytes": 229,
+      "sha256": "764959f1ca4e12e7ee427ba040eac152611a57bf261536d6a5cfff178ddccdc0"
+    },
+    {
+      "path": "05_Android_TV/Play_Store/feature_graphic_1024x500.png",
+      "bytes": 67365,
+      "sha256": "9af2183b17c943b978a7eac949307ed0d65095b2c3918b210eb535dfbaf8a880",
+      "width": 1024,
+      "height": 500,
+      "mode": "RGB"
+    },
+    {
+      "path": "05_Android_TV/Play_Store/icon_512.png",
+      "bytes": 63210,
+      "sha256": "a52f3f3edc9c1efaaf9d054f22879b336e34df462ca3852aa4e2cd8918763df3",
+      "width": 512,
+      "height": 512,
+      "mode": "RGB"
+    },
+    {
+      "path": "05_Android_TV/res/drawable-hdpi/ic_launcher_foreground.png",
+      "bytes": 7203,
+      "sha256": "d4b97a199bcaca39aafb40f377c4e881f2d1f2466c3c41ce16875841686c74b1",
+      "width": 162,
+      "height": 162,
+      "mode": "RGBA"
+    },
+    {
+      "path": "05_Android_TV/res/drawable-hdpi/ic_launcher_monochrome.png",
+      "bytes": 3313,
+      "sha256": "a12dc1c441db4e81f2ffff759cc2e632cf7f34a535418b7382429ac5bafc14b2",
+      "width": 162,
+      "height": 162,
+      "mode": "RGBA"
+    },
+    {
+      "path": "05_Android_TV/res/drawable-mdpi/ic_launcher_foreground.png",
+      "bytes": 4215,
+      "sha256": "46e31cb827ad17e0311061cd053fa85ada87c18c8a01a4a4a20e91033c0d9e8e",
+      "width": 108,
+      "height": 108,
+      "mode": "RGBA"
+    },
+    {
+      "path": "05_Android_TV/res/drawable-mdpi/ic_launcher_monochrome.png",
+      "bytes": 2216,
+      "sha256": "dfe1b9219da932246f282de4e69e2157e56a19e37141554747a0fc7946365e9c",
+      "width": 108,
+      "height": 108,
+      "mode": "RGBA"
+    },
+    {
+      "path": "05_Android_TV/res/drawable-xhdpi/ic_launcher_foreground.png",
+      "bytes": 10846,
+      "sha256": "57f65a283b47f13d2d62ca516d0537f385a66ea999dd26e67772816428c53870",
+      "width": 216,
+      "height": 216,
+      "mode": "RGBA"
+    },
+    {
+      "path": "05_Android_TV/res/drawable-xhdpi/ic_launcher_monochrome.png",
+      "bytes": 4451,
+      "sha256": "be340ccda2801cf7721905dc13b8bbff47c00abeddb697287c01d78b8c93bade",
+      "width": 216,
+      "height": 216,
+      "mode": "RGBA"
+    },
+    {
+      "path": "05_Android_TV/res/drawable-xxhdpi/ic_launcher_foreground.png",
+      "bytes": 19957,
+      "sha256": "005fe0d501364c7b1ed806b811d56f886c383d5be0c273b5d941b350debd8909",
+      "width": 324,
+      "height": 324,
+      "mode": "RGBA"
+    },
+    {
+      "path": "05_Android_TV/res/drawable-xxhdpi/ic_launcher_monochrome.png",
+      "bytes": 6827,
+      "sha256": "34cfef6c3005e93790b8edb70bf819293b56ae38d1e445835eb73401731658c0",
+      "width": 324,
+      "height": 324,
+      "mode": "RGBA"
+    },
+    {
+      "path": "05_Android_TV/res/drawable-xxxhdpi/ic_launcher_foreground.png",
+      "bytes": 30998,
+      "sha256": "553342b9b53efa16c4f7af7e6389aa175b3967fe5deda0677fbbecda21d8cc98",
+      "width": 432,
+      "height": 432,
+      "mode": "RGBA"
+    },
+    {
+      "path": "05_Android_TV/res/drawable-xxxhdpi/ic_launcher_monochrome.png",
+      "bytes": 9134,
+      "sha256": "265bf1dfe61e35ed60a23e088f761cecb82e29b0b3c458fdf0ff118f4d8aec2b",
+      "width": 432,
+      "height": 432,
+      "mode": "RGBA"
+    },
+    {
+      "path": "05_Android_TV/res/mipmap-anydpi-v26/ic_launcher.xml",
+      "bytes": 275,
+      "sha256": "0096ade5099dddec9b50efd088a0d90aa8b94d48685526d801d47cb48b69310f"
+    },
+    {
+      "path": "05_Android_TV/res/mipmap-anydpi-v33/ic_launcher.xml",
+      "bytes": 347,
+      "sha256": "f7796d975d5c9d1112355103ace01dfdaf5a6a678850dac18d3c5edf4dff5b58"
+    },
+    {
+      "path": "05_Android_TV/res/mipmap-hdpi/ic_launcher.png",
+      "bytes": 7170,
+      "sha256": "86a3af7a6fb0b231af0b9283257df5a8964bbb9786e7d6aad5bebeac8ca03d58",
+      "width": 120,
+      "height": 120,
+      "mode": "RGB"
+    },
+    {
+      "path": "05_Android_TV/res/mipmap-hdpi/tv_banner.png",
+      "bytes": 9703,
+      "sha256": "020d4128ec4454ea0a2ecb95a93947f578181d4912d56373a332da8011d83216",
+      "width": 240,
+      "height": 135,
+      "mode": "RGB"
+    },
+    {
+      "path": "05_Android_TV/res/mipmap-mdpi/ic_launcher.png",
+      "bytes": 4127,
+      "sha256": "f773993638692a545a25d53e1f53908b22d324a91763e9f5a04c0c360255b0a0",
+      "width": 80,
+      "height": 80,
+      "mode": "RGB"
+    },
+    {
+      "path": "05_Android_TV/res/mipmap-mdpi/tv_banner.png",
+      "bytes": 5487,
+      "sha256": "0011615443e38eaad81ae03fca97d792efb6ad44f1c4ca5eeeac65178b048200",
+      "width": 160,
+      "height": 90,
+      "mode": "RGB"
+    },
+    {
+      "path": "05_Android_TV/res/mipmap-xhdpi/ic_launcher.png",
+      "bytes": 10641,
+      "sha256": "5b420525e3cd9b5bcab1c5cb99fa71b3069ffb5422ef2f7d1c3668d9bd0bd20b",
+      "width": 160,
+      "height": 160,
+      "mode": "RGB"
+    },
+    {
+      "path": "05_Android_TV/res/mipmap-xhdpi/tv_banner.png",
+      "bytes": 14484,
+      "sha256": "b7e97aaf9c1b5645e7fd850cf9655e85ff091317895de66d5d1367c123d88c76",
+      "width": 320,
+      "height": 180,
+      "mode": "RGB"
+    },
+    {
+      "path": "05_Android_TV/res/mipmap-xxhdpi/ic_launcher.png",
+      "bytes": 19329,
+      "sha256": "2bd6d413992bc974a0199c190969d7c1380dc6d8dd137904f5ca8334a4114ce6",
+      "width": 240,
+      "height": 240,
+      "mode": "RGB"
+    },
+    {
+      "path": "05_Android_TV/res/mipmap-xxhdpi/tv_banner.png",
+      "bytes": 25418,
+      "sha256": "cbccac174796c1bf02e6d19b8e27230ccd7e7d50eff143f09b6aa93c9232974f",
+      "width": 480,
+      "height": 270,
+      "mode": "RGB"
+    },
+    {
+      "path": "05_Android_TV/res/mipmap-xxxhdpi/ic_launcher.png",
+      "bytes": 30012,
+      "sha256": "45c2d938add6799d9693113d5d7fc84e10b80b9be791c778ba52c8228f8a6889",
+      "width": 320,
+      "height": 320,
+      "mode": "RGB"
+    },
+    {
+      "path": "05_Android_TV/res/mipmap-xxxhdpi/tv_banner.png",
+      "bytes": 38424,
+      "sha256": "4745ab01b66e0c1fbd8df8ebcf39e53d8879027af37497a74974bde67aa26ee1",
+      "width": 640,
+      "height": 360,
+      "mode": "RGB"
+    },
+    {
+      "path": "05_Android_TV/res/values/colors.xml",
+      "bytes": 117,
+      "sha256": "ac40d46ffebc48e1b773f6c0f386fa9a41b3e22378eec5060af1fd40802f0b16"
+    },
+    {
+      "path": "06_Windows/AvonioTV.ico",
+      "bytes": 47849,
+      "sha256": "52f4557b74f212dfd387f5f4a1ef2dc26a8a87f40635b7a72fb185ee9277a880"
+    },
+    {
+      "path": "06_Windows/PNG/AvonioTV_1024.png",
+      "bytes": 181442,
+      "sha256": "4da91867065db8e9645de25cacd514eced17deb539fbba4ca21b329cc8f5ce64",
+      "width": 1024,
+      "height": 1024,
+      "mode": "RGB"
+    },
+    {
+      "path": "06_Windows/PNG/AvonioTV_128.png",
+      "bytes": 7770,
+      "sha256": "b81da6b13902d276cbc99b705427acb8426ecfdf49511f99922cec10053ada63",
+      "width": 128,
+      "height": 128,
+      "mode": "RGB"
+    },
+    {
+      "path": "06_Windows/PNG/AvonioTV_144.png",
+      "bytes": 9111,
+      "sha256": "89ec8e434e28ba638a65181aba9fb3e1f3ec2fe7c6402319e4c395d0567553ae",
+      "width": 144,
+      "height": 144,
+      "mode": "RGB"
+    },
+    {
+      "path": "06_Windows/PNG/AvonioTV_16.png",
+      "bytes": 794,
+      "sha256": "7616db3c4182e0cc9a39e015c8e952964ec08ce25ca19d7d392b4e78edd711af",
+      "width": 16,
+      "height": 16,
+      "mode": "RGB"
+    },
+    {
+      "path": "06_Windows/PNG/AvonioTV_176.png",
+      "bytes": 12107,
+      "sha256": "4614a9eb889a9d0b04f82bc11b15d66d7e25d3200de796d75fa1f3b122902aad",
+      "width": 176,
+      "height": 176,
+      "mode": "RGB"
+    },
+    {
+      "path": "06_Windows/PNG/AvonioTV_192.png",
+      "bytes": 13771,
+      "sha256": "fc6022dc7a83c4af062e92b87c131a084f5d1329bc6ef3a5da43923023a07c40",
+      "width": 192,
+      "height": 192,
+      "mode": "RGB"
+    },
+    {
+      "path": "06_Windows/PNG/AvonioTV_20.png",
+      "bytes": 927,
+      "sha256": "435771e38ed23a6d9d576c93b0f00e310de1354d4d97f2dc90fff42a977dee52",
+      "width": 20,
+      "height": 20,
+      "mode": "RGB"
+    },
+    {
+      "path": "06_Windows/PNG/AvonioTV_24.png",
+      "bytes": 1077,
+      "sha256": "4a362b75aa6f01b61049b91632ad50d78c45232711f4633c0858fed8b4f6ed24",
+      "width": 24,
+      "height": 24,
+      "mode": "RGB"
+    },
+    {
+      "path": "06_Windows/PNG/AvonioTV_256.png",
+      "bytes": 21517,
+      "sha256": "068e13ef03675277de27c60fee89a2f7a18de8c5032fde498a45bcea382285a4",
+      "width": 256,
+      "height": 256,
+      "mode": "RGB"
+    },
+    {
+      "path": "06_Windows/PNG/AvonioTV_30.png",
+      "bytes": 1308,
+      "sha256": "2074d246bb21bd165617ed66dcef732758989ff55e5e3ad6a168d01ead70e158",
+      "width": 30,
+      "height": 30,
+      "mode": "RGB"
+    },
+    {
+      "path": "06_Windows/PNG/AvonioTV_32.png",
+      "bytes": 1422,
+      "sha256": "92aa393d96f1412cafd79c0794ae05903a4eea8b77e78f5f7a0b4e4a2408c4f9",
+      "width": 32,
+      "height": 32,
+      "mode": "RGB"
+    },
+    {
+      "path": "06_Windows/PNG/AvonioTV_36.png",
+      "bytes": 1571,
+      "sha256": "46ae6c241e9ead8b04d2977bf44a94ae4d05f2477c5a1f47c3fe320468730508",
+      "width": 36,
+      "height": 36,
+      "mode": "RGB"
+    },
+    {
+      "path": "06_Windows/PNG/AvonioTV_40.png",
+      "bytes": 1789,
+      "sha256": "087d32187dc9794193b2dcbaa0bd82d4dab6d5edf2370f6fbb3844413753cedd",
+      "width": 40,
+      "height": 40,
+      "mode": "RGB"
+    },
+    {
+      "path": "06_Windows/PNG/AvonioTV_44.png",
+      "bytes": 1971,
+      "sha256": "4a0b1fe92ef1768da7eb9ee8e79c0c991b958b0549568cd29710d04b89e62017",
+      "width": 44,
+      "height": 44,
+      "mode": "RGB"
+    },
+    {
+      "path": "06_Windows/PNG/AvonioTV_48.png",
+      "bytes": 2206,
+      "sha256": "a3f485e8d4986cb433636f536d2c139a2e8a049ed953595437696aba7130aea6",
+      "width": 48,
+      "height": 48,
+      "mode": "RGB"
+    },
+    {
+      "path": "06_Windows/PNG/AvonioTV_512.png",
+      "bytes": 63210,
+      "sha256": "a52f3f3edc9c1efaaf9d054f22879b336e34df462ca3852aa4e2cd8918763df3",
+      "width": 512,
+      "height": 512,
+      "mode": "RGB"
+    },
+    {
+      "path": "06_Windows/PNG/AvonioTV_60.png",
+      "bytes": 2890,
+      "sha256": "9cc6bffb8c8055dceef25f41fd0d705030c7f4d7c8be72e7aa81e12acf48894d",
+      "width": 60,
+      "height": 60,
+      "mode": "RGB"
+    },
+    {
+      "path": "06_Windows/PNG/AvonioTV_64.png",
+      "bytes": 3135,
+      "sha256": "f5f2ab7a4a4bcceb3b8da7ea61eec856c573e132ff92586cc071e7785b92cc73",
+      "width": 64,
+      "height": 64,
+      "mode": "RGB"
+    },
+    {
+      "path": "06_Windows/PNG/AvonioTV_72.png",
+      "bytes": 3596,
+      "sha256": "7baced66933017518b43a50fe53f8ff3a99ebe62b82fcf1cee2f89181c9c536d",
+      "width": 72,
+      "height": 72,
+      "mode": "RGB"
+    },
+    {
+      "path": "06_Windows/PNG/AvonioTV_80.png",
+      "bytes": 4127,
+      "sha256": "f773993638692a545a25d53e1f53908b22d324a91763e9f5a04c0c360255b0a0",
+      "width": 80,
+      "height": 80,
+      "mode": "RGB"
+    },
+    {
+      "path": "06_Windows/PNG/AvonioTV_96.png",
+      "bytes": 5240,
+      "sha256": "f5b71e3aff4b94b0cec62f92893a4ffdb99d7d0a09be27048e8ea85b9bc14e75",
+      "width": 96,
+      "height": 96,
+      "mode": "RGB"
+    },
+    {
+      "path": "06_Windows/Tiles/Square150x150Logo.png",
+      "bytes": 9566,
+      "sha256": "d65378acdf311300f3e5b3a53532bf33f815f67122b6e6577f713ba00b08f6f8",
+      "width": 150,
+      "height": 150,
+      "mode": "RGB"
+    },
+    {
+      "path": "06_Windows/Tiles/Square310x310Logo.png",
+      "bytes": 28579,
+      "sha256": "562a55a8830e62df0955becc887d5e4bf73c898c6e419bcf3194e2c05eec451b",
+      "width": 310,
+      "height": 310,
+      "mode": "RGB"
+    },
+    {
+      "path": "06_Windows/Tiles/Square44x44Logo.png",
+      "bytes": 1971,
+      "sha256": "4a0b1fe92ef1768da7eb9ee8e79c0c991b958b0549568cd29710d04b89e62017",
+      "width": 44,
+      "height": 44,
+      "mode": "RGB"
+    },
+    {
+      "path": "06_Windows/Tiles/Square50x50Logo.png",
+      "bytes": 2301,
+      "sha256": "e22bf4b563320c84d0db2a7197dbe31f254fdbfda3663fdacc308b860c9eebb5",
+      "width": 50,
+      "height": 50,
+      "mode": "RGB"
+    },
+    {
+      "path": "06_Windows/Tiles/Wide310x150Logo.png",
+      "bytes": 12013,
+      "sha256": "b6d8fecb86518696e115602765ca580ed38819c4db41da165436f593fd3cf8d4",
+      "width": 310,
+      "height": 150,
+      "mode": "RGB"
+    },
+    {
+      "path": "07_TV_Dashboard/Header_Logos/horizontal_128h.png",
+      "bytes": 45304,
+      "sha256": "6b3a03d3da63f3341873343deb19ba73a96fcbc590d11a9fd4a1d475fa850cc7",
+      "width": 507,
+      "height": 128,
+      "mode": "RGBA"
+    },
+    {
+      "path": "07_TV_Dashboard/Header_Logos/horizontal_192h.png",
+      "bytes": 82207,
+      "sha256": "8a7df4ac99f1978699a33f1089fd903b356da76cfdad37e981a994687afb2b26",
+      "width": 761,
+      "height": 192,
+      "mode": "RGBA"
+    },
+    {
+      "path": "07_TV_Dashboard/Header_Logos/horizontal_256h.png",
+      "bytes": 126416,
+      "sha256": "ca7a8370f85f6a8de19e6a9e2c6ee278ae0af1cac82a8c0ae99c00316c6634e9",
+      "width": 1014,
+      "height": 256,
+      "mode": "RGBA"
+    },
+    {
+      "path": "07_TV_Dashboard/Header_Logos/horizontal_32h.png",
+      "bytes": 5805,
+      "sha256": "c53e1edd010bf2b0e45080298fe6a5de3f3781cc9565340d13e48a05417f8cef",
+      "width": 127,
+      "height": 32,
+      "mode": "RGBA"
+    },
+    {
+      "path": "07_TV_Dashboard/Header_Logos/horizontal_48h.png",
+      "bytes": 10639,
+      "sha256": "bcb115d778d16dd4bbdd2d9094bcf6497f0ad8220755a5864e9ad94d5bb75c62",
+      "width": 190,
+      "height": 48,
+      "mode": "RGBA"
+    },
+    {
+      "path": "07_TV_Dashboard/Header_Logos/horizontal_64h.png",
+      "bytes": 16446,
+      "sha256": "ae8900bac0d55d51cca86e8e70c24cedc67125109f01dc0a79440a1cb3e62775",
+      "width": 254,
+      "height": 64,
+      "mode": "RGBA"
+    },
+    {
+      "path": "07_TV_Dashboard/Header_Logos/horizontal_96h.png",
+      "bytes": 29393,
+      "sha256": "52ba354d6244471d375a2c99b62ebb60a4bd91e9d6df7a58368b631d553384d7",
+      "width": 380,
+      "height": 96,
+      "mode": "RGBA"
+    },
+    {
+      "path": "07_TV_Dashboard/Header_Logos/stacked_128h.png",
+      "bytes": 17479,
+      "sha256": "5a0089e1eca56946de91c4d6da39990483a415efe89e61f5bc4e34cf1f932b86",
+      "width": 150,
+      "height": 128,
+      "mode": "RGBA"
+    },
+    {
+      "path": "07_TV_Dashboard/Header_Logos/stacked_192h.png",
+      "bytes": 31826,
+      "sha256": "c66c07c68ea47153a9550cd3c8f129ce4c18b89cbc573f238118257eab7f598b",
+      "width": 225,
+      "height": 192,
+      "mode": "RGBA"
+    },
+    {
+      "path": "07_TV_Dashboard/Header_Logos/stacked_256h.png",
+      "bytes": 49241,
+      "sha256": "919a9f29ef1f2d5bec76cf7a7640949bff7bb4459fd715828318393b0e4e54cf",
+      "width": 300,
+      "height": 256,
+      "mode": "RGBA"
+    },
+    {
+      "path": "07_TV_Dashboard/Header_Logos/stacked_32h.png",
+      "bytes": 2565,
+      "sha256": "244aa8009dc5ea7457174a3ec7396aba8e56b9e52c50e899bd4ec7909bf139b0",
+      "width": 37,
+      "height": 32,
+      "mode": "RGBA"
+    },
+    {
+      "path": "07_TV_Dashboard/Header_Logos/stacked_48h.png",
+      "bytes": 4241,
+      "sha256": "553de2d81810e9e296eb47573aa56eac4ceaa10d39a33d8f1137de9c65e027fb",
+      "width": 56,
+      "height": 48,
+      "mode": "RGBA"
+    },
+    {
+      "path": "07_TV_Dashboard/Header_Logos/stacked_64h.png",
+      "bytes": 6523,
+      "sha256": "e0eae9a6141f263c96bcf65e335f44bc95f05f54fff220bff501d91d0695e50b",
+      "width": 75,
+      "height": 64,
+      "mode": "RGBA"
+    },
+    {
+      "path": "07_TV_Dashboard/Header_Logos/stacked_96h.png",
+      "bytes": 11656,
+      "sha256": "59b3b7ef4c8eaf3725ddf3176f71e4ee1e8969bbdbf39241548c274cd6b62921",
+      "width": 112,
+      "height": 96,
+      "mode": "RGBA"
+    },
+    {
+      "path": "07_TV_Dashboard/Launch_Screens/horizontal_1280x720.png",
+      "bytes": 94119,
+      "sha256": "028c954c81418b2d5adbf2ad42487d7244f975d472c4714c7fb27f6af960ad9a",
+      "width": 1280,
+      "height": 720,
+      "mode": "RGB"
+    },
+    {
+      "path": "07_TV_Dashboard/Launch_Screens/horizontal_1920x1080.png",
+      "bytes": 168723,
+      "sha256": "113dd72823d76444d6ed8f4ac143206ca0b0aa1ca0fc222b3917d5695581f322",
+      "width": 1920,
+      "height": 1080,
+      "mode": "RGB"
+    },
+    {
+      "path": "07_TV_Dashboard/Launch_Screens/horizontal_2560x1440.png",
+      "bytes": 251300,
+      "sha256": "a709d3c19a3e7ba096f8b37cd9c115a07c5e2742f746051772f5394a9e80d110",
+      "width": 2560,
+      "height": 1440,
+      "mode": "RGB"
+    },
+    {
+      "path": "07_TV_Dashboard/Launch_Screens/horizontal_3840x2160.png",
+      "bytes": 419367,
+      "sha256": "32ac28ab1a413b1c475167c3d10df0b68134e68f7a115c77fb0b4004f251b4dd",
+      "width": 3840,
+      "height": 2160,
+      "mode": "RGB"
+    },
+    {
+      "path": "07_TV_Dashboard/Launch_Screens/horizontal_640x360.png",
+      "bytes": 33855,
+      "sha256": "0611dc354b6b6d5af62c7e9b65d2ace800758eb385831b42bd3e6f67313db3b9",
+      "width": 640,
+      "height": 360,
+      "mode": "RGB"
+    },
+    {
+      "path": "07_TV_Dashboard/Launch_Screens/stacked_1280x720.png",
+      "bytes": 125794,
+      "sha256": "3471e25c56f7757bd8732b7e614f1b2c40fc02b2f8694c0f182e8ad88b68004e",
+      "width": 1280,
+      "height": 720,
+      "mode": "RGB"
+    },
+    {
+      "path": "07_TV_Dashboard/Launch_Screens/stacked_1920x1080.png",
+      "bytes": 235646,
+      "sha256": "feaeb6e18e44a28215f1a43d3543a7c1c69acad11127c9c556b8bc60e806d614",
+      "width": 1920,
+      "height": 1080,
+      "mode": "RGB"
+    },
+    {
+      "path": "07_TV_Dashboard/Launch_Screens/stacked_2560x1440.png",
+      "bytes": 348554,
+      "sha256": "9831f099699a33716b61584818692901de2363361b47faacdefb249f3d328fba",
+      "width": 2560,
+      "height": 1440,
+      "mode": "RGB"
+    },
+    {
+      "path": "07_TV_Dashboard/Launch_Screens/stacked_3840x2160.png",
+      "bytes": 565937,
+      "sha256": "437eb868c59267976ebe201566d3d88333c77f5879a7817ae0a7261629ac1b23",
+      "width": 3840,
+      "height": 2160,
+      "mode": "RGB"
+    },
+    {
+      "path": "07_TV_Dashboard/Launch_Screens/stacked_640x360.png",
+      "bytes": 43313,
+      "sha256": "de4dc8ce196278eb3343771c3502888a6a81185457982aea92c9b61a125bf110",
+      "width": 640,
+      "height": 360,
+      "mode": "RGB"
+    },
+    {
+      "path": "08_Brand_Guide/brand.css",
+      "bytes": 401,
+      "sha256": "e09b0dc4adb8ca5e6716f60971c6c0971533116d0f882cb1165851028bfb4645"
+    },
+    {
+      "path": "08_Brand_Guide/BRAND_AND_DEVELOPER_GUIDE.md",
+      "bytes": 7956,
+      "sha256": "4e8a1ea5da7578c7076cbfee939a3fd5ef1130e331f72f6b8fe00e1cf01dc92f"
+    },
+    {
+      "path": "08_Brand_Guide/colors.json",
+      "bytes": 740,
+      "sha256": "46fb2d5ed02b4719cd9b575f6e0f7523730722062ea93c9b3c5114a038d32c7f"
+    },
+    {
+      "path": "08_Brand_Guide/VISUAL_GUIDE.html",
+      "bytes": 5264,
+      "sha256": "5d32f9322c9729ce7e972f9a2daa52f331c8d19d0b29dfc50ef54083facf12a1"
+    },
+    {
+      "path": "PREVIEW.png",
+      "bytes": 268597,
+      "sha256": "c0f40aa38eb660de54a8655ca0726a712e3af0404d0299579177e88a1d241d35",
+      "width": 1600,
+      "height": 1160,
+      "mode": "RGB"
+    },
+    {
+      "path": "START_HERE.txt",
+      "bytes": 470,
+      "sha256": "a017b25934a0d70f38685e9dadd68dd31963ea1a0fcd23f4db603ebe8acdf2ea"
+    }
+  ]
+}

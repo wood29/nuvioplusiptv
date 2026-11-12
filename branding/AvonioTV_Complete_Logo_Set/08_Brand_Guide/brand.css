@@ -1,0 +1,11 @@
+:root {
+  --avonio-navy: #030C24;
+  --avonio-blue: #0066FF;
+  --avonio-cyan: #00C8ED;
+  --avonio-teal: #00E5BF;
+  --avonio-white: #FFFFFF;
+  --avonio-light-surface: #F4F7FB;
+  --avonio-muted-text: #A7B4CC;
+  --avonio-gradient: linear-gradient(45deg, #0066FF 0%, #00C8ED 52%, #00E5BF 100%);
+  --avonio-ui-font: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+}
