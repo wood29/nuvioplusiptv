@@ -15,8 +15,8 @@ class Guide(
         programmes.groupBy { it.guideId.lowercase() }.mapValues { (_, l) -> l.sortedBy { it.startMs }.dedupe() }
 
     private val byName: Map<String, String> = buildMap {
-        channelNames.forEach { (id, names) -> names.forEach { n -> putIfAbsent(normalize(n), id.lowercase()) } }
-        byGuideId.keys.forEach { putIfAbsent(normalize(it), it) }
+        channelNames.forEach { (id, names) -> names.forEach { n -> normalize(n).let { k -> if (k !in this) put(k, id.lowercase()) } } }
+        byGuideId.keys.forEach { id -> normalize(id).let { k -> if (k !in this) put(k, id) } }
     }
 
     val isEmpty get() = byGuideId.isEmpty()

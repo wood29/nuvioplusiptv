@@ -59,7 +59,7 @@ object M3uParser {
                     val n = (seenIds[baseId] ?: 0) + 1
                     seenIds[baseId] = n
                     val headers = LinkedHashMap(pendingHeaders)
-                    source.userAgent?.let { headers.putIfAbsent("User-Agent", it) }
+                    source.userAgent?.let { if ("User-Agent" !in headers) headers["User-Agent"] = it }
                     channels += Channel(
                         id = if (n == 1) baseId else "$baseId#$n",
                         sourceId = source.id,
