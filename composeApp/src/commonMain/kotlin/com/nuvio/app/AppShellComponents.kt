@@ -147,6 +147,11 @@ internal fun AppTabHost(
                 }
             }
 
+            // Nuvio Plus: Live TV (the clean IPTV part; on iPhone / iPad only).
+            AppScreenTab.LiveTv -> {
+                LiveTvTabScreen(modifier = Modifier.fillMaxSize())
+            }
+
             AppScreenTab.Search -> {
                 SearchScreen(
                     modifier = Modifier.fillMaxSize(),

@@ -14,6 +14,8 @@ private let nuvioBackgroundColor = UIColor(
 private enum NuvioComposeHost {
     static let registerPlayerBridge: Void = {
         NuvioPlayerRegistration.register()
+        // Nuvio Plus: the Live TV tab's own mpv player.
+        LivePlayers.shared.register(creator: LiveMpvPlayerCreator())
     }()
 
     static func wrap(
@@ -333,17 +335,21 @@ final class TabNavigationCoordinator: ObservableObject {
 @available(iOS 16.0, *)
 enum NuvioAppTab: String, CaseIterable, Hashable {
     case home = "Home"
+    // Nuvio Plus: Live TV (the clean IPTV engine), second in the tab bar.
+    case liveTv = "LiveTv"
     case search = "Search"
     case library = "Library"
     case settings = "Settings"
 
     var fallbackTitle: String {
-        String(localized: String.LocalizationValue(rawValue))
+        if self == .liveTv { return "Live TV" }
+        return String(localized: String.LocalizationValue(rawValue))
     }
 
     static func from(kotlinName: String?) -> NuvioAppTab? {
         switch kotlinName?.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() {
         case "home": return .home
+        case "livetv": return .liveTv
         case "search": return .search
         case "library": return .library
         case "settings", "profile": return .settings
@@ -354,6 +360,7 @@ enum NuvioAppTab: String, CaseIterable, Hashable {
     var iconAssetName: String {
         switch self {
         case .home: return "NuvioTabHome"
+        case .liveTv: return "NuvioTabLiveTv"
         case .search: return "NuvioTabSearch"
         case .library: return "NuvioTabLibrary"
         case .settings: return "NuvioTabProfile"
@@ -363,6 +370,7 @@ enum NuvioAppTab: String, CaseIterable, Hashable {
     var fallbackSystemImage: String {
         switch self {
         case .home: return "house.fill"
+        case .liveTv: return "play.tv.fill"
         case .search: return "magnifyingglass"
         case .library: return "rectangle.stack.fill"
         case .settings: return "person.crop.circle.fill"
@@ -651,6 +659,7 @@ final class AppNavigationCoordinator: ObservableObject {
 
     let homeCoordinator = TabNavigationCoordinator()
     let searchCoordinator = TabNavigationCoordinator()
+    let liveTvCoordinator = TabNavigationCoordinator()
     let libraryCoordinator = TabNavigationCoordinator()
     let settingsCoordinator = TabNavigationCoordinator()
     let appGateController = AppGateController()
@@ -665,12 +674,13 @@ final class AppNavigationCoordinator: ObservableObject {
     }
 
     private var allCoordinators: [TabNavigationCoordinator] {
-        [homeCoordinator, searchCoordinator, libraryCoordinator, settingsCoordinator]
+        [homeCoordinator, liveTvCoordinator, searchCoordinator, libraryCoordinator, settingsCoordinator]
     }
 
     func coordinator(for tab: NuvioAppTab) -> TabNavigationCoordinator {
         switch tab {
         case .home: return homeCoordinator
+        case .liveTv: return liveTvCoordinator
         case .search: return searchCoordinator
         case .library: return libraryCoordinator
         case .settings: return settingsCoordinator
@@ -698,6 +708,7 @@ final class AppNavigationCoordinator: ObservableObject {
     ) {
         localizedTabTitles = [
             .home: home,
+            .liveTv: "Live TV",
             .search: search,
             .library: library,
             .settings: profile,

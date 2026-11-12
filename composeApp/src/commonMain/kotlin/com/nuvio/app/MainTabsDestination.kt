@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.LiveTv
 import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
@@ -87,6 +88,12 @@ internal fun MainTabsDestination(
                 label = stringResource(Res.string.compose_nav_home),
             ),
             FloatingNavigationItem(
+                selected = selectedTab == AppScreenTab.LiveTv,
+                onClick = { onTabSelected(AppScreenTab.LiveTv) },
+                icon = Icons.Filled.LiveTv,
+                label = "Live TV",
+            ),
+            FloatingNavigationItem(
                 selected = selectedTab == AppScreenTab.Search,
                 onClick = { onTabSelected(AppScreenTab.Search) },
                 drawable = Res.drawable.sidebar_search,
@@ -129,6 +136,12 @@ internal fun MainTabsDestination(
                             onClick = { onTabSelected(AppScreenTab.Home) },
                             icon = Icons.Filled.Home,
                             contentDescription = stringResource(Res.string.compose_nav_home),
+                        )
+                        NavItem(
+                            selected = selectedTab == AppScreenTab.LiveTv,
+                            onClick = { onTabSelected(AppScreenTab.LiveTv) },
+                            icon = Icons.Filled.LiveTv,
+                            contentDescription = "Live TV",
                         )
                         NavItem(
                             selected = selectedTab == AppScreenTab.Search,

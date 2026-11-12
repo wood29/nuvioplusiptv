@@ -74,7 +74,7 @@ jobs:
       - name: Runtime settings file
         run: touch local.properties
       - name: Live TV engine for iPhone, iPad and Apple TV
-        run: ./gradlew --no-daemon :iptvcore:compileKotlinIosArm64 :iptvcore:compileKotlinTvosArm64
+        run: ./gradlew --no-daemon :iptvcore:compileKotlinIosArm64 :iptvcore:compileKotlinTvosArm64 :iptvui:compileKotlinIosArm64
       - name: Prepare iOS dependencies
         run: ./scripts/prepare-ios-dependencies.sh
       - name: Build unsigned IPA

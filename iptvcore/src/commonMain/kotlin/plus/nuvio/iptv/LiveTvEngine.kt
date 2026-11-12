@@ -34,6 +34,9 @@ class LiveTvEngine(private val http: HttpClient, private val clock: () -> Long) 
     private val _state = MutableStateFlow(State())
     val state: StateFlow<State> = _state.asStateFlow()
 
+    /** Forget the source (signed out). */
+    fun reset() { _state.value = State() }
+
     suspend fun load(source: Source) {
         _state.value = State(loading = true)
         val lineup = try {

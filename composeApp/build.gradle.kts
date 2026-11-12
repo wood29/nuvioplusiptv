@@ -408,6 +408,8 @@ kotlin {
         iosTarget.binaries.framework {
             baseName = "ComposeApp"
             isStatic = true
+            // Nuvio Plus: the Live TV screens' player interface, for the Swift mpv player.
+            export(project(":iptvui"))
             freeCompilerArgs += listOf("-Xbinary=bundleId=$iosFrameworkBundleId")
             if (iosDistribution == "full") {
                 linkerOpts(
@@ -431,6 +433,10 @@ kotlin {
     sourceSets {
         val commonMain by getting {
             kotlin.srcDir(generatedRuntimeConfigDir)
+        }
+        // Nuvio Plus: Live TV (iPhone / iPad).
+        iosMain.dependencies {
+            api(project(":iptvui"))
         }
         androidMain {
             kotlin.srcDir(project.file(androidDistributionSourceDir))
