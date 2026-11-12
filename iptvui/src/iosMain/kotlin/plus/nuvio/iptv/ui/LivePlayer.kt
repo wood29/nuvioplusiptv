@@ -18,7 +18,7 @@ interface LivePlayer {
     fun play(url: String, headers: Map<String, String>)
     fun setPaused(paused: Boolean)
     fun stop()
-    fun release()
+    fun close()
     /** "playing", "buffering", "error: …" or "idle". */
     fun status(): String
 }

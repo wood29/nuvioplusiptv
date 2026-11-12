@@ -64,7 +64,7 @@ final class LiveMpvPlayer: NSObject, LivePlayer {
         currentStatus = "idle"
     }
 
-    func release() { shutdown() }
+    func close() { shutdown() }
 
     func status() -> String { currentStatus }
 
