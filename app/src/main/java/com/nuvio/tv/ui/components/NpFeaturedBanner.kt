@@ -46,6 +46,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.input.key.KeyEventType
 import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.nativeKeyEvent
 import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.key.type
 import androidx.compose.ui.layout.ContentScale
@@ -170,8 +171,14 @@ private fun NpFeaturedBanner(
     LaunchedEffect(Unit) {
         repeat(8) {
             delay(150)
-            if (!hasFocus) runCatching { first.requestFocus() }
+            // Not while the menu is open (it took the highlight away from the menu).
+            if (!hasFocus && !NpBannerState.menuOpen) runCatching { first.requestFocus() }
         }
+    }
+    // The menu hands the highlight back here when it closes while the banner shows.
+    androidx.compose.runtime.DisposableEffect(Unit) {
+        NpBannerState.focusBanner = { runCatching { first.requestFocus() }.isSuccess }
+        onDispose { NpBannerState.focusBanner = null }
     }
     fun step(d: Int) {
         index = (index + d + items.size) % items.size
@@ -263,9 +270,13 @@ private fun NpFeaturedBanner(
                         modifier = (if (i == 0) Modifier.focusRequester(first) else Modifier)
                             .onPreviewKeyEvent { e ->
                                 if (e.type != KeyEventType.KeyDown) return@onPreviewKeyEvent false
+                                // Right on the last button shows the next title, one per press (holding
+                                // it raced through them). Left on the first button goes to the menu.
                                 when {
-                                    i == 0 && e.key == Key.DirectionLeft -> { step(-1); true }
-                                    i == buttons.lastIndex && e.key == Key.DirectionRight -> { step(1); true }
+                                    i == buttons.lastIndex && e.key == Key.DirectionRight -> {
+                                        if (e.nativeKeyEvent.repeatCount == 0) step(1)
+                                        true
+                                    }
                                     else -> false
                                 }
                             },
@@ -317,4 +328,8 @@ object NpBannerState {
     val topBarOn = kotlinx.coroutines.flow.MutableStateFlow(false)
     /** Set by the top-bar menu: Up from the banner opens it (returns true when it did). */
     @Volatile var onUp: (() -> Boolean)? = null
+    /** Set while the banner shows: puts the highlight on its first button. */
+    @Volatile var focusBanner: (() -> Boolean)? = null
+    /** The side menu is open. */
+    @Volatile var menuOpen: Boolean = false
 }

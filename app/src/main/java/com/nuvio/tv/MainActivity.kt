@@ -2334,6 +2334,7 @@ private fun ModernSidebarScaffold(
     // Live TV fork: back from the sidebar to Home, the Live TV row gets the highlight back only if
     // it had it when the sidebar opened (otherwise Nuvio returns to the row you were on).
     LaunchedEffect(isSidebarExpanded) {
+        com.nuvio.tv.ui.components.NpBannerState.menuOpen = isSidebarExpanded
         if (isSidebarExpanded) com.nuvio.tv.livetv.home.LiveTvHomeFocus.menuOpened()
         else if (currentRoute == Screen.Home.route) com.nuvio.tv.livetv.home.LiveTvHomeFocus.menuClosed()
         onSidebarExpandedChange(isSidebarExpanded)
@@ -2363,7 +2364,10 @@ private fun ModernSidebarScaffold(
             return@LaunchedEffect
         }
         repeat(2) { withFrameNanos { } }
-        runCatching { contentFocusRequester.requestFocus() }
+        // Nuvio Plus: a featured banner on show takes the highlight (it lies over the rows).
+        val toBanner = com.nuvio.tv.ui.components.NpBannerState.showing.value &&
+            com.nuvio.tv.ui.components.NpBannerState.focusBanner?.invoke() == true
+        if (!toBanner) runCatching { contentFocusRequester.requestFocus() }
         pendingContentFocusTransfer = false
     }
 
@@ -2574,7 +2578,9 @@ private fun ModernSidebarScaffold(
                             Key.DirectionRight, Key.DirectionLeft -> {
                                 val collapseKey = if (isRtl) Key.DirectionLeft else Key.DirectionRight
                                 if (keyEvent.key == collapseKey) {
-                                    pendingContentFocusTransfer = false
+                                    // Nuvio Plus: hand the highlight back to the page (On Demand
+                                    // left it on the menu: you were stuck on "On Demand").
+                                    pendingContentFocusTransfer = true
                                     sidebarCollapsePending = true
                                     true
                                 } else {
