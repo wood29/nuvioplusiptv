@@ -75,7 +75,8 @@ jobs:
         run: |
           touch local.properties
           mkdir -p "$RUNNER_TEMP/keys"
-          printf '%s\n' "$ASC_KEY_P8" > "$RUNNER_TEMP/keys/AuthKey_$ASC_KEY_ID.p8"
+          pip3 install --break-system-packages pyjwt cryptography >/dev/null 2>&1 || pip3 install pyjwt cryptography >/dev/null
+          python3 scripts/asc_register_ids.py --write-key "$RUNNER_TEMP/keys/AuthKey_$ASC_KEY_ID.p8"
           # Our own app IDs (not Nuvio's).
           sed -i '' 's/PRODUCT_BUNDLE_IDENTIFIER = com.nuvio.media;/PRODUCT_BUNDLE_IDENTIFIER = com.wood29.nuvioplus;/; s/PRODUCT_BUNDLE_IDENTIFIER = com.nuvio.media.DownloadsWidgetExtension;/PRODUCT_BUNDLE_IDENTIFIER = com.wood29.nuvioplus.DownloadsWidget;/' iosApp/iosApp.xcodeproj/project.pbxproj
           grep -n "com.wood29" iosApp/iosApp.xcodeproj/project.pbxproj

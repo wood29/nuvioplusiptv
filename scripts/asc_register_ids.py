@@ -2,7 +2,19 @@
 import json, os, sys, time, urllib.request, urllib.error
 import jwt  # PyJWT
 
-KEY_ID = os.environ["ASC_KEY_ID"]; ISSUER = os.environ["ASC_ISSUER_ID"]; P8 = os.environ["ASC_KEY_P8"]
+import re
+
+def clean_p8(raw: str) -> str:
+    """Rebuild the key text however it was pasted (one line, extra spaces, quotes)."""
+    body = re.sub(r"-----(BEGIN|END)[^-]*-----", "", raw.replace("\\n", "\n"))
+    body = re.sub(r"[^A-Za-z0-9+/=]", "", body)
+    lines = [body[i:i + 64] for i in range(0, len(body), 64)]
+    return "-----BEGIN PRIVATE KEY-----\n" + "\n".join(lines) + "\n-----END PRIVATE KEY-----\n"
+
+KEY_ID = os.environ["ASC_KEY_ID"].strip(); ISSUER = os.environ["ASC_ISSUER_ID"].strip()
+P8 = clean_p8(os.environ["ASC_KEY_P8"])
+if len(sys.argv) > 2 and sys.argv[1] == "--write-key":
+    open(sys.argv[2], "w").write(P8); print("key file written"); sys.exit(0)
 IDS = [("com.wood29.nuvioplus", "Nuvio Plus"), ("com.wood29.nuvioplus.DownloadsWidget", "Nuvio Plus Downloads Widget")]
 
 def token():
