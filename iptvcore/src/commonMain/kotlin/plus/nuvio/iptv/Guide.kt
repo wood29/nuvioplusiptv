@@ -21,6 +21,8 @@ class Guide(
 
     val isEmpty get() = byGuideId.isEmpty()
 
+    internal fun debug() = "ids=${byGuideId.mapValues { it.value.size }} names=$byName"
+
     /** All listings for a channel, oldest first. */
     fun listings(channel: Channel): List<Programme> {
         channel.guideId?.lowercase()?.let { id -> byGuideId[id]?.let { return it } }

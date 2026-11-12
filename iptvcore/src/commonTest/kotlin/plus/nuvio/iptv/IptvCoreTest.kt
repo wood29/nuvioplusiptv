@@ -69,7 +69,7 @@ class IptvCoreTest {
             val g = guideFrom(xml, size)
             val ch = Channel("1", "p", "AT: ORF 2 HD", 2, "g", streamUrl = "x")   // no tvg-id: matched by name
             val all = g.listings(ch)
-            assertEquals(3, all.size, "chunk $size")
+            assertEquals(3, all.size, "chunk $size: ${g.debug()}")
             val berg = all[2]
             assertEquals("S18 E5 · Alte Wunden", berg.episode)
             assertEquals(listOf("Hans Sigl", "Heiko Ruprecht"), berg.people)
