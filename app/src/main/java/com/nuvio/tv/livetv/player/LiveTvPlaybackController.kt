@@ -909,6 +909,10 @@ class LiveTvPlaybackController @Inject constructor(
     }
 
     private var bufferingSince = 0L
+    /** For the stall line in the report: how fast the last piece came, and the overall estimate. */
+    @Volatile private var lastDownloadBps = 0L
+    @Volatile private var speedEstimateBps = 0L
+    private fun mbit(bps: Long) = if (bps <= 0) "?" else String.format(java.util.Locale.US, "%.1f", bps / 1_000_000.0)
 
     private fun checkStall() {
         val p = _player ?: return
@@ -1442,6 +1446,15 @@ class LiveTvPlaybackController @Inject constructor(
                 addAnalyticsListener(object : androidx.media3.exoplayer.analytics.AnalyticsListener {
                     private var droppedTotal = 0L
                     private var lastReportAt = 0L
+                    override fun onBandwidthEstimate(
+                        eventTime: androidx.media3.exoplayer.analytics.AnalyticsListener.EventTime,
+                        totalLoadTimeMs: Int,
+                        totalBytesLoaded: Long,
+                        bitrateEstimate: Long
+                    ) {
+                        if (totalLoadTimeMs > 0) lastDownloadBps = totalBytesLoaded * 8_000 / totalLoadTimeMs
+                        if (bitrateEstimate > 0) speedEstimateBps = bitrateEstimate
+                    }
                     override fun onDroppedVideoFrames(
                         eventTime: androidx.media3.exoplayer.analytics.AnalyticsListener.EventTime,
                         droppedFrames: Int,
@@ -1612,7 +1625,11 @@ class LiveTvPlaybackController @Inject constructor(
                 bufferingSince = nowMs
             } else if (playbackState == Player.STATE_READY && bufferingSince > 0) {
                 com.nuvio.tv.livetv.model.LiveTvLoadReport.add(
-                    "Stopped to catch up on ${currentChannel?.name} for ${(nowMs - bufferingSince) / 100 / 10.0}s (buffer: $bufferSize)"
+                    "Stopped to catch up on ${currentChannel?.name} for ${(nowMs - bufferingSince) / 100 / 10.0}s (buffer: $bufferSize; " +
+                        "from: ${if (alwaysBuffer && _shiftStartedAt.value != null) "rewind buffer" else "provider"}; " +
+                        "stream ${mbit(_player?.videoFormat?.bitrate?.toLong() ?: 0L)} Mbit/s; " +
+                        "last download ${mbit(lastDownloadBps)} Mbit/s, average ${mbit(speedEstimateBps)} Mbit/s; " +
+                        "${_player?.videoFormat?.let { "${it.width}x${it.height}" } ?: "?"})"
                 )
                 bufferingSince = 0L
             }
