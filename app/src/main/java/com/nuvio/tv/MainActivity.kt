@@ -421,6 +421,11 @@ open class MainActivity : ComponentActivity() {
         // Live TV fork: a fresh open of the app (not a rebuild of the same screen), so "Start in
         // Full Screen" runs again even if Android kept the app running in the background.
         if (savedInstanceState == null) com.nuvio.tv.livetv.ui.LiveTvAppOpens.count++
+        // Nuvio Plus: once after the new logo, make the TV launcher pick up the new icon and banner.
+        if (savedInstanceState == null) lifecycleScope.launch {
+            kotlinx.coroutines.delay(3_000)
+            runCatching { com.nuvio.tv.launcher.AppIconManager(applicationContext) }
+        }
         // Live TV fork: start reading the saved channel list and guide as the app opens (before
         // any screen, even the profile picker), so Live TV is ready when you get to it.
         lifecycleScope.launch { runCatching { com.nuvio.tv.livetv.startup.LiveTvPreload.start(this@MainActivity) } }

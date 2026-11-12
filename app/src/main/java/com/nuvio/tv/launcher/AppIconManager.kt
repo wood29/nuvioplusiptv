@@ -52,8 +52,20 @@ class AppIconManager @Inject constructor(
     val state: StateFlow<AppIconSettingsState> = _state.asStateFlow()
 
     init {
+        refreshArtworkOnce()
         normalizeLauncherEntries()
         _state.value = AppIconSettingsState(selected = currentOption(), iptvBranding = iptvBranding())
+    }
+
+    /**
+     * Nuvio Plus: the TV launcher keeps the old picture for an entry it already knows, even after
+     * an update. All entries now carry the new nuvio+ logo, so once we move to another entry: the
+     * launcher sees it as new and shows the new icon and banner.
+     */
+    fun refreshArtworkOnce() {
+        if (brandingPrefs.getBoolean("np_logo_refreshed_v1", false)) return
+        val next = if (currentOption() == AppIconOption.ARCTIC_BLUE) AppIconOption.ORIGINAL else AppIconOption.ARCTIC_BLUE
+        if (activate(next, iptvBranding())) brandingPrefs.edit().putBoolean("np_logo_refreshed_v1", true).apply()
     }
 
     /** Live TV fork: "+ IPTV" on the icon on or off, keeping the chosen color. */
