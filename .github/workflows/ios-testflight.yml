@@ -1,0 +1,24 @@
+# Nuvio Plus for iPhone/iPad → TestFlight. Run by hand (Actions › TestFlight › Run workflow).
+name: TestFlight
+on:
+  workflow_dispatch:
+    inputs:
+      step:
+        description: "register = only register the app IDs with Apple; upload = build and send to TestFlight"
+        default: upload
+        type: choice
+        options: [register, upload]
+
+jobs:
+  register:
+    name: Register app IDs with Apple
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - run: pip install pyjwt cryptography
+      - name: Register
+        env:
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+          ASC_KEY_P8: ${{ secrets.ASC_KEY_P8 }}
+        run: python3 scripts/asc_register_ids.py | tee -a "$GITHUB_STEP_SUMMARY"
