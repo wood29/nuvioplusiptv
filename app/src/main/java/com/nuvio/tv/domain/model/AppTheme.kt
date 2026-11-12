@@ -14,6 +14,8 @@ enum class AppTheme(val displayName: String) {
     AMBER("Amber"),
     ROSE("Rose"),
     WHITE("White"),
+    /** Nuvio Plus: the default, in the logo's colours (navy, teal "+", blue). */
+    NUVIO_PLUS("Nuvio+"),
     /** Nuvio Plus: the NowSeen look — deep navy, white highlight pills. */
     NOWSEEN("NowSeen"),
     /** Nuvio Plus themes, built on the NowSeen layout with their own colours. */
@@ -24,5 +26,5 @@ enum class AppTheme(val displayName: String) {
     ALPINE("Alpine");
 
     /** Nuvio Plus: themes that use the NowSeen layout (guide header, list, banner). */
-    val isNuvioPlus: Boolean get() = this == NOWSEEN || this == TIVIMATE || this == PLEX_AMBER || this == CINEMA || this == GLASS || this == ALPINE
+    val isNuvioPlus: Boolean get() = this == NUVIO_PLUS || this == NOWSEEN || this == TIVIMATE || this == PLEX_AMBER || this == CINEMA || this == GLASS || this == ALPINE
 }

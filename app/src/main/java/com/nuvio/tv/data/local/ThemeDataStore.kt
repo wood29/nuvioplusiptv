@@ -29,11 +29,11 @@ class ThemeDataStore @Inject constructor(
         factory.get(profileId, FEATURE)
 
     private val themeKey = stringPreferencesKey("selected_theme")
-    /** Nuvio Plus: set once a theme is picked in this version; until then the NowSeen look is used. */
-    private val nowSeenPickedKey = booleanPreferencesKey("np_theme_picked")
+    /** Nuvio Plus: set once a theme is picked after the new logo; until then the Nuvio+ theme is used. */
+    private val nowSeenPickedKey = booleanPreferencesKey("np_theme_picked_v2")
 
     private fun readTheme(prefs: androidx.datastore.preferences.core.Preferences): AppTheme? =
-        if (prefs[nowSeenPickedKey] != true) AppTheme.NOWSEEN
+        if (prefs[nowSeenPickedKey] != true) AppTheme.NUVIO_PLUS
         else prefs[themeKey]?.let { name -> AppTheme.entries.firstOrNull { it.name == name } }
 
     private val customThemeColorsKey = stringPreferencesKey("custom_theme_colors")

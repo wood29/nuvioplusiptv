@@ -115,6 +115,29 @@ object ThemeColors {
         playerOverlay = Color(0xD90A0D12)
     )
 
+    /**
+     * Nuvio Plus (the default): the logo's colours. Navy background (#030C24, the logo's own),
+     * teal from the "+" for active things, the logo's blue as the second accent, white highlight.
+     */
+    val NuvioPlusTeal = ThemeColorPalette(
+        secondary = Color(0xFF00F5C3),
+        secondaryVariant = Color(0xFF1E6BFF),
+        onSecondary = Color(0xFF030C24),
+        onSecondaryVariant = Color.White,
+        focusRing = Color(0xFFF2F6FF),
+        focusBackground = Color(0xFF16264A),
+        background = Color(0xFF030C24),
+        backgroundElevated = Color(0xFF0B1733),
+        backgroundCard = Color(0xFF12203F),
+        surface = Color(0xFF0B1733),
+        surfaceVariant = Color(0xFF16264A),
+        panel = Color(0xFF07112B),
+        field = Color(0xFF12203F),
+        menu = Color(0xFF0B1733),
+        modal = Color(0xFF07112B),
+        playerOverlay = Color(0xD9030C24)
+    )
+
     /** Nuvio Plus: TiviMate's look: dark grey, a blue highlight. */
     val TiviMateClassic = ThemeColorPalette(
         secondary = Color(0xFF2F80ED),
@@ -233,6 +256,7 @@ object ThemeColors {
             AppTheme.AMBER -> Amber
             AppTheme.ROSE -> Rose
             AppTheme.WHITE -> White
+            AppTheme.NUVIO_PLUS -> NuvioPlusTeal
             AppTheme.NOWSEEN -> NowSeen
             AppTheme.TIVIMATE -> TiviMateClassic
             AppTheme.PLEX_AMBER -> PlexAmber

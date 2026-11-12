@@ -8,8 +8,9 @@ private val supporterThemes = linkedMapOf(
     AppTheme.GRAPHITE to CosmeticEntitlement.GRAPHITE_THEME
 )
 
-private val standardThemes = listOf(AppTheme.WHITE) + AppTheme.entries.filterNot {
-    it == AppTheme.WHITE || it == AppTheme.CUSTOM || it in supporterThemes
+// Nuvio Plus: the Nuvio+ theme first.
+private val standardThemes = listOf(AppTheme.NUVIO_PLUS, AppTheme.WHITE) + AppTheme.entries.filterNot {
+    it == AppTheme.NUVIO_PLUS || it == AppTheme.WHITE || it == AppTheme.CUSTOM || it in supporterThemes
 }
 
 fun availableAppThemes(entitlements: CosmeticEntitlements): List<AppTheme> {
