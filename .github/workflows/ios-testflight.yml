@@ -1,24 +1,116 @@
-# Nuvio Plus for iPhone/iPad → TestFlight. Run by hand (Actions › TestFlight › Run workflow).
+# Nuvio Plus for iPhone/iPad → TestFlight.
+# Runs when the "testflight" branch is pushed: registers the app IDs with Apple, then (once the
+# app entry exists in App Store Connect) builds, signs and uploads the app to TestFlight.
 name: TestFlight
 on:
+  push:
+    branches: [testflight]
   workflow_dispatch:
-    inputs:
-      step:
-        description: "register = only register the app IDs with Apple; upload = build and send to TestFlight"
-        default: upload
-        type: choice
-        options: [register, upload]
+
+concurrency:
+  group: testflight
+  cancel-in-progress: false
 
 jobs:
   register:
     name: Register app IDs with Apple
     runs-on: ubuntu-latest
+    outputs:
+      app_ready: ${{ steps.reg.outputs.app_ready }}
     steps:
       - uses: actions/checkout@v6
       - run: pip install pyjwt cryptography
       - name: Register
+        id: reg
         env:
           ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
           ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
           ASC_KEY_P8: ${{ secrets.ASC_KEY_P8 }}
-        run: python3 scripts/asc_register_ids.py | tee -a "$GITHUB_STEP_SUMMARY"
+        run: |
+          python3 scripts/asc_register_ids.py | tee out.txt
+          cat out.txt >> "$GITHUB_STEP_SUMMARY"
+          if grep -q "app entry: found" out.txt; then echo "app_ready=yes" >> "$GITHUB_OUTPUT"; else echo "app_ready=no" >> "$GITHUB_OUTPUT"; fi
+
+  upload:
+    name: Build and upload to TestFlight
+    needs: register
+    if: needs.register.outputs.app_ready == 'yes'
+    runs-on: macos-26
+    timeout-minutes: 150
+    env:
+      GRADLE_OPTS: -Dfile.encoding=UTF-8
+      KOTLIN_DAEMON_JVMARGS: -Xmx2048M
+      NUVIO_IOS_DISTRIBUTION: full
+      ORG_GRADLE_PROJECT_org.gradle.jvmargs: -Xmx4608M -Dfile.encoding=UTF-8 -XX:MaxMetaspaceSize=768M
+      ORG_GRADLE_PROJECT_kotlin.native.jvmArgs: -Xmx4608M
+      NUVIO_SUPABASE_URL: ${{ secrets.NUVIO_BACKEND_URL }}
+      NUVIO_SUPABASE_ANON_KEY: ${{ secrets.NUVIO_BACKEND_KEY }}
+      TMDB_API_KEY: ${{ secrets.TMDB_API_KEY }}
+      TRAKT_CLIENT_ID: ${{ secrets.TRAKT_CLIENT_ID }}
+      TRAKT_CLIENT_SECRET: ${{ secrets.TRAKT_CLIENT_SECRET }}
+      TEAM: ${{ secrets.APPLE_TEAM_ID }}
+      ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+      ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: 17
+      - uses: gradle/actions/setup-gradle@v6
+      - uses: actions/cache@v5
+        with:
+          path: ~/.konan
+          key: konan-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('gradle/libs.versions.toml') }}
+          restore-keys: |
+            konan-${{ runner.os }}-${{ runner.arch }}-
+      - name: Pick the newest Xcode
+        run: |
+          newest="$(ls -d /Applications/Xcode_*.app | sort -V | tail -1)"
+          sudo xcode-select -s "$newest/Contents/Developer"
+          xcodebuild -version
+      - name: Settings
+        env:
+          ASC_KEY_P8: ${{ secrets.ASC_KEY_P8 }}
+        run: |
+          touch local.properties
+          mkdir -p "$RUNNER_TEMP/keys"
+          printf '%s\n' "$ASC_KEY_P8" > "$RUNNER_TEMP/keys/AuthKey_$ASC_KEY_ID.p8"
+          # Our own app IDs (not Nuvio's).
+          sed -i '' 's/PRODUCT_BUNDLE_IDENTIFIER = com.nuvio.media;/PRODUCT_BUNDLE_IDENTIFIER = com.wood29.nuvioplus;/; s/PRODUCT_BUNDLE_IDENTIFIER = com.nuvio.media.DownloadsWidgetExtension;/PRODUCT_BUNDLE_IDENTIFIER = com.wood29.nuvioplus.DownloadsWidget;/' iosApp/iosApp.xcodeproj/project.pbxproj
+          grep -n "com.wood29" iosApp/iosApp.xcodeproj/project.pbxproj
+      - name: Prepare iOS dependencies
+        run: ./scripts/prepare-ios-dependencies.sh
+      - name: Archive (signed)
+        run: |
+          xcodebuild -project iosApp/iosApp.xcodeproj -scheme iosApp -configuration Release \
+            -sdk iphoneos -destination 'generic/platform=iOS' \
+            -archivePath "$RUNNER_TEMP/NuvioPlus.xcarchive" \
+            -allowProvisioningUpdates \
+            -authenticationKeyPath "$RUNNER_TEMP/keys/AuthKey_$ASC_KEY_ID.p8" \
+            -authenticationKeyID "$ASC_KEY_ID" -authenticationKeyIssuerID "$ASC_ISSUER_ID" \
+            DEVELOPMENT_TEAM="$TEAM" CODE_SIGN_STYLE=Automatic \
+            CURRENT_PROJECT_VERSION="${{ github.run_number }}" \
+            INFOPLIST_KEY_CFBundleDisplayName="Nuvio+" \
+            INFOPLIST_KEY_ITSAppUsesNonExemptEncryption=NO \
+            archive
+      - name: Upload to TestFlight
+        run: |
+          cat > "$RUNNER_TEMP/export.plist" <<PLIST
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0"><dict>
+            <key>method</key><string>app-store-connect</string>
+            <key>destination</key><string>upload</string>
+            <key>teamID</key><string>$TEAM</string>
+            <key>signingStyle</key><string>automatic</string>
+            <key>uploadSymbols</key><true/>
+            <key>manageAppVersionAndBuildNumber</key><false/>
+          </dict></plist>
+          PLIST
+          xcodebuild -exportArchive -archivePath "$RUNNER_TEMP/NuvioPlus.xcarchive" \
+            -exportOptionsPlist "$RUNNER_TEMP/export.plist" -exportPath "$RUNNER_TEMP/export" \
+            -allowProvisioningUpdates \
+            -authenticationKeyPath "$RUNNER_TEMP/keys/AuthKey_$ASC_KEY_ID.p8" \
+            -authenticationKeyID "$ASC_KEY_ID" -authenticationKeyIssuerID "$ASC_ISSUER_ID"
+          echo "## Sent to TestFlight (build ${{ github.run_number }})" >> "$GITHUB_STEP_SUMMARY"
