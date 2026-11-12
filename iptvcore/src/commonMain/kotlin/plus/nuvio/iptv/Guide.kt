@@ -53,7 +53,9 @@ class Guide(
         /** "ORF 2 HD", "orf2.at", "AT: ORF2 (FHD)" → "orf2". */
         fun normalize(name: String): String {
             var s = name.lowercase()
-            s = s.substringAfter(": ", s).substringAfter("| ", s)
+            // "AT: ORF 2" / "AT | ORF 2": drop the country prefix.
+            s = s.substringAfter(": ", s)
+            s = s.substringAfter("| ", s)
             s = s.replace(Regex("\\(.*?\\)|\\[.*?]"), " ")
             s = s.replace(Regex("\\.(at|de|ch|uk|us|tv)$"), "")
             s = s.replace(Regex("\\b(uhd|fhd|hd|sd|4k|hevc|h265|backup|raw)\\b"), " ")
