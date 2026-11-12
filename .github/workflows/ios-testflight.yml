@@ -35,7 +35,9 @@ jobs:
     name: Build and upload to TestFlight
     needs: register
     if: needs.register.outputs.app_ready == 'yes'
-    runs-on: macos-26
+    # macos-26 machines kept not turning up for this job (cancelled after 15 min, no machine);
+    # macos-15 is a bigger pool and also carries Xcode 26 (the step below picks the newest).
+    runs-on: macos-15
     timeout-minutes: 150
     env:
       GRADLE_OPTS: -Dfile.encoding=UTF-8
@@ -69,6 +71,7 @@ jobs:
           newest="$(ls -d /Applications/Xcode_*.app | sort -V | tail -1)"
           sudo xcode-select -s "$newest/Contents/Developer"
           xcodebuild -version
+          xcodebuild -version | grep -q "Xcode 26" || { echo "::error::Xcode 26 is needed for App Store uploads"; exit 1; }
       - name: Settings
         env:
           ASC_KEY_P8: ${{ secrets.ASC_KEY_P8 }}
