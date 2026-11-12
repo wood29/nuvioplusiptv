@@ -291,7 +291,8 @@ fun ThemeSettingsContent(
                 }
             }
 
-            SettingsGroupCard(
+            // Nuvio Plus: one logo (nuvio+) for every icon and banner, so the old icon styles are hidden.
+            if (false) SettingsGroupCard(
                 modifier = Modifier.fillMaxWidth(),
                 title = stringResource(R.string.appearance_launcher_artwork),
                 subtitle = stringResource(R.string.appearance_launcher_artwork_subtitle)
