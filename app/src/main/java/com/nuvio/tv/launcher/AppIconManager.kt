@@ -52,7 +52,8 @@ class AppIconManager @Inject constructor(
     val state: StateFlow<AppIconSettingsState> = _state.asStateFlow()
 
     init {
-        refreshArtworkOnce()
+        // No more launcher-entry switching on start: switching leaves old home-screen tiles
+        // pointing at a disabled entry, so the app looks like it won't start.
         normalizeLauncherEntries()
         _state.value = AppIconSettingsState(selected = currentOption(), iptvBranding = iptvBranding())
     }
