@@ -1,0 +1,11 @@
+Nuvio Plus IPTV core (the iptvcore folder)
+
+Copyright (c) 2026 wood29. All rights reserved.
+
+This folder was written from scratch for Nuvio Plus. It contains no code from Nuvio,
+NuvioMobile, NuvioTV or any other GPL-licensed project, and it does not depend on them.
+It is not covered by the GPL licence of the rest of this repository and may be used by
+its owner in other apps, including paid ones.
+
+Video playback on Apple devices uses mpv and FFmpeg (LGPL). Apps that ship them must
+publish the LGPL notices and the matching mpv/FFmpeg sources or relinking files.

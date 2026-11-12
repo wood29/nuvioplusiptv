@@ -15,6 +15,26 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  # The clean Live TV engine (iptvcore): its tests, on Linux (quick).
+  core-tests:
+    name: Live TV engine tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: 17
+      - uses: gradle/actions/setup-gradle@v6
+      - run: touch local.properties
+      - name: Test
+        run: ./gradlew --no-daemon :iptvcore:jvmTest
+      - name: Results
+        if: always()
+        run: |
+          for f in iptvcore/build/test-results/jvmTest/*.xml; do grep -o '<testsuite [^>]*>' "$f"; grep -A3 '<failure' "$f" | head -40; done || true
+
   build:
     name: Build unsigned iPhone/iPad app
     runs-on: macos-26
@@ -53,6 +73,8 @@ jobs:
           xcrun --sdk iphoneos --show-sdk-version
       - name: Runtime settings file
         run: touch local.properties
+      - name: Live TV engine for iPhone, iPad and Apple TV
+        run: ./gradlew --no-daemon :iptvcore:compileKotlinIosArm64 :iptvcore:compileKotlinTvosArm64
       - name: Prepare iOS dependencies
         run: ./scripts/prepare-ios-dependencies.sh
       - name: Build unsigned IPA
