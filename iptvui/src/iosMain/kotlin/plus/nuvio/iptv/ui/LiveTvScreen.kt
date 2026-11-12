@@ -70,15 +70,17 @@ import plus.nuvio.iptv.Channel
 import plus.nuvio.iptv.Group
 import plus.nuvio.iptv.Programme
 
+/** The Nuvio+ colours (from the logo): navy, teal "+", blue. Same as the TV box's Nuvio+ theme. */
 internal object LiveColors {
-    val Background = Color(0xFF09090B)
-    val Panel = Color(0xFF141417)
-    val Card = Color(0xFF1C1C21)
-    val Line = Color(0xFF2A2A31)
-    val Text = Color(0xFFF4F4F5)
-    val Dim = Color(0xFFA1A1AA)
-    val Faint = Color(0xFF71717A)
-    val Accent = Color(0xFF7FD18B)
+    val Background = Color(0xFF030C24)
+    val Panel = Color(0xFF0B1733)
+    val Card = Color(0xFF12203F)
+    val Line = Color(0xFF1E2C4D)
+    val Text = Color(0xFFF2F6FF)
+    val Dim = Color(0xFFA7B3CC)
+    val Faint = Color(0xFF7A88A6)
+    val Accent = Color(0xFF00F5C3)
+    val Blue = Color(0xFF1E6BFF)
     val Live = Color(0xFFE5484D)
 }
 
