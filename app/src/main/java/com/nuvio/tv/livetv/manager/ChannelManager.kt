@@ -72,7 +72,7 @@ class ChannelManager @Inject constructor(
         }
         val s = ensureServer()
         if (s == null) {
-            _state.value = _state.value.copy(error = "Couldn't open the Channel Manager (no free network port).", active = false)
+            _state.value = _state.value.copy(error = "Couldn't open avonioTV Studio's connection (no free network port).", active = false)
             return
         }
         val url = "http://$ip:${s.listeningPort}"
@@ -186,7 +186,7 @@ class ChannelManager @Inject constructor(
         val removed = JSONObject()
         prefs.removedLiveGroupsNow().forEach { (id, names) -> removed.put(id, JSONArray(names.toList())) }
         return JSONObject()
-            .put("app", "Nuvio Plus")
+            .put("app", "avonioTV")
             .put("kind", "live-tv-setup")
             .put("savedAt", System.currentTimeMillis())
             .put("setup", prefs.exportForSync())
@@ -238,7 +238,7 @@ class ChannelManager @Inject constructor(
 
     private suspend fun restore(body: JSONObject) {
         val file = body.optJSONObject("file") ?: error("No file")
-        val setup = file.optJSONObject("setup") ?: error("This isn't a Nuvio Plus Live TV setup file")
+        val setup = file.optJSONObject("setup") ?: error("This isn't an avonioTV Live TV setup file")
         val changed = prefs.importFromSync(setup)
         val removed = file.optJSONObject("removed")?.let { o ->
             o.keys().asSequence().associateWith { k ->

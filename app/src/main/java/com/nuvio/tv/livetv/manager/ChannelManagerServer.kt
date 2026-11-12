@@ -42,7 +42,7 @@ class ChannelManagerServer(
         when {
             get && (uri == "/" || uri == "/index.html") -> page()
             get && uri == "/api/hello" -> json(
-                JSONObject().put("app", "Nuvio Plus").put("device", android.os.Build.MODEL ?: "TV box").toString()
+                JSONObject().put("app", "avonioTV").put("device", android.os.Build.MODEL ?: "TV box").toString()
             )
             get && uri == "/api/state" -> json(stateJson())
             get && uri == "/api/backup" -> json(backupJson()).apply {
@@ -82,7 +82,7 @@ class ChannelManagerServer(
     private fun propose(kind: Kind, session: IHTTPSession): Response {
         val body = JSONObject(readBody(session))
         val summary = body.optString("summary").take(600).ifBlank {
-            if (kind == Kind.RESTORE) "Replace this TV's Live TV setup with the file from your PC." else "Apply your changes from the Channel Manager."
+            if (kind == Kind.RESTORE) "Replace this TV's Live TV setup with the file from your PC." else "Apply your changes from avonioTV Studio."
         }
         val change = ManagerChange(UUID.randomUUID().toString(), kind, body, summary)
         // Only the newest proposal counts.

@@ -204,13 +204,11 @@ jobs:
           fi
           gh release upload downloader dl/NuvioPlusIPTV.apk -R "$GITHUB_REPOSITORY" --clobber
 
-      # The Channel Manager for Windows (portable, one file), on the same "downloader" release:
-      # https://github.com/<you>/<repo>/releases/download/downloader/NuvioPlusChannelManager.exe
-      - name: Build the Windows Channel Manager
+      # avonioTV Studio for Windows and Mac (the channel arranging app), on the same "downloader" release:
+      # https://github.com/<you>/<repo>/releases/download/downloader/avonioTV-Studio.exe (and -Mac.zip)
+      - name: Build avonioTV Studio (Windows and Mac)
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          cp app/src/main/assets/channel_manager.html tools/channel-manager-win/
-          cd tools/channel-manager-win
-          GOOS=windows GOARCH=amd64 CGO_ENABLED=0 go build -trimpath -ldflags "-H windowsgui -s -w" -o NuvioPlusChannelManager.exe .
-          gh release upload downloader NuvioPlusChannelManager.exe -R "$GITHUB_REPOSITORY" --clobber
+          ./tools/avoniotv-studio/build.sh
+          gh release upload downloader tools/avoniotv-studio/dist/avonioTV-Studio.exe tools/avoniotv-studio/dist/avonioTV-Studio-Mac.zip -R "$GITHUB_REPOSITORY" --clobber

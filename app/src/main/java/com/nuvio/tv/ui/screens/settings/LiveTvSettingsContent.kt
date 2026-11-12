@@ -527,7 +527,7 @@ internal fun LiveTvSettingsContent(
                         modifier = Modifier.padding(horizontal = NuvioTheme.spacing.lg, vertical = NuvioTheme.spacing.sm)
                     )
                     // Nuvio Plus: arrange everything on the PC.
-                    SubHeading("Channel Manager")
+                    SubHeading("avonioTV Studio (PC and Mac)")
                     SettingsActionRow(
                         title = "Manage Channels on Your PC",
                         subtitle = "Folders, order, numbers, names, hiding and removing whole countries, with a mouse. Also saves and loads your setup as a file",
@@ -535,8 +535,8 @@ internal fun LiveTvSettingsContent(
                         onClick = { viewModel.channelManager.start() }
                     )
                     SettingsToggleRow(
-                        "Allow the Channel Manager App",
-                        "The avonioTV Channel Manager on your Windows PC finds this box by itself while avonioTV is open. Changes still need your OK here",
+                        "Allow avonioTV Studio",
+                        "avonioTV Studio on your PC or Mac finds this box by itself while avonioTV is open. Changes still need your OK here",
                         s.channelManagerOnNetwork,
                         { update { it.copy(channelManagerOnNetwork = !it.channelManagerOnNetwork) } }
                     )
@@ -2319,7 +2319,7 @@ private fun ChannelManagerDialog(state: com.nuvio.tv.livetv.manager.ChannelManag
         delay(80)
         runCatching { closeFocus.requestFocus() }
     }
-    NuvioDialog(onDismiss = onClose, title = "Channel Manager", width = 600.dp) {
+    NuvioDialog(onDismiss = onClose, title = "avonioTV Studio", width = 600.dp) {
         if (state.error != null) {
             Text(text = state.error, style = MaterialTheme.typography.bodyMedium, color = NuvioTheme.colors.TextSecondary)
         } else {
