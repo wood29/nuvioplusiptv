@@ -95,7 +95,7 @@ jobs:
             -authenticationKeyID "$ASC_KEY_ID" -authenticationKeyIssuerID "$ASC_ISSUER_ID" \
             DEVELOPMENT_TEAM="$TEAM" CODE_SIGN_STYLE=Automatic \
             CURRENT_PROJECT_VERSION="${{ github.run_number }}" \
-            INFOPLIST_KEY_CFBundleDisplayName="avonioTV" \
+            INFOPLIST_KEY_CFBundleDisplayName="avonioTV Home" \
             INFOPLIST_KEY_ITSAppUsesNonExemptEncryption=NO \
             archive
       - name: Upload to TestFlight
