@@ -937,6 +937,10 @@ class LiveTvPlaybackController @Inject constructor(
             return
         }
         if (now - lastProgressAt < STALL_MS || !autoReconnect) return
+        // Still receiving from the provider, just slowly: keep the connection and wait (up to
+        // STALL_HARD_MS). Cutting it off and reconnecting is what made one-connection accounts
+        // answer "HTTP 403" while the provider still counted the old connection.
+        if (awaitingFrame.not() && now - LiveBytes.lastAt < STALL_MS && now - lastProgressAt < STALL_HARD_MS) return
         lastProgressAt = now
         val archive = _state.value.catchupTitle != null
         // A catch-up that never started (stuck on "Loading…" with no error): some panels answer
@@ -1004,10 +1008,17 @@ class LiveTvPlaybackController @Inject constructor(
         val resumeAt = if (archive) pos else C_TIME_UNSET
         p.stop()
         archiveStartPending = false
-        p.setMediaSource(buildMediaSource(url, ch.headers, isLive = !archive))
-        p.prepare()
-        if (resumeAt > 0) p.seekTo(resumeAt)
-        p.playWhenReady = true
+        reconnectJob?.cancel()
+        reconnectJob = scope.launch {
+            // The old connection is closed first; the provider needs a moment to free the slot.
+            delay(RELEASE_GAP_MS)
+            if (currentChannel?.key != ch.key || (currentUrl ?: ch.url) != url) return@launch
+            lastProgressAt = android.os.SystemClock.elapsedRealtime()
+            p.setMediaSource(buildMediaSource(url, ch.headers, isLive = !archive))
+            p.prepare()
+            if (resumeAt > 0) p.seekTo(resumeAt)
+            p.playWhenReady = true
+        }
     }
 
     /** Catch-up moved on to the next show: update the title shown. */
@@ -1412,8 +1423,9 @@ class LiveTvPlaybackController @Inject constructor(
             "small" -> listOf(10_000, 30_000, 1_000, 2_000)
             "large" -> listOf(40_000, 90_000, 3_000, 6_000)
             "xlarge" -> listOf(60_000, 150_000, 5_000, 10_000)
-            // Nuvio Plus: starts after 1 s of video (was 2 s), so channels come up sooner.
-            else -> listOf(25_000, 60_000, 1_000, 3_000)
+            // Starts after 1.5 s of video; after a stop it waits for 5 s before going on, so one
+            // late piece from the provider doesn't turn into stop-start-stop.
+            else -> listOf(25_000, 60_000, 1_500, 5_000)
         }
         val loadControl = DefaultLoadControl.Builder()
             .setBufferDurationsMs(minMs, maxMs, startMs, rebufferMs)
@@ -1971,7 +1983,12 @@ class LiveTvPlaybackController @Inject constructor(
                     (currentUrl?.let { " · ${redact(it)}" } ?: "")
             )
         }
-        _state.value = _state.value.copy(error = reason, isBuffering = false, reconnectAttempt = attempt)
+        // A refusal (401/403) right after a dropout is almost always the provider still counting
+        // the old connection: say "reconnecting" calmly, and only show the account message if
+        // it keeps refusing.
+        val refused = error?.let { e -> generateSequence<Throwable>(e) { it.cause }.any { c -> c is androidx.media3.datasource.HttpDataSource.InvalidResponseCodeException && c.responseCode in setOf(401, 403) } } == true
+        val shown = if (refused && attempt <= 3) "Reconnecting to the provider…" else reason
+        _state.value = _state.value.copy(error = shown, isBuffering = false, reconnectAttempt = attempt)
         if (_state.value.catchupTitle == null && attempt == 2) {
             currentChannel?.let { if (tryGameFailover(it, "failed")) return }
             val key = currentChannel?.key
@@ -1980,8 +1997,10 @@ class LiveTvPlaybackController @Inject constructor(
         if (!autoReconnect || attempt > MAX_RECONNECTS) return
         reconnectJob?.cancel()
         reconnectJob = scope.launch {
-            // Nuvio Plus: the first retry goes straight away (most dropouts are a single hiccup).
-            delay(((attempt - 1) * 2_000L).coerceIn(0L, 10_000L))
+            // Let go of the old connection first, then wait: a provider that allows one
+            // connection refuses a new one (HTTP 403) until it has freed the old slot.
+            _player?.stop()
+            delay(if (refused) (4_000L + (attempt - 1) * 3_000L).coerceAtMost(15_000L) else (RELEASE_GAP_MS + (attempt - 1) * 2_000L).coerceAtMost(12_000L))
             val ch = currentChannel ?: return@launch
             val url = currentUrl ?: return@launch
             val p = _player ?: return@launch
@@ -2186,6 +2205,10 @@ class LiveTvPlaybackController @Inject constructor(
     companion object {
         private const val MAX_RECONNECTS = 8
         /** No progress for this long while it should be playing = stalled. */
+        /** Picture stuck this long while bytes still arrive: reconnect anyway. */
+        private const val STALL_HARD_MS = 30_000L
+        /** Gap between closing a connection and opening the next to the same provider. */
+        private const val RELEASE_GAP_MS = 2_500L
         private const val STALL_MS = 7_000L  // Nuvio Plus: was 15 s (a dropout froze the picture that long)
         /** Two freezes within this long: the channel counts as failing (live games only). */
         private const val FREEZE_WINDOW_MS = 3 * 60_000L
@@ -2225,14 +2248,35 @@ object LiveWatching {
 private val LIVE_HTTP_CLIENT: okhttp3.OkHttpClient by lazy {
     okhttp3.OkHttpClient.Builder()
         .connectTimeout(8, java.util.concurrent.TimeUnit.SECONDS)
-        .readTimeout(10, java.util.concurrent.TimeUnit.SECONDS)
+        .readTimeout(25, java.util.concurrent.TimeUnit.SECONDS)
         .followRedirects(true)
         .followSslRedirects(true)
         .connectionPool(okhttp3.ConnectionPool(4, 2, java.util.concurrent.TimeUnit.MINUTES))
         .build()
 }
 
+/**
+ * When the last bytes came in from the provider. The stall watchdog uses it: a stream that is
+ * slow but still sending is waited for (as TiviMate does) instead of being cut off and
+ * reconnected, which on a one-connection account got "HTTP 403" while the provider still
+ * counted the old connection.
+ */
+internal object LiveBytes {
+    @Volatile var lastAt = 0L
+    val listener = object : androidx.media3.datasource.TransferListener {
+        override fun onTransferInitializing(source: androidx.media3.datasource.DataSource, dataSpec: androidx.media3.datasource.DataSpec, isNetwork: Boolean) {}
+        override fun onTransferStart(source: androidx.media3.datasource.DataSource, dataSpec: androidx.media3.datasource.DataSpec, isNetwork: Boolean) {
+            lastAt = android.os.SystemClock.elapsedRealtime()
+        }
+        override fun onBytesTransferred(source: androidx.media3.datasource.DataSource, dataSpec: androidx.media3.datasource.DataSpec, isNetwork: Boolean, bytesTransferred: Int) {
+            if (bytesTransferred > 0) lastAt = android.os.SystemClock.elapsedRealtime()
+        }
+        override fun onTransferEnd(source: androidx.media3.datasource.DataSource, dataSpec: androidx.media3.datasource.DataSpec, isNetwork: Boolean) {}
+    }
+}
+
 private fun liveHttpFactory(headers: Map<String, String>): androidx.media3.datasource.HttpDataSource.Factory =
     androidx.media3.datasource.okhttp.OkHttpDataSource.Factory(com.nuvio.vpn.android.VpnHttpClient.wrap(LIVE_HTTP_CLIENT))
+        .setTransferListener(LiveBytes.listener)
         .setUserAgent(headers["User-Agent"] ?: LiveTvRepository.DEFAULT_UA)
         .setDefaultRequestProperties(headers.filterKeys { it != "User-Agent" })
