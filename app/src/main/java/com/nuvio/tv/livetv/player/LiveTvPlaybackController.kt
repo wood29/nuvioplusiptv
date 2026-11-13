@@ -932,6 +932,11 @@ class LiveTvPlaybackController @Inject constructor(
         while (byteSamples.size > 16) byteSamples.removeFirst()
         if (p.playbackState == Player.STATE_READY && p.isPlaying) aheadBeforeStall = p.totalBufferedDuration
         keepCushion(p)
+        if (EndlessDataSource.waitingSince > 0) {
+            // The provider closed the stream and is being asked to let us back in: don't cut in.
+            lastProgressAt = tNow
+            return
+        }
         if (_shiftStartedAt.value != null || _recordingPlayback.value != null) { lastProgressAt = android.os.SystemClock.elapsedRealtime(); return }
         val now = android.os.SystemClock.elapsedRealtime()
         val ch = currentChannel
@@ -2054,7 +2059,10 @@ class LiveTvPlaybackController @Inject constructor(
             )
             // CC1–CC4 and the digital (708) captions; the menu only offers those with text.
             .setTsSubtitleFormats(LiveCaptions.formats)
-        return DefaultMediaSourceFactory(http, LiveCaptions.Extractors(extractors)).createMediaSource(item)
+        // Live: if the provider closes the stream, reopen it at once (and wait patiently while it
+        // refuses) instead of letting the picture stop.
+        val source: androidx.media3.datasource.DataSource.Factory = if (isLive) EndlessDataSource.Factory(http) else http
+        return DefaultMediaSourceFactory(source, LiveCaptions.Extractors(extractors)).createMediaSource(item)
     }
 
     /**
