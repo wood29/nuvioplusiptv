@@ -914,8 +914,23 @@ class LiveTvPlaybackController @Inject constructor(
     @Volatile private var speedEstimateBps = 0L
     private fun mbit(bps: Long) = if (bps <= 0) "?" else String.format(java.util.Locale.US, "%.1f", bps / 1_000_000.0)
 
+    /** (time, bytes received so far) every 2 s, for the last 30 s: the real arrival rate. */
+    private val byteSamples = ArrayDeque<Pair<Long, Long>>()
+    @Volatile private var aheadBeforeStall = 0L
+    private fun arrivalMbit(): String {
+        val first = byteSamples.firstOrNull() ?: return "?"
+        val last = byteSamples.lastOrNull() ?: return "?"
+        val dt = last.first - first.first
+        if (dt < 4_000) return "?"
+        return String.format(java.util.Locale.US, "%.1f", (last.second - first.second) * 8.0 / dt / 1_000)
+    }
+
     private fun checkStall() {
         val p = _player ?: return
+        val tNow = android.os.SystemClock.elapsedRealtime()
+        byteSamples.addLast(tNow to LiveBytes.total.get())
+        while (byteSamples.size > 16) byteSamples.removeFirst()
+        if (p.playbackState == Player.STATE_READY && p.isPlaying) aheadBeforeStall = p.totalBufferedDuration
         keepCushion(p)
         if (_shiftStartedAt.value != null || _recordingPlayback.value != null) { lastProgressAt = android.os.SystemClock.elapsedRealtime(); return }
         val now = android.os.SystemClock.elapsedRealtime()
@@ -1640,7 +1655,7 @@ class LiveTvPlaybackController @Inject constructor(
                     "Stopped to catch up on ${currentChannel?.name} for ${(nowMs - bufferingSince) / 100 / 10.0}s (buffer: $bufferSize; " +
                         "from: ${if (alwaysBuffer && _shiftStartedAt.value != null) "rewind buffer" else "provider"}; " +
                         "stream ${mbit(_player?.videoFormat?.bitrate?.toLong() ?: 0L)} Mbit/s; " +
-                        "last download ${mbit(lastDownloadBps)} Mbit/s, average ${mbit(speedEstimateBps)} Mbit/s; " +
+                        "arriving ${arrivalMbit()} Mbit/s over the last 30 s; ${aheadBeforeStall / 100 / 10.0}s was ahead just before; " +
                         "${_player?.videoFormat?.let { "${it.width}x${it.height}" } ?: "?"})"
                 )
                 bufferingSince = 0L
@@ -1989,7 +2004,9 @@ class LiveTvPlaybackController @Inject constructor(
         val refused = error?.let { e -> generateSequence<Throwable>(e) { it.cause }.any { c -> c is androidx.media3.datasource.HttpDataSource.InvalidResponseCodeException && c.responseCode in setOf(401, 403) } } == true
         val shown = if (refused && attempt <= 3) "Reconnecting to the provider…" else reason
         _state.value = _state.value.copy(error = shown, isBuffering = false, reconnectAttempt = attempt)
-        if (_state.value.catchupTitle == null && attempt == 2) {
+        // Refusals are about the account (the old connection still counted), not the channel:
+        // switching to another copy only adds connections (and landed on a 480p copy).
+        if (_state.value.catchupTitle == null && attempt == 2 && !refused) {
             currentChannel?.let { if (tryGameFailover(it, "failed")) return }
             val key = currentChannel?.key
             if (key != null && onLiveFailure?.invoke(key) == true) return
@@ -2263,13 +2280,14 @@ private val LIVE_HTTP_CLIENT: okhttp3.OkHttpClient by lazy {
  */
 internal object LiveBytes {
     @Volatile var lastAt = 0L
+    val total = java.util.concurrent.atomic.AtomicLong()
     val listener = object : androidx.media3.datasource.TransferListener {
         override fun onTransferInitializing(source: androidx.media3.datasource.DataSource, dataSpec: androidx.media3.datasource.DataSpec, isNetwork: Boolean) {}
         override fun onTransferStart(source: androidx.media3.datasource.DataSource, dataSpec: androidx.media3.datasource.DataSpec, isNetwork: Boolean) {
             lastAt = android.os.SystemClock.elapsedRealtime()
         }
         override fun onBytesTransferred(source: androidx.media3.datasource.DataSource, dataSpec: androidx.media3.datasource.DataSpec, isNetwork: Boolean, bytesTransferred: Int) {
-            if (bytesTransferred > 0) lastAt = android.os.SystemClock.elapsedRealtime()
+            if (bytesTransferred > 0) { lastAt = android.os.SystemClock.elapsedRealtime(); total.addAndGet(bytesTransferred.toLong()) }
         }
         override fun onTransferEnd(source: androidx.media3.datasource.DataSource, dataSpec: androidx.media3.datasource.DataSpec, isNetwork: Boolean) {}
     }
