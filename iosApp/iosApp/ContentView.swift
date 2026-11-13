@@ -648,7 +648,13 @@ final class NativeProfileTabInteractionCoordinator: NSObject, UIGestureRecognize
 @available(iOS 16.0, *)
 @MainActor
 final class AppNavigationCoordinator: ObservableObject {
-    @Published var selectedTab: NuvioAppTab = .home
+    @Published var selectedTab: NuvioAppTab = .home {
+        // Nuvio Plus: Live TV only plays while its tab is on screen (no sound behind other tabs).
+        didSet { LiveTvApp.shared.tabVisible(visible: selectedTab == .liveTv) }
+    }
+    /// The Live TV player is full screen: the tab bar steps aside.
+    @Published var liveTvFullScreen = false
+    private let liveTvChrome = LiveTvChromeBridge()
     @Published private(set) var isMainContentMounted = false
     @Published private(set) var isMainContentVisible = false
     @Published private(set) var isAppReady = false
@@ -667,6 +673,8 @@ final class AppNavigationCoordinator: ObservableObject {
     let profileTabInteraction = NativeProfileTabInteractionCoordinator()
 
     init() {
+        liveTvChrome.coordinator = self
+        LiveTvApp.shared.register(listener: liveTvChrome)
         profileTabInteraction.onLongPress = { [weak self] in
             guard let self, self.isAppReady else { return }
             self.isProfileSwitcherPresented = true
@@ -772,6 +780,17 @@ final class AppNavigationCoordinator: ObservableObject {
             selectedTab = targetTab
         }
         target.replace(route)
+    }
+}
+
+/// Nuvio Plus: Live TV tells the app when its player goes full screen.
+final class LiveTvChromeBridge: NSObject, LiveTvChromeListener {
+    weak var coordinator: AppNavigationCoordinator?
+
+    func fullScreenChanged(fullScreen: Bool) {
+        DispatchQueue.main.async { [weak self] in
+            self?.coordinator?.liveTvFullScreen = fullScreen
+        }
     }
 }
 
@@ -948,7 +967,8 @@ struct TabContentView: View {
         // stack. Applying it here keeps the authentication/profile gate truly
         // full-screen on iOS 26, where a modifier on TabView itself is ignored.
         .toolbar(
-            usesNativeTabBar && appCoordinator.isMainContentVisible && coordinator.path.isEmpty
+            usesNativeTabBar && appCoordinator.isMainContentVisible && coordinator.path.isEmpty &&
+                !(tab == .liveTv && appCoordinator.liveTvFullScreen)
                 ? Visibility.visible
                 : Visibility.hidden,
             for: .tabBar
@@ -1338,6 +1358,7 @@ private struct NativeProfileSwitcherView: View {
 @available(iOS 16.0, *)
 struct NativeNavContentView: View {
     @StateObject private var appCoordinator = AppNavigationCoordinator()
+    @Environment(\.scenePhase) private var scenePhase
     @StateObject private var iconStore = NativeTabIconStore()
 
     private var usesNativeTabBar: Bool {
@@ -1500,6 +1521,14 @@ struct NativeNavContentView: View {
                 .allowsHitTesting(!appCoordinator.isAppReady)
                 .accessibilityHidden(appCoordinator.isAppReady)
                 .zIndex(1)
+        }
+        // Nuvio Plus: Live TV stops in the background and picks up again when you're back.
+        .onChange(of: scenePhase) { phase in
+            switch phase {
+            case .active: LiveTvApp.shared.tabVisible(visible: appCoordinator.selectedTab == .liveTv)
+            case .background: LiveTvApp.shared.tabVisible(visible: false)
+            default: break
+            }
         }
     }
 }

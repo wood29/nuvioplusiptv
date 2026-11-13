@@ -12,3 +12,6 @@ import androidx.compose.ui.Modifier
 internal actual fun LiveTvTabScreen(modifier: Modifier) {
     Box(modifier.fillMaxSize(), contentAlignment = Alignment.Center) { Text("Live TV is in the TV box app.") }
 }
+
+@Composable
+internal actual fun rememberLiveTvFullScreen(): Boolean = false

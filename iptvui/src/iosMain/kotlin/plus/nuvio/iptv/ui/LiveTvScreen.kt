@@ -14,6 +14,9 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -135,7 +138,7 @@ private fun LiveTvHome(c: LiveTvController) {
                 Column(Modifier.weight(1f).fillMaxHeight().padding(16.dp)) {
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
                         Box(Modifier.weight(1.4f)) {
-                            PlayerBox(player, playing, playing?.let { guide.nowNext(it, now).now }, now) { fullScreen = true }
+                            PlayerBox(if (fullScreen) null else player, playing, playing?.let { guide.nowNext(it, now).now }, now) { fullScreen = true }
                         }
                         Column(Modifier.weight(1f)) {
                             NowPanel(playing, playing?.let { guide.nowNext(it, now) }, now, onShow)
@@ -151,7 +154,7 @@ private fun LiveTvHome(c: LiveTvController) {
             }
         } else {
             Column(Modifier.fillMaxSize().statusBarsPadding()) {
-                PlayerBox(player, playing, playing?.let { guide.nowNext(it, now).now }, now, Modifier.padding(horizontal = 12.dp)) { fullScreen = true }
+                PlayerBox(if (fullScreen) null else player, playing, playing?.let { guide.nowNext(it, now).now }, now, Modifier.padding(horizontal = 12.dp)) { fullScreen = true }
                 Spacer(Modifier.height(10.dp))
                 GroupChips(lineup.groups, group, favs.isNotEmpty()) { c.pickGroup(it); c.search("") }
                 Row(Modifier.padding(horizontal = 12.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -170,8 +173,9 @@ private fun LiveTvHome(c: LiveTvController) {
 
     if (guideOpen) GuideGrid(channels, guide, now, playing, onClose = { guideOpen = false }, onChannel = { c.play(it); guideOpen = false }, onShow = onShow)
     if (fullScreen && player != null && playing != null) {
-        FullScreenPlayer(player, playing!!, guide.nowNext(playing!!, now), now,
-            onClose = { fullScreen = false }, onZap = { c.zap(it, channels.ifEmpty { lineup.channels }) })
+        val zapList = channels.ifEmpty { lineup.channels }
+        FullScreenPlayer(player, playing!!, zapList, guide, now,
+            onClose = { fullScreen = false }, onZap = { c.zap(it, zapList) }, onPick = { c.play(it) })
     }
     details?.let { (ch, p) ->
         ProgrammeSheet(ch, p, now, guide.alsoShown(p.title, now, lineup.channels).filterNot { it.second.startMs == p.startMs && it.first.id == ch.id },
@@ -374,32 +378,127 @@ internal fun PillButton(text: String, primary: Boolean = true, icon: androidx.co
 
 // ---------------------------------------------------------------- full screen
 
+/**
+ * Full screen, by touch:
+ *  - tap: show or hide the banner (channel, what's on, next) and the close button
+ *  - swipe up / down: next / previous channel
+ *  - swipe left: the channel list slides in on the right (tap one to switch); swipe right closes it
+ * The app's tab bar is hidden while this is open.
+ */
 @Composable
-private fun FullScreenPlayer(player: LivePlayer, ch: Channel, nn: plus.nuvio.iptv.NowNext, now: Long, onClose: () -> Unit, onZap: (Int) -> Unit) {
-    var controls by remember { mutableStateOf(true) }
-    LaunchedEffect(controls, ch.id) { if (controls) { kotlinx.coroutines.delay(5_000); controls = false } }
-    Box(Modifier.fillMaxSize().background(Color.Black).clickable { controls = !controls }) {
+private fun FullScreenPlayer(
+    player: LivePlayer, ch: Channel, channels: List<Channel>, guide: plus.nuvio.iptv.Guide, now: Long,
+    onClose: () -> Unit, onZap: (Int) -> Unit, onPick: (Channel) -> Unit
+) {
+    val nn = guide.nowNext(ch, now)
+    var banner by remember { mutableStateOf(true) }
+    var bannerKick by remember { mutableStateOf(0) }
+    var list by remember { mutableStateOf(false) }
+    LaunchedEffect(banner, bannerKick, ch.id) { if (banner && !list) { kotlinx.coroutines.delay(5_000); banner = false } }
+    LaunchedEffect(ch.id) { banner = true; bannerKick++ }
+
+    androidx.compose.runtime.DisposableEffect(Unit) {
+        LiveTvApp.setFullScreen(true)
+        onDispose { LiveTvApp.setFullScreen(false) }
+    }
+
+    Box(
+        Modifier.fillMaxSize().background(Color.Black)
+            .pointerInput(Unit) {
+                detectTapGestures(onTap = {
+                    if (list) list = false else { banner = !banner; bannerKick++ }
+                })
+            }
+            .pointerInput(channels.size) {
+                var dx = 0f; var dy = 0f
+                detectDragGestures(
+                    onDragStart = { dx = 0f; dy = 0f },
+                    onDragEnd = {
+                        val min = 60.dp.toPx()
+                        if (kotlin.math.abs(dy) > kotlin.math.abs(dx) && kotlin.math.abs(dy) > min) {
+                            if (!list) onZap(if (dy < 0) 1 else -1)
+                        } else if (kotlin.math.abs(dx) > min) {
+                            list = dx < 0
+                            if (list) banner = false
+                        }
+                    }
+                ) { change, drag -> change.consume(); dx += drag.x; dy += drag.y }
+            }
+    ) {
         PlayerSurface(player, Modifier.fillMaxSize())
-        if (controls) {
-            Box(Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.35f)))
-            IconButton(onClick = onClose, modifier = Modifier.align(Alignment.TopStart).statusBarsPadding().padding(8.dp)) {
-                Icon(Icons.Default.Close, "Close", tint = Color.White)
-            }
-            Column(Modifier.align(Alignment.CenterEnd).padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                RoundIcon(Icons.Default.KeyboardArrowUp, "Channel up") { onZap(-1) }
-                RoundIcon(Icons.Default.KeyboardArrowDown, "Channel down") { onZap(1) }
-            }
-            Row(Modifier.align(Alignment.BottomStart).fillMaxWidth().padding(20.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
-                Logo(ch, 52.dp)
-                Column(Modifier.weight(1f)) {
-                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        LiveBadge(); Text("${ch.number}  ${ch.name}", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 16.sp)
+
+        androidx.compose.animation.AnimatedVisibility(
+            banner && !list, enter = androidx.compose.animation.fadeIn(), exit = androidx.compose.animation.fadeOut(),
+            modifier = Modifier.fillMaxSize()
+        ) {
+            Box(Modifier.fillMaxSize()) {
+                Box(Modifier.align(Alignment.BottomCenter).fillMaxWidth().height(260.dp)
+                    .background(Brush.verticalGradient(listOf(Color.Transparent, Color.Black.copy(alpha = 0.85f)))))
+                IconButton(onClick = onClose, modifier = Modifier.align(Alignment.TopStart).statusBarsPadding().padding(8.dp)) {
+                    Box(Modifier.size(40.dp).clip(RoundedCornerShape(20.dp)).background(Color.Black.copy(alpha = 0.45f)), contentAlignment = Alignment.Center) {
+                        Icon(Icons.Default.Close, "Close", tint = Color.White)
                     }
-                    nn.now?.let {
-                        Text(it.title, color = Color.White, fontSize = 20.sp, fontWeight = FontWeight.ExtraBold, maxLines = 1)
-                        Progress(it, now, Modifier.padding(vertical = 4.dp).width(320.dp))
+                }
+                Row(
+                    Modifier.align(Alignment.BottomStart).fillMaxWidth().padding(horizontal = 24.dp, vertical = 22.dp),
+                    verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+                    Logo(ch, 60.dp)
+                    Column(Modifier.weight(1f)) {
+                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            LiveBadge(); Text("${ch.number}  ${ch.name}", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 16.sp, maxLines = 1)
+                        }
+                        nn.now?.let {
+                            Text(it.title, color = Color.White, fontSize = 22.sp, fontWeight = FontWeight.ExtraBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.padding(vertical = 4.dp)) {
+                                Text(clock(it.startMs), color = Color.White.copy(alpha = 0.75f), fontSize = 12.sp)
+                                Progress(it, now, Modifier.width(320.dp))
+                                Text(clock(it.stopMs), color = Color.White.copy(alpha = 0.75f), fontSize = 12.sp)
+                            }
+                        }
+                        nn.next?.let { Text("Next  ${clock(it.startMs)}  ${it.title}", color = Color.White.copy(alpha = 0.75f), fontSize = 13.sp, maxLines = 1) }
                     }
-                    nn.next?.let { Text("Next  ${clock(it.startMs)}  ${it.title}", color = Color.White.copy(alpha = 0.75f), fontSize = 13.sp, maxLines = 1) }
+                    Column(horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        Text("Swipe ↑ ↓  channels", color = Color.White.copy(alpha = 0.6f), fontSize = 12.sp)
+                        Text("Swipe ←  channel list", color = Color.White.copy(alpha = 0.6f), fontSize = 12.sp)
+                    }
+                }
+            }
+        }
+
+        androidx.compose.animation.AnimatedVisibility(
+            list,
+            enter = androidx.compose.animation.slideInHorizontally { it } + androidx.compose.animation.fadeIn(),
+            exit = androidx.compose.animation.slideOutHorizontally { it } + androidx.compose.animation.fadeOut(),
+            modifier = Modifier.align(Alignment.CenterEnd)
+        ) {
+            val state = androidx.compose.foundation.lazy.rememberLazyListState(
+                initialFirstVisibleItemIndex = (channels.indexOfFirst { it.id == ch.id } - 2).coerceAtLeast(0)
+            )
+            LazyColumn(
+                state = state,
+                modifier = Modifier.width(380.dp).fillMaxHeight().background(LiveColors.Background.copy(alpha = 0.92f))
+                    .statusBarsPadding().padding(horizontal = 10.dp),
+                verticalArrangement = Arrangement.spacedBy(6.dp),
+                contentPadding = androidx.compose.foundation.layout.PaddingValues(vertical = 14.dp)
+            ) {
+                items(channels, key = { it.id }) { c2 ->
+                    val on = c2.id == ch.id
+                    val p = guide.nowNext(c2, now).now
+                    Row(
+                        Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp))
+                            .background(if (on) LiveColors.Text else LiveColors.Panel)
+                            .clickable { onPick(c2); list = false }
+                            .padding(horizontal = 10.dp, vertical = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        Text(c2.number.toString(), color = if (on) LiveColors.Background else LiveColors.Faint, fontSize = 12.sp, modifier = Modifier.width(44.dp), maxLines = 1)
+                        Logo(c2, 40.dp)
+                        Column(Modifier.weight(1f)) {
+                            Text(c2.name, color = if (on) LiveColors.Background else LiveColors.Text, fontWeight = FontWeight.SemiBold, fontSize = 14.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                            p?.let { Text(it.title, color = if (on) LiveColors.Background.copy(alpha = 0.7f) else LiveColors.Dim, fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis) }
+                        }
+                    }
                 }
             }
         }

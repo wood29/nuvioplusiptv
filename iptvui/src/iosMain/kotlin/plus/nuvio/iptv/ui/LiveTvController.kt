@@ -91,6 +91,7 @@ class LiveTvController {
         val p = player ?: LivePlayers.create().also { player = it } ?: return
         _playing.value = channel
         store.setObject(channel.id, KEY_LAST)
+        hiddenStop = false
         p.play(channel.streamUrl, channel.headers)
     }
 
@@ -109,6 +110,17 @@ class LiveTvController {
     }
 
     fun stop() { player?.stop(); _playing.value = null }
+
+    private var hiddenStop = false
+    /** The Live TV tab went off screen (or the app to the background) and came back. */
+    fun setVisible(visible: Boolean) {
+        if (!visible) {
+            if (_playing.value != null && player != null && !hiddenStop) { hiddenStop = true; player?.stop() }
+        } else if (hiddenStop) {
+            hiddenStop = false
+            _playing.value?.let { play(it) }
+        }
+    }
 
     fun toggleFavourite(channel: Channel) {
         val now = _favourites.value.toMutableSet()
@@ -142,6 +154,9 @@ class LiveTvController {
                 s.guideUrl?.let { store.setObject(it, KEY_D) } ?: store.removeObjectForKey(KEY_D)
             }
         }
+        // Write it to disk now: closing the app from the app switcher soon after signing in
+        // could otherwise lose it, and you'd have to sign in again.
+        store.synchronize()
     }
 
     private fun savedSource(): Source? = when (store.stringForKey(KEY_KIND)) {

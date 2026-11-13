@@ -5,6 +5,8 @@ package plus.nuvio.iptv.ui
 
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.ExperimentalComposeUiApi
+import androidx.compose.ui.viewinterop.UIKitInteropProperties
 import androidx.compose.ui.viewinterop.UIKitView
 import platform.UIKit.UIView
 
@@ -33,7 +35,16 @@ object LivePlayers {
     fun create(): LivePlayer? = creator?.create()
 }
 
+/**
+ * The picture. It takes no touches itself (interactionMode = null), so taps and swipes on it
+ * reach the Live TV screen: tap for the banner, swipe for channels.
+ */
+@OptIn(ExperimentalComposeUiApi::class)
 @Composable
 internal fun PlayerSurface(player: LivePlayer, modifier: Modifier) {
-    UIKitView(factory = { player.view() }, modifier = modifier)
+    UIKitView(
+        factory = { player.view() },
+        modifier = modifier,
+        properties = UIKitInteropProperties(interactionMode = null, isNativeAccessibilityEnabled = false)
+    )
 }
