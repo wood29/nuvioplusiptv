@@ -45,7 +45,16 @@ final class LiveMpvPlayer: NSObject, LivePlayer {
     func view() -> UIView { videoView }
 
     func play(url: String, headers: [String: String]) {
+        load(url: url, headers: headers, start: "none")
+    }
+
+    func playFrom(url: String, headers: [String: String], startSeconds: Double) {
+        load(url: url, headers: headers, start: startSeconds > 1 ? String(format: "%.1f", startSeconds) : "none")
+    }
+
+    private func load(url: String, headers: [String: String], start: String) {
         guard mpv != nil else { return }
+        setString("start", start)
         currentStatus = "buffering"
         let ua = headers.first { $0.key.lowercased() == "user-agent" }?.value ?? "Mozilla/5.0 (iPhone) NuvioPlus"
         setString("user-agent", ua)
@@ -67,6 +76,62 @@ final class LiveMpvPlayer: NSObject, LivePlayer {
     func close() { shutdown() }
 
     func status() -> String { currentStatus }
+
+    func seek(seconds: Double, relative: Bool) {
+        command(["seek", String(format: "%.1f", seconds), relative ? "relative" : "absolute"])
+    }
+
+    func position() -> Double { double("time-pos") }
+    func duration() -> Double { double("duration") }
+
+    func isPaused() -> Bool {
+        guard let handle = mpv else { return false }
+        var flag: Int32 = 0
+        mpv_get_property(handle, "pause", MPV_FORMAT_FLAG, &flag)
+        return flag != 0
+    }
+
+    func tracks(type: String) -> String {
+        guard let handle = mpv else { return "" }
+        var count: Int64 = 0
+        mpv_get_property(handle, "track-list/count", MPV_FORMAT_INT64, &count)
+        var lines: [String] = []
+        for i in 0..<max(0, Int(count)) {
+            guard string("track-list/\(i)/type") == type else { continue }
+            let id = string("track-list/\(i)/id") ?? ""
+            let lang = string("track-list/\(i)/lang")
+            let title = string("track-list/\(i)/title")
+            var parts: [String] = []
+            if let lang, !lang.isEmpty {
+                parts.append(Locale.current.localizedString(forLanguageCode: lang)?.capitalized ?? lang)
+            }
+            if let title, !title.isEmpty, !parts.contains(title) { parts.append(title) }
+            if type == "audio", let ch = string("track-list/\(i)/demux-channel-count"), let n = Int(ch) {
+                switch n { case 1: parts.append("Mono"); case 2: parts.append("Stereo"); case 6: parts.append("5.1"); case 8: parts.append("7.1"); default: break }
+            }
+            let label = parts.isEmpty ? "Track \(id)" : parts.joined(separator: " · ")
+            let selected = string("track-list/\(i)/selected") == "yes" ? "1" : "0"
+            lines.append("\(id)\t\(label)\t\(selected)")
+        }
+        return lines.joined(separator: "\n")
+    }
+
+    func selectTrack(type: String, id: String) {
+        setString(type == "audio" ? "aid" : "sid", id)
+    }
+
+    private func double(_ name: String) -> Double {
+        guard let handle = mpv else { return 0 }
+        var value: Double = 0
+        mpv_get_property(handle, name, MPV_FORMAT_DOUBLE, &value)
+        return value.isFinite ? max(0, value) : 0
+    }
+
+    private func string(_ name: String) -> String? {
+        guard let handle = mpv, let c = mpv_get_property_string(handle, name) else { return nil }
+        defer { mpv_free(c) }
+        return String(cString: c)
+    }
 
     // MARK: mpv
 
@@ -117,9 +182,12 @@ final class LiveMpvPlayer: NSObject, LivePlayer {
             case MPV_EVENT_FILE_LOADED, MPV_EVENT_PLAYBACK_RESTART:
                 currentStatus = "playing"
             case MPV_EVENT_END_FILE:
-                if let data = event.pointee.data?.assumingMemoryBound(to: mpv_event_end_file.self),
-                   data.pointee.reason == MPV_END_FILE_REASON_ERROR {
-                    currentStatus = "error: " + String(cString: mpv_error_string(data.pointee.error))
+                if let data = event.pointee.data?.assumingMemoryBound(to: mpv_event_end_file.self) {
+                    if data.pointee.reason == MPV_END_FILE_REASON_ERROR {
+                        currentStatus = "error: " + String(cString: mpv_error_string(data.pointee.error))
+                    } else if data.pointee.reason == MPV_END_FILE_REASON_EOF {
+                        currentStatus = "ended"
+                    }
                 }
             case MPV_EVENT_PROPERTY_CHANGE:
                 if let prop = event.pointee.data?.assumingMemoryBound(to: mpv_event_property.self),

@@ -21,8 +21,21 @@ interface LivePlayer {
     fun setPaused(paused: Boolean)
     fun stop()
     fun close()
-    /** "playing", "buffering", "error: …" or "idle". */
+    /** "playing", "buffering", "ended", "error: …" or "idle". */
     fun status(): String
+
+    // Movies and episodes (On Demand).
+    /** Plays a file from [startSeconds] in. */
+    fun playFrom(url: String, headers: Map<String, String>, startSeconds: Double)
+    fun seek(seconds: Double, relative: Boolean)
+    /** Seconds in, and the length (0 while unknown). */
+    fun position(): Double
+    fun duration(): Double
+    fun isPaused(): Boolean
+    /** "audio" or "sub": one line per track, "id<TAB>label<TAB>1 if selected". */
+    fun tracks(type: String): String
+    /** "audio" or "sub"; id "no" turns subtitles off. */
+    fun selectTrack(type: String, id: String)
 }
 
 interface LivePlayerCreator {

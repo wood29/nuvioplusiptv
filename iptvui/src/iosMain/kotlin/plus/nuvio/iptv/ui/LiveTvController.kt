@@ -159,7 +159,7 @@ class LiveTvController {
         store.synchronize()
     }
 
-    private fun savedSource(): Source? = when (store.stringForKey(KEY_KIND)) {
+    internal fun savedSource(): Source? = when (store.stringForKey(KEY_KIND)) {
         "xtream" -> {
             val server = store.stringForKey(KEY_A); val user = store.stringForKey(KEY_B); val pass = store.stringForKey(KEY_C)
             if (server != null && user != null && pass != null) Source.Xtream("main", "My provider", server, user, pass) else null

@@ -35,9 +35,12 @@ object LiveTvApp {
         listener?.fullScreenChanged(on)
     }
 
+    /** Movies or Series is open in the tab: live TV stays off (one stream). */
+    internal var liveSuspended = false
+
     fun tabVisible(visible: Boolean) {
         // Not opened yet: nothing to stop, and no reason to load the channels early.
-        if (created) controller.setVisible(visible)
+        if (created && !(visible && liveSuspended)) controller.setVisible(visible)
         // Leaving the tab ends full screen, so the tab bar is back everywhere else.
         if (!visible) setFullScreen(false)
     }

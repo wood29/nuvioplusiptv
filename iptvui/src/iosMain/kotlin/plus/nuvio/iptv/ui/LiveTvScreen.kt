@@ -107,6 +107,19 @@ private fun LiveTvHome(c: LiveTvController) {
     var fullScreen by remember { mutableStateOf(false) }
     var guideOpen by remember { mutableStateOf(false) }
     var details by remember { mutableStateOf<Pair<Channel, Programme>?>(null) }
+    // 0 Live TV, 1 Movies, 2 Series. Movies and Series turn live TV off (one stream) and back on.
+    var mode by remember { mutableStateOf(0) }
+    val switchMode: (Int) -> Unit = { m ->
+        if (m != mode) {
+            if (m != 0 && mode == 0) { LiveTvApp.liveSuspended = true; c.setVisible(false) }
+            if (m == 0) { LiveTvApp.liveSuspended = false; c.setVisible(true) }
+            mode = m
+        }
+    }
+    if (mode != 0) {
+        OnDemandHome(if (mode == 1) plus.nuvio.iptv.VodKind.MOVIE else plus.nuvio.iptv.VodKind.SERIES, mode, switchMode)
+        return
+    }
 
     val lineup = state.lineup
     if (lineup == null) {
@@ -136,6 +149,8 @@ private fun LiveTvHome(c: LiveTvController) {
             Row(Modifier.fillMaxSize().statusBarsPadding()) {
                 GroupSidebar(lineup.groups, group, favs.isNotEmpty(), onPick = { c.pickGroup(it); c.search("") }, onSignOut = { c.signOut() })
                 Column(Modifier.weight(1f).fillMaxHeight().padding(16.dp)) {
+                    ModeTabs(mode, switchMode)
+                    Spacer(Modifier.height(12.dp))
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
                         Box(Modifier.weight(1.4f)) {
                             PlayerBox(if (fullScreen) null else player, playing, playing?.let { guide.nowNext(it, now).now }, now) { fullScreen = true }
@@ -154,6 +169,7 @@ private fun LiveTvHome(c: LiveTvController) {
             }
         } else {
             Column(Modifier.fillMaxSize().statusBarsPadding()) {
+                ModeTabs(mode, switchMode, Modifier.padding(horizontal = 12.dp, vertical = 6.dp))
                 PlayerBox(if (fullScreen) null else player, playing, playing?.let { guide.nowNext(it, now).now }, now, Modifier.padding(horizontal = 12.dp)) { fullScreen = true }
                 Spacer(Modifier.height(10.dp))
                 GroupChips(lineup.groups, group, favs.isNotEmpty()) { c.pickGroup(it); c.search("") }
