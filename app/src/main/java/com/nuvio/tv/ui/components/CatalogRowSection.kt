@@ -275,7 +275,8 @@ fun CatalogRowSection(
     val catalogTitle = remember(catalogRow.catalogName, typeLabel, showCatalogTypeSuffix) {
         val formattedName = catalogRow.catalogName.replaceFirstChar { it.uppercase() }
         if (formattedName.isBlank()) ""
-        else if (showCatalogTypeSuffix && typeLabel.isNotEmpty()) "$formattedName - $typeLabel" else formattedName
+        // The mixed "Recommended for you" row holds movies and series, so no type label.
+        else if (showCatalogTypeSuffix && typeLabel.isNotEmpty() && catalogRow.catalogId != "np-recommended") "$formattedName - $typeLabel" else formattedName
     }
 
     Column(modifier = modifier.fillMaxWidth().then(

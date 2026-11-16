@@ -506,7 +506,7 @@ private fun PlaybackNavHost(
                 },
                 onPlayClick = { videoId, contentType, contentId, title, poster, backdrop, logo, season, episode, episodeName, genres, year, runtime, contentLanguage ->
                   // Live TV fork: Play shows every source, also for titles opened from On Demand.
-                  val onDemandUid = savedState.get<String>(com.nuvio.tv.livetv.ondemand.OnDemandPlay.KEY)
+                  val onDemandUid = savedState.get<String>(com.nuvio.tv.livetv.ondemand.OnDemandPlay.KEY)?.takeIf { it.isNotBlank() }
                   val openStreams = {
                     navController.navigate(
                         Screen.Stream.createRoute(

@@ -3,6 +3,7 @@ package com.nuvio.tv.livetv.ondemand
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.focusable
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -84,7 +85,9 @@ internal fun ProviderDetailDialog(
     item: VodItem,
     viewModel: OnDemandViewModel,
     onDismiss: () -> Unit,
-    onPlay: (url: String, title: String, poster: String?) -> Unit
+    onPlay: (url: String, title: String, poster: String?) -> Unit,
+    /** Opens a suggested title on Nuvio's details page (null: no "More like this" row). */
+    onOpenDetail: ((itemId: String, itemType: String) -> Unit)? = null
 ) {
     val scope = rememberCoroutineScope()
     val adult by produceState(initialValue = true, item.uid) { value = runCatching { viewModel.isAdult(item) }.getOrDefault(true) }
@@ -197,7 +200,40 @@ internal fun ProviderDetailDialog(
             }
         }
     }
+        // avonioTV Home: "More like this" from TMDB, as on Nuvio's own details pages.
+        if (onOpenDetail != null) {
+            val similar by produceState<List<com.nuvio.tv.domain.model.MetaPreview>>(initialValue = emptyList(), item.uid) {
+                value = runCatching { viewModel.moreLikeThis(item) }.getOrDefault(emptyList())
+            }
+            if (similar.isNotEmpty()) {
+                Spacer(Modifier.height(14.dp))
+                LiveText("More like this", size = 15.sp, weight = FontWeight.SemiBold)
+                Spacer(Modifier.height(6.dp))
+                LazyRow(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    items(similar, key = { it.id }) { m -> SimilarCard(m) { onOpenDetail(m.id, m.apiType.ifBlank { m.type.toApiString() }) } }
+                }
+            }
+        }
+    }
     LaunchedEffect(info) { delay(80); runCatching { first.requestFocus() } }
+}
+
+@Composable
+private fun SimilarCard(m: com.nuvio.tv.domain.model.MetaPreview, onClick: () -> Unit) {
+    var focused by remember { mutableStateOf(false) }
+    val shape = RoundedCornerShape(8.dp)
+    Column(Modifier.width(96.dp)) {
+        Box(
+            Modifier.fillMaxWidth().aspectRatio(2f / 3f).clip(shape).background(guideSurface())
+                .border(2.dp, if (focused) NuvioTheme.colors.TextPrimary else androidx.compose.ui.graphics.Color.Transparent, shape)
+                .onFocusChanged { focused = it.isFocused }
+                .clickable(onClick = onClick)
+        ) {
+            AsyncImage(model = m.poster, contentDescription = m.name, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
+        }
+        Spacer(Modifier.height(4.dp))
+        LiveText(m.name, color = if (focused) NuvioTheme.colors.TextPrimary else NuvioTheme.colors.TextSecondary, size = 11.sp, maxLines = 1)
+    }
 }
 
 @OptIn(ExperimentalFoundationApi::class)

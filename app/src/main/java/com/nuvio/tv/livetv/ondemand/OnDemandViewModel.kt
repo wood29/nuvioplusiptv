@@ -161,6 +161,21 @@ class OnDemandViewModel @Inject constructor(
         )
     }
 
+    /**
+     * avonioTV Home: "More like this" for titles only your provider has: TMDB's suggestions for the
+     * provider's TMDB id, or for the title found on TMDB by its cleaned-up name and year.
+     */
+    suspend fun moreLikeThis(item: VodItem): List<com.nuvio.tv.domain.model.MetaPreview> {
+        if (repository.isAdult(item)) return emptyList()
+        val type = if (item.kind == VodKind.SERIES) com.nuvio.tv.domain.model.ContentType.SERIES else com.nuvio.tv.domain.model.ContentType.MOVIE
+        val id = item.tmdbId?.takeIf { it.isNotBlank() }
+            ?: runCatching { tmdbMetadata.searchTmdbId(OnDemandDatabase.displayTitle(item.name), item.year, type) }.getOrNull()
+            ?: return emptyList()
+        return runCatching { tmdbMetadata.fetchMoreLikeThis(tmdbId = id, contentType = type, maxItems = 15) }
+            .getOrDefault(emptyList())
+            .filter { !it.poster.isNullOrBlank() }
+    }
+
     private suspend fun tmdbPosterById(item: VodItem): String? {
         val id = item.tmdbId?.takeIf { it.isNotBlank() } ?: return null
         val type = if (item.kind == VodKind.SERIES) com.nuvio.tv.domain.model.ContentType.SERIES else com.nuvio.tv.domain.model.ContentType.MOVIE

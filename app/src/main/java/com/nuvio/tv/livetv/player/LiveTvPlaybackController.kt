@@ -766,7 +766,7 @@ class LiveTvPlaybackController @Inject constructor(
         while (cause != null) {
             if (cause is androidx.media3.datasource.HttpDataSource.InvalidResponseCodeException) {
                 return when (cause.responseCode) {
-                    401, 403 -> "Provider refused the stream (HTTP ${cause.responseCode}): account limit, expired, or blocked"
+                    401, 403 -> "Your subscription seems to be playing on another device (HTTP ${cause.responseCode}). Stop it there, or check the account hasn't expired"
                     404 -> "Stream not found (HTTP 404). Try another stream format in the playlist's settings"
                     429, 456, 458, 509 -> "Too many connections on this account (HTTP ${cause.responseCode})"
                     in 500..599 -> "Provider's server error (HTTP ${cause.responseCode})"
@@ -2007,7 +2007,12 @@ class LiveTvPlaybackController @Inject constructor(
         // the old connection: say "reconnecting" calmly, and only show the account message if
         // it keeps refusing.
         val refused = error?.let { e -> generateSequence<Throwable>(e) { it.cause }.any { c -> c is androidx.media3.datasource.HttpDataSource.InvalidResponseCodeException && c.responseCode in setOf(401, 403) } } == true
-        val shown = if (refused && attempt <= 3) "Reconnecting to the provider…" else reason
+        // avonioTV: one-stream accounts get a plain message while we wait for the slot to free up.
+        val shown = when {
+            refused && attempt <= 3 -> "Reconnecting to the provider…"
+            refused && autoReconnect && attempt <= MAX_REFUSED_RECONNECTS -> "Your subscription is playing on another device. Waiting for it to be free…"
+            else -> reason
+        }
         _state.value = _state.value.copy(error = shown, isBuffering = false, reconnectAttempt = attempt)
         // Refusals are about the account (the old connection still counted), not the channel:
         // switching to another copy only adds connections (and landed on a 480p copy).
@@ -2016,7 +2021,8 @@ class LiveTvPlaybackController @Inject constructor(
             val key = currentChannel?.key
             if (key != null && onLiveFailure?.invoke(key) == true) return
         }
-        if (!autoReconnect || attempt > MAX_RECONNECTS) return
+        // A refusal is the account, not the channel: keep waiting longer for the slot (about 3 min).
+        if (!autoReconnect || attempt > (if (refused) MAX_REFUSED_RECONNECTS else MAX_RECONNECTS)) return
         reconnectJob?.cancel()
         reconnectJob = scope.launch {
             // Let go of the old connection first, then wait: a provider that allows one
@@ -2229,6 +2235,8 @@ class LiveTvPlaybackController @Inject constructor(
 
     companion object {
         private const val MAX_RECONNECTS = 8
+        /** One-stream accounts: how many times to wait for the provider to free the slot. */
+        private const val MAX_REFUSED_RECONNECTS = 16
         /** No progress for this long while it should be playing = stalled. */
         /** Picture stuck this long while bytes still arrive: reconnect anyway. */
         private const val STALL_HARD_MS = 30_000L

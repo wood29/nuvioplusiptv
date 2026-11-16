@@ -547,7 +547,8 @@ fun OnDemandHomeScreen(
             onPlay = { url, title, poster ->
                 providerItem = null
                 onPlay(url, title, if (item.kind == VodKind.SERIES) "series" else "movie", poster)
-            }
+            },
+            onOpenDetail = { id, type -> providerItem = null; onOpenDetail(id, type, null, "") }
         )
     }
 }
