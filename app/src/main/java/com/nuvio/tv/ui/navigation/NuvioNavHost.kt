@@ -8,6 +8,13 @@ import com.nuvio.tv.ui.components.canStream
 import android.widget.Toast
 import androidx.compose.ui.platform.LocalContext
 import com.nuvio.tv.R
+import com.nuvio.tv.LocalRootContentInset
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.padding
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.dp
+import androidx.navigation.NavBackStackEntry
+import androidx.navigation.NavGraphBuilder
 
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.EnterTransition
@@ -71,7 +78,10 @@ import com.nuvio.tv.ui.screens.home.HeroBackdropState
 fun NuvioNavHost(
     navController: NavHostController,
     startDestination: String = Screen.Home.route,
-    hideBuiltInHeaders: Boolean = false
+    hideBuiltInHeaders: Boolean = false,
+    discoverIsRoot: Boolean = false,
+    /** Nuvio Plus: the menu pages right now (Live TV, On Demand… get the menu's inset only then). */
+    rootRoutes: Set<String> = emptySet()
 ) {
     PlaybackAvailabilityProvider {
         // The NavController keeps its back stack ViewModels in the store of the owner it is
@@ -79,7 +89,22 @@ fun NuvioNavHost(
         val navViewModelStoreOwner = LocalNavViewModelStoreOwner.current
             ?: checkNotNull(LocalViewModelStoreOwner.current)
         CompositionLocalProvider(LocalViewModelStoreOwner provides navViewModelStoreOwner) {
-            PlaybackNavHost(navController, startDestination, hideBuiltInHeaders)
+            PlaybackNavHost(navController, startDestination, hideBuiltInHeaders, discoverIsRoot, rootRoutes)
+        }
+    }
+}
+
+// Root destinations carry the legacy sidebar inset themselves so the NavHost container
+// keeps a constant width while navigating between root and non-root routes.
+private fun NavGraphBuilder.rootComposable(
+    route: String,
+    withInset: Boolean = true,
+    content: @Composable (NavBackStackEntry) -> Unit
+) {
+    composable(route) { backStackEntry ->
+        val inset = if (withInset) LocalRootContentInset.current else 0.dp
+        Box(modifier = Modifier.padding(start = inset)) {
+            content(backStackEntry)
         }
     }
     // Live TV fork: "Remind me" messages, shown on top of whatever screen you're on.
@@ -98,7 +123,9 @@ fun NuvioNavHost(
 private fun PlaybackNavHost(
     navController: NavHostController,
     startDestination: String,
-    hideBuiltInHeaders: Boolean
+    hideBuiltInHeaders: Boolean,
+    discoverIsRoot: Boolean,
+    rootRoutes: Set<String>
 ) {
     val playbackAvailability = LocalPlaybackAvailability.current
     val context = LocalContext.current
@@ -207,7 +234,7 @@ private fun PlaybackNavHost(
             )
         }
 
-        composable(Screen.Home.route) {
+        rootComposable(Screen.Home.route) {
             // Live TV fork: back from On Demand, Home starts from its own hero backdrop.
             com.nuvio.tv.livetv.ondemand.OnDemandBackdropGuard.restoreForHome()
             // Live TV fork: keep Home's latest layout settings for the On Demand page.
@@ -852,7 +879,8 @@ private fun PlaybackNavHost(
                                 contentLanguage = playbackInfo.contentLanguage,
                                 profileId = playbackInfo.profileId,
                                 audioDelayMs = playbackInfo.audioDelayMs,
-                                audioDelayLanguage = playbackInfo.audioDelayLanguage
+                                audioDelayLanguage = playbackInfo.audioDelayLanguage,
+                                fromLinkCache = playbackInfo.fromLinkCache
                             )
                         ) {
                             popUpTo(Screen.Stream.route) { inclusive = true }
@@ -941,6 +969,11 @@ private fun PlaybackNavHost(
                     defaultValue = null
                 },
                 navArgument("autoPlayNav") {
+                    type = NavType.StringType
+                    nullable = true
+                    defaultValue = "false"
+                },
+                navArgument("fromLinkCache") {
                     type = NavType.StringType
                     nullable = true
                     defaultValue = "false"
@@ -1358,7 +1391,7 @@ private fun PlaybackNavHost(
             )
         }
 
-        composable(Screen.Search.route) { backStackEntry ->
+        rootComposable(Screen.Search.route) { backStackEntry ->
             val searchViewModel: com.nuvio.tv.ui.screens.search.SearchViewModel =
                 androidx.hilt.navigation.compose.hiltViewModel(backStackEntry)
             SearchScreen(
@@ -1419,7 +1452,7 @@ private fun PlaybackNavHost(
             )
         }
 
-        composable(Screen.Discover.route) {
+        rootComposable(Screen.Discover.route, withInset = discoverIsRoot) {
             DiscoverScreen(
                 showBuiltInHeader = !hideBuiltInHeaders,
                 onNavigateToDetail = { itemId, itemType, addonBaseUrl ->
@@ -1436,7 +1469,7 @@ private fun PlaybackNavHost(
             )
         }
 
-        composable(Screen.Library.route) {
+        rootComposable(Screen.Library.route) {
             LibraryScreen(
                 showBuiltInHeader = !hideBuiltInHeaders,
                 onNavigateToDetail = { itemId, itemType, addonBaseUrl ->
@@ -1469,7 +1502,7 @@ private fun PlaybackNavHost(
             )
         }
 
-        composable(Screen.LiveTv.route) {
+        rootComposable(Screen.LiveTv.route, withInset = Screen.LiveTv.route in rootRoutes) {
             com.nuvio.tv.livetv.ui.LiveTvGuideScreen(
                 onOpenFullscreen = {
                     navController.navigate(Screen.LiveTvPlayer.route) { launchSingleTop = true }
@@ -1491,7 +1524,7 @@ private fun PlaybackNavHost(
             )
         }
 
-        composable(Screen.Recordings.route) {
+        rootComposable(Screen.Recordings.route, withInset = Screen.Recordings.route in rootRoutes) {
             // Live TV fork: recorded shows, played in Nuvio's own player.
             com.nuvio.tv.livetv.record.RecordingsScreen(
                 onPlay = { url, title, poster, recordingId, fromStart ->
@@ -1513,7 +1546,7 @@ private fun PlaybackNavHost(
             )
         }
 
-        composable(Screen.Calendar.route) {
+        rootComposable(Screen.Calendar.route, withInset = Screen.Calendar.route in rootRoutes) {
             // Live TV fork: when your shows' new episodes and your movies come out.
             com.nuvio.tv.livetv.calendar.CalendarScreen(
                 onOpenDetail = { id, type, addonBaseUrl, season, episode ->
@@ -1580,7 +1613,7 @@ private fun PlaybackNavHost(
             )
         }
 
-        composable(Screen.Sports.route) {
+        rootComposable(Screen.Sports.route, withInset = Screen.Sports.route in rootRoutes) {
             // Live TV fork: the Sports page (scores, schedules, which of your channels show each game).
             com.nuvio.tv.livetv.sports.SportsScreen(
                 onOpenLive = { com.nuvio.tv.livetv.sports.openLiveTvFullscreen(navController) },
@@ -1598,7 +1631,7 @@ private fun PlaybackNavHost(
             )
         }
 
-        composable(Screen.OnDemand.route) {
+        rootComposable(Screen.OnDemand.route, withInset = Screen.OnDemand.route in rootRoutes) {
             // Live TV fork: On Demand in Nuvio's own home layout (Classic, Grid or Modern, as set
             // for Home), with every layout option taken from Home itself.
             // Home's settings, read safely: Home may not be in the history (it's removed when the
@@ -1673,7 +1706,7 @@ private fun PlaybackNavHost(
             )
         }
 
-        composable(Screen.Settings.route) {
+        rootComposable(Screen.Settings.route) {
             SettingsScreen(
                 showBuiltInHeader = !hideBuiltInHeaders,
                 onNavigateToLiveTv = { navController.navigate(Screen.LiveTvSettings.route) },

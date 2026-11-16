@@ -136,9 +136,9 @@ android {
         minSdk = 24
         targetSdk = 36
         // Nuvio Plus: goes up by one with every new Nuvio version, so the box always sees a newer
-        // build (x 100 + build number: beta.11.19 was 107719, beta.13.N is 1078NN).
-        versionCode = 1078
-        versionName = "1.1.0-beta.13"
+        // build (x 100 + build number: beta.13.N was 1078NN, 1.2.0-beta.1.N is 1079NN).
+        versionCode = 1079
+        versionName = "1.2.0-beta.1"
 
         buildConfigField("String", "PARENTAL_GUIDE_API_URL", "\"${localProperties.getProperty("PARENTAL_GUIDE_API_URL", "")}\"")
         buildConfigField("String", "INTRODB_API_URL", "\"${localProperties.getProperty("INTRODB_API_URL", "")}\"")
