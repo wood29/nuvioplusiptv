@@ -37,7 +37,7 @@ jobs:
     if: needs.register.outputs.app_ready == 'yes'
     # macos-26 machines kept not turning up for this job (cancelled after 15 min, no machine);
     # macos-15 is a bigger pool and also carries Xcode 26 (the step below picks the newest).
-    runs-on: macos-15
+    runs-on: macos-26
     timeout-minutes: 150
     env:
       GRADLE_OPTS: -Dfile.encoding=UTF-8
