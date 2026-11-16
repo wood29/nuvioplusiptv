@@ -199,7 +199,6 @@ internal fun ProviderDetailDialog(
                 }
             }
         }
-    }
         // avonioTV Home: "More like this" from TMDB, as on Nuvio's own details pages.
         if (onOpenDetail != null) {
             val similar by produceState<List<com.nuvio.tv.domain.model.MetaPreview>>(initialValue = emptyList(), item.uid) {
