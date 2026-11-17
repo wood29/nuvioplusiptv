@@ -53,6 +53,8 @@ class OnDemandTest {
 
     @Test fun titles() {
         assertEquals("Inception", OnDemand.cleanTitle("[4K] EN - Inception [2010]"))
+        assertEquals("Heartland", OnDemand.cleanTitle("Heartland - 2026 [MULTI-SUB]"))
+        assertEquals(2026, OnDemand.yearIn("Heartland - 2026 [MULTI-SUB]"))
         assertEquals("heidi", OnDemand.normalize("Heidi!")); assertEquals("strassea", OnDemand.normalize("Straße Ä"))
     }
 }

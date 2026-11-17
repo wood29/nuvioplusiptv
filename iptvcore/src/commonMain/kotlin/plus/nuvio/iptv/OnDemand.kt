@@ -45,7 +45,7 @@ data class VodItem(
     /** Unique across movies and series. */
     val key: String get() = (if (kind == VodKind.MOVIE) "m:" else "s:") + id
     /** The name without provider tags such as "DE - " or "[4K]", for display and search. */
-    val title: String get() = OnDemand.cleanTitle(name)
+    val title: String by lazy(LazyThreadSafetyMode.PUBLICATION) { OnDemand.cleanTitle(name) }
 }
 
 data class VodEpisode(
@@ -244,17 +244,19 @@ class OnDemand(private val http: HttpClient) {
 
     companion object {
         private val TAGS = Regex("""^(\s*(\[[^\]]*\]|\|[^|]*\||[A-Z0-9]{2,4}\s*[-|:]\s+))+""")
-        private val YEAR_SUFFIX = Regex("""\s*[(\[]((19|20)\d\d)[)\]]\s*$""")
+        /** Tags and years at the end: " (1999)", " [MULTI-SUB]", " - 2026", " (4K)". */
+        private val TRAILING = Regex("""(\s*(\[[^\]]*\]|\([^)]*\)|[-–|:]\s*(19|20)\d\d))+\s*$""")
+        private val YEAR = Regex("""(19|20)\d\d""")
 
-        /** "DE - The Matrix (1999)" → "The Matrix". */
+        /** "DE - The Matrix (1999)" → "The Matrix"; "Heartland - 2026 [MULTI-SUB]" → "Heartland". */
         fun cleanTitle(name: String): String {
-            val t = name.replace(TAGS, "").replace(YEAR_SUFFIX, "").trim()
+            val t = name.replace(TAGS, "").replace(TRAILING, "").trim().trimEnd('-', '–', '|', ':').trim()
             return t.ifBlank { name.trim() }
         }
 
-        fun yearIn(name: String?): Int? = name?.let { YEAR_SUFFIX.find(it)?.groupValues?.get(1)?.toIntOrNull() }
+        /** The year from the end of a name: "Heartland - 2026 [MULTI-SUB]" → 2026. */
+        fun yearIn(name: String?): Int? = name?.let { n -> TRAILING.find(n)?.value?.let { YEAR.findAll(it).lastOrNull()?.value?.toIntOrNull() } }
 
-        /** Lower-case letters and digits only, for search. */
         private const val FROM = "àáâãäåāăąçćčďèéêëēėęěìíîïīįłñńňòóôõöøōőřśšşťùúûüūůűųýÿžźż"
         private const val TO = "aaaaaaaaacccdeeeeeeeeiiiiiilnnnoooooooorssstuuuuuuuuyyzzz"
         fun normalize(s: String): String = buildString {
