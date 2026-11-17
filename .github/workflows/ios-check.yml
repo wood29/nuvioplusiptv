@@ -1,0 +1,36 @@
+name: iPhone/iPad quick check
+
+# Compiles the clean Live TV + On Demand modules for iPhone/iPad on Linux (Kotlin's iOS klib
+# cross-compilation), so mistakes show in minutes instead of after a long Mac build.
+on:
+  push:
+    branches: [ios-dev]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ios-check-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: 17
+      - uses: gradle/actions/setup-gradle@v6
+      - run: touch local.properties
+      - name: Engine tests
+        run: ./gradlew --no-daemon :iptvcore:jvmTest
+      - name: Compile for iPhone/iPad
+        run: ./gradlew --no-daemon -Pkotlin.native.enableKlibsCrossCompilation=true :iptvcore:compileKotlinIosArm64 :iptvui:compileKotlinIosArm64
+      - name: Test results
+        if: always()
+        run: |
+          for f in iptvcore/build/test-results/jvmTest/*.xml; do grep -o '<testsuite [^>]*>' "$f"; grep -A3 '<failure' "$f" | head -40; done || true
