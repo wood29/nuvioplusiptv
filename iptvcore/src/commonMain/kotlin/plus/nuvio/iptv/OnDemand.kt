@@ -257,6 +257,15 @@ class OnDemand(private val http: HttpClient) {
         /** The year from the end of a name: "Heartland - 2026 [MULTI-SUB]" → 2026. */
         fun yearIn(name: String?): Int? = name?.let { n -> TRAILING.find(n)?.value?.let { YEAR.findAll(it).lastOrNull()?.value?.toIntOrNull() } }
 
+        private val LANG_TAG = Regex("""^\s*(?:[\[(]\s*([A-Za-z][A-Za-z0-9 .\-]{0,14}?)\s*[\])]|([A-Z]{2,3}(?:-[A-Z]{2,5})?)\s*[|:\-])""")
+
+        /**
+         * The language or region a category is tagged with: "[AR] Action" → "AR", "AF | Films" →
+         * "AF", "[MULTI-LANG] Netflix" → "MULTI-LANG". Null when the name has no such tag.
+         */
+        fun categoryTag(name: String): String? =
+            LANG_TAG.find(name)?.let { m -> (m.groupValues[1].ifBlank { m.groupValues[2] }).trim().uppercase().ifBlank { null } }
+
         private const val FROM = "àáâãäåāăąçćčďèéêëēėęěìíîïīįłñńňòóôõöøōőřśšşťùúûüūůűųýÿžźż"
         private const val TO = "aaaaaaaaacccdeeeeeeeeiiiiiilnnnoooooooorssstuuuuuuuuyyzzz"
         fun normalize(s: String): String = buildString {

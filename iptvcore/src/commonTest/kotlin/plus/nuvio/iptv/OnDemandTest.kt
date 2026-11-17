@@ -51,6 +51,13 @@ class OnDemandTest {
         assertEquals(listOf("""{"a":"x}{","b":[1,{"c":2}]}""", """{"d":"é\"q"}"""), got)
     }
 
+    @Test fun tags() {
+        assertEquals("AR", OnDemand.categoryTag("[AR] Action"))
+        assertEquals("AF", OnDemand.categoryTag("AF | Films"))
+        assertEquals("MULTI-LANG", OnDemand.categoryTag("[MULTI-LANG] NETFLIX"))
+        assertEquals(null, OnDemand.categoryTag("Action"))
+    }
+
     @Test fun titles() {
         assertEquals("Inception", OnDemand.cleanTitle("[4K] EN - Inception [2010]"))
         assertEquals("Heartland", OnDemand.cleanTitle("Heartland - 2026 [MULTI-SUB]"))

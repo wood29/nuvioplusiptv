@@ -42,6 +42,10 @@ import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Replay10
 import androidx.compose.material.icons.filled.Forward30
 import androidx.compose.material.icons.filled.Subtitles
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.List
+import androidx.compose.material.icons.filled.SkipNext
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Slider
@@ -91,127 +95,13 @@ import plus.nuvio.iptv.VodDetails
 import plus.nuvio.iptv.VodEpisode
 import plus.nuvio.iptv.VodItem
 import plus.nuvio.iptv.VodKind
+import plus.nuvio.iptv.TmdbInfo
+import platform.Foundation.NSURL
+import platform.UIKit.UIApplication
 
 // ---------------------------------------------------------------- the library
 
 /** Movies and series from the provider, and where you stopped watching. One for the app. */
-class VodLibrary internal constructor(private val source: () -> Source?) {
-
-    data class Shelf(
-        val loading: Boolean = false,
-        val count: Int = 0,
-        val error: String? = null,
-        val categories: List<VodCategory> = emptyList(),
-        val items: List<VodItem> = emptyList()
-    ) {
-        val recent: List<VodItem> by lazy { items.filter { it.added > 0 }.sortedByDescending { it.added }.take(60) }
-    }
-
-    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
-    // A provider's full list can take minutes to arrive.
-    private val http = HttpClient(Darwin) { install(HttpTimeout) { requestTimeoutMillis = 600_000; connectTimeoutMillis = 15_000; socketTimeoutMillis = 60_000 } }
-    private val od = OnDemand(http)
-    private val shelves = mapOf(VodKind.MOVIE to MutableStateFlow(Shelf()), VodKind.SERIES to MutableStateFlow(Shelf()))
-    private val locks = mapOf(VodKind.MOVIE to Mutex(), VodKind.SERIES to Mutex())
-    private val detailCache = HashMap<String, VodDetails>()
-    private val categoryCache = HashMap<String, List<VodItem>>()
-
-    fun shelf(kind: VodKind): StateFlow<Shelf> = shelves.getValue(kind).asStateFlow()
-    private fun xtream() = source() as? Source.Xtream
-
-    fun load(kind: VodKind, force: Boolean = false) {
-        scope.launch {
-            locks.getValue(kind).withLock {
-                val flow = shelves.getValue(kind)
-                if (!force && flow.value.items.isNotEmpty()) return@withLock
-                val what = if (kind == VodKind.MOVIE) "movies" else "series"
-                val s = xtream() ?: run { flow.value = Shelf(error = "On Demand needs an Xtream login (server, username, password)."); return@withLock }
-                flow.value = Shelf(loading = true)
-                val cats = runCatching { withContext(Dispatchers.Default) { od.categories(s, kind) } }.getOrElse {
-                    flow.value = Shelf(error = "Couldn't load $what: ${it.message ?: "no answer"}"); return@withLock
-                }
-                flow.value = flow.value.copy(categories = cats)
-                flow.value = runCatching {
-                    val items = withContext(Dispatchers.Default) { od.items(s, kind) { n -> flow.value = flow.value.copy(count = n) } }
-                    Shelf(categories = cats.filter { c -> items.any { it.categoryId == c.id } }.ifEmpty { cats }, items = items)
-                }.getOrElse {
-                    flow.value.copy(loading = false, error = "Couldn't read the full list of $what; pick a category.")
-                }
-            }
-        }
-    }
-
-    suspend fun category(kind: VodKind, id: String): List<VodItem> {
-        val shelf = shelves.getValue(kind).value
-        if (shelf.items.isNotEmpty()) return shelf.items.filter { it.categoryId == id }
-        categoryCache["${kind.name}:$id"]?.let { return it }
-        val s = xtream() ?: return emptyList()
-        return withContext(Dispatchers.Default) { od.items(s, kind, categoryId = id) }.also { categoryCache["${kind.name}:$id"] = it }
-    }
-
-    suspend fun details(item: VodItem): VodDetails? {
-        detailCache[item.key]?.let { return it }
-        val s = xtream() ?: return null
-        return runCatching { withContext(Dispatchers.Default) { od.details(s, item) } }.getOrNull()?.also { detailCache[item.key] = it }
-    }
-
-    fun movieUrl(item: VodItem) = xtream()?.let { od.movieUrl(it, item) }
-    fun episodeUrl(ep: VodEpisode) = xtream()?.let { od.episodeUrl(it, ep) }
-
-    // ---- where you stopped (this device) ----
-
-    data class Progress(val positionMs: Long, val durationMs: Long) {
-        val fraction: Float get() = if (durationMs <= 0) 0f else (positionMs.toFloat() / durationMs).coerceIn(0f, 1f)
-        val finished: Boolean get() = durationMs > 0 && positionMs > durationMs * 0.94
-    }
-    data class Resume(val item: VodItem, val episodeId: String?, val label: String?, val progress: Progress)
-
-    private val store = NSUserDefaults.standardUserDefaults
-    private val _resume = MutableStateFlow(readResume())
-    val resume: StateFlow<List<Resume>> = _resume.asStateFlow()
-
-    fun progress(key: String): Progress? = store.stringForKey("np_vod_p_$key")?.split('|')?.let {
-        if (it.size < 2) null else Progress(it[0].toLongOrNull() ?: 0, it[1].toLongOrNull() ?: 0)
-    }
-
-    fun save(item: VodItem, episodeId: String?, label: String?, positionMs: Long, durationMs: Long) {
-        if (durationMs <= 0) return
-        val p = Progress(positionMs, durationMs)
-        store.setObject("$positionMs|$durationMs", "np_vod_p_${episodeId?.let { "e:$it" } ?: item.key}")
-        val others = _resume.value.filterNot { it.item.key == item.key }
-        val list = (if (p.finished && episodeId == null) others else listOf(Resume(item, episodeId, label, p)) + others).take(30)
-        writeResume(list)
-    }
-
-    fun forget(item: VodItem) { writeResume(_resume.value.filterNot { it.item.key == item.key }) }
-
-    private fun writeResume(list: List<Resume>) {
-        _resume.value = list
-        store.setObject(list.joinToString(REC) { r ->
-            listOf(r.item.id, r.item.kind.name, r.item.name, r.item.categoryId, r.item.poster.orEmpty(), (r.item.year ?: 0).toString(),
-                r.item.container.orEmpty(), r.episodeId.orEmpty(), r.label.orEmpty(), r.progress.positionMs.toString(), r.progress.durationMs.toString()
-            ).joinToString(FLD)
-        }, KEY_RESUME)
-        store.synchronize()
-    }
-
-    private fun readResume(): List<Resume> = store.stringForKey(KEY_RESUME)?.split(REC)?.mapNotNull { line ->
-        val f = line.split(FLD)
-        if (f.size < 11) return@mapNotNull null
-        val kind = runCatching { VodKind.valueOf(f[1]) }.getOrNull() ?: return@mapNotNull null
-        Resume(
-            VodItem(f[0], kind, f[2], f[3], poster = f[4].ifBlank { null }, year = f[5].toIntOrNull()?.takeIf { it > 0 }, container = f[6].ifBlank { null }),
-            f[7].ifBlank { null }, f[8].ifBlank { null }, Progress(f[9].toLongOrNull() ?: 0, f[10].toLongOrNull() ?: 0)
-        )
-    }.orEmpty()
-
-    private companion object {
-        const val KEY_RESUME = "np_vod_resume"
-        const val REC = "\u001E"
-        const val FLD = "\u001F"
-    }
-}
-
 object VodApp {
     val library: VodLibrary by lazy { VodLibrary { LiveTvApp.controller.savedSource() } }
 }
@@ -236,6 +126,8 @@ internal fun ModeTabs(mode: Int, onMode: (Int) -> Unit, modifier: Modifier = Mod
 
 // ---------------------------------------------------------------- browsing
 
+private const val HOME = "__home"
+private const val MYLIST = "__mylist"
 private const val CONTINUE = "__continue"
 private const val RECENT = "__recent"
 private const val ALL = "__all"
@@ -249,14 +141,20 @@ internal fun OnDemandHome(kind: VodKind, mode: Int, onMode: (Int) -> Unit) {
     val resume by lib.resume.collectAsState()
     LaunchedEffect(kind) { lib.load(kind) }
     val continueItems = remember(resume, kind) { resume.filter { it.item.kind == kind } }
-    var category by remember(kind) { mutableStateOf(if (continueItems.isNotEmpty()) CONTINUE else ALL) }
+    val myList by lib.myList.collectAsState()
+    val mine = remember(myList, kind) { myList.filter { it.kind == kind } }
+    var category by remember(kind) { mutableStateOf(HOME) }
+    var manage by remember { mutableStateOf(false) }
+    var tmdbSheet by remember { mutableStateOf(false) }
     var query by remember(kind) { mutableStateOf("") }
     var opened by remember { mutableStateOf<VodItem?>(null) }
     var playback by remember { mutableStateOf<Playback?>(null) }
     val what = if (kind == VodKind.MOVIE) "movies" else "series"
 
     val entries = buildList {
+        add(HOME to "Home")
         if (continueItems.isNotEmpty()) add(CONTINUE to "Continue watching")
+        if (mine.isNotEmpty()) add(MYLIST to "My list")
         if (shelf.recent.isNotEmpty()) add(RECENT to "Recently added")
         add(ALL to "All $what")
         shelf.categories.forEach { add(it.id to it.name) }
@@ -266,7 +164,8 @@ internal fun OnDemandHome(kind: VodKind, mode: Int, onMode: (Int) -> Unit) {
         val wide = maxWidth >= 700.dp
         val grid: @Composable (Modifier) -> Unit = { m ->
             Box(m) {
-                VodGrid(lib, kind, shelf, category, query, continueItems, wide) { opened = it }
+                if (category == HOME && query.length < 2) VodHomeRows(lib, kind, shelf, continueItems, mine, wide, onOpen = { opened = it }, onPick = { category = it })
+                else VodGrid(lib, kind, shelf, category, query, continueItems, mine, wide) { opened = it }
             }
         }
         if (wide) {
@@ -287,6 +186,8 @@ internal fun OnDemandHome(kind: VodKind, mode: Int, onMode: (Int) -> Unit) {
                             )
                         }
                     }
+                    SideLink("Hide categories…") { manage = true }
+                    SideLink("Movie info (TMDB)…") { tmdbSheet = true }
                 }
                 Column(Modifier.weight(1f).fillMaxHeight().padding(16.dp)) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
@@ -312,6 +213,14 @@ internal fun OnDemandHome(kind: VodKind, mode: Int, onMode: (Int) -> Unit) {
                                 .clickable { category = id; query = "" }.padding(horizontal = 14.dp, vertical = 8.dp)
                         )
                     }
+                    item(key = "__manage") {
+                        Text("Hide categories", color = LiveColors.Dim, fontSize = 14.sp,
+                            modifier = Modifier.clip(RoundedCornerShape(20.dp)).background(LiveColors.Card).clickable { manage = true }.padding(horizontal = 14.dp, vertical = 8.dp))
+                    }
+                    item(key = "__tmdb") {
+                        Text("Movie info", color = LiveColors.Dim, fontSize = 14.sp,
+                            modifier = Modifier.clip(RoundedCornerShape(20.dp)).background(LiveColors.Card).clickable { tmdbSheet = true }.padding(horizontal = 14.dp, vertical = 8.dp))
+                    }
                 }
                 Box(Modifier.padding(horizontal = 12.dp, vertical = 8.dp)) { VodSearchField(query, "Search $what") { query = it } }
                 grid(Modifier.weight(1f).padding(horizontal = 12.dp))
@@ -319,7 +228,9 @@ internal fun OnDemandHome(kind: VodKind, mode: Int, onMode: (Int) -> Unit) {
         }
     }
 
-    opened?.let { item -> VodDetailsSheet(lib, item, onPlay = { playback = it }, onClose = { opened = null }) }
+    opened?.let { item -> VodDetailsSheet(lib, item, onPlay = { playback = it }, onOpen = { opened = it }, onClose = { opened = null }) }
+    if (manage) CategoryManagerSheet(lib, kind, onClose = { manage = false })
+    if (tmdbSheet) TmdbSheet(lib, onClose = { tmdbSheet = false })
     playback?.let { pb -> VodPlayerScreen(lib, pb, onNext = { playback = it }, onClose = { playback = null }) }
 }
 
@@ -345,7 +256,7 @@ private fun VodSearchField(query: String, hint: String, onChange: (String) -> Un
 @Composable
 private fun VodGrid(
     lib: VodLibrary, kind: VodKind, shelf: VodLibrary.Shelf, category: String, query: String,
-    continueItems: List<VodLibrary.Resume>, wide: Boolean, onOpen: (VodItem) -> Unit
+    continueItems: List<VodLibrary.Resume>, mine: List<VodItem>, wide: Boolean, onOpen: (VodItem) -> Unit
 ) {
     val full = shelf.items.isNotEmpty()
     val q = OnDemand.normalize(query)
@@ -357,6 +268,8 @@ private fun VodGrid(
             }
         }.value
         category == CONTINUE -> continueItems.map { it.item }
+        category == MYLIST -> mine
+        category == HOME -> if (full) shelf.items else null
         category == RECENT -> if (full) shelf.recent else null
         category == ALL -> if (full) shelf.items else null
         else -> produceState<List<VodItem>?>(null, category, full) {
@@ -400,7 +313,143 @@ private fun VodGrid(
                 }
                 Spacer(Modifier.height(5.dp))
                 Text(item.title, color = LiveColors.Text, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                item.year?.let { Text(it.toString(), color = LiveColors.Faint, fontSize = 11.sp) }
+                val note = if (category == CONTINUE) continueItems.firstOrNull { it.item.key == item.key }?.let { leftNote(it) } else null
+                (note ?: item.year?.toString())?.let { Text(it, color = LiveColors.Faint, fontSize = 11.sp, maxLines = 1, overflow = TextOverflow.Ellipsis) }
+            }
+        }
+    }
+}
+
+/** "S2 E4 · 23 min left" for a Continue card. */
+private fun leftNote(r: VodLibrary.Resume): String {
+    val left = ((r.progress.durationMs - r.progress.positionMs) / 60_000).coerceAtLeast(1)
+    val ep = r.label?.substringBefore(" · ")
+    return listOfNotNull(ep, "$left min left").joinToString(" · ")
+}
+
+@Composable
+private fun SideLink(text: String, onClick: () -> Unit) {
+    Text(text, color = LiveColors.Dim, fontSize = 13.sp, modifier = Modifier.fillMaxWidth().clickable(onClick = onClick).padding(horizontal = 20.dp, vertical = 8.dp))
+}
+
+// ---------------------------------------------------------------- the Home page
+
+@Composable
+private fun VodHomeRows(
+    lib: VodLibrary, kind: VodKind, shelf: VodLibrary.Shelf, continueItems: List<VodLibrary.Resume>, mine: List<VodItem>, wide: Boolean,
+    onOpen: (VodItem) -> Unit, onPick: (String) -> Unit
+) {
+    val rows = shelf.rows
+    if (rows == null) {
+        Column(Modifier.fillMaxSize(), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
+            val err = shelf.error
+            if (err != null && !shelf.loading) {
+                Text(err, color = LiveColors.Dim, fontSize = 15.sp)
+                Spacer(Modifier.height(12.dp))
+                PillButton("Try again") { lib.load(kind, force = true) }
+            } else {
+                Text("Loading ${if (kind == VodKind.MOVIE) "movies" else "series"}…", color = LiveColors.Dim, fontSize = 15.sp)
+                if (shelf.count > 0) Text("${shelf.count} titles so far", color = LiveColors.Faint, fontSize = 13.sp)
+            }
+        }
+        return
+    }
+    // "Because you watched": TMDB's suggestions for the last thing you watched, when a key is set.
+    val last = continueItems.firstOrNull()?.item ?: mine.firstOrNull()
+    val because by produceState<List<VodItem>>(emptyList(), last?.key, shelf.items.size) {
+        value = if (last == null || lib.tmdbKey == null) emptyList()
+        else runCatching { lib.extra(last, null)?.let { lib.related(it, last) }.orEmpty() }.getOrDefault(emptyList())
+    }
+    val hero = rows.top.firstOrNull() ?: rows.recent.firstOrNull()
+    val cardW = if (wide) 132.dp else 104.dp
+    LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = 30.dp), verticalArrangement = Arrangement.spacedBy(18.dp)) {
+        hero?.let { h ->
+            item(key = "hero") {
+                Box(Modifier.fillMaxWidth().height(if (wide) 260.dp else 190.dp).clip(RoundedCornerShape(16.dp)).background(LiveColors.Card).clickable { onOpen(h) }) {
+                    if (!h.poster.isNullOrBlank()) AsyncImage(model = h.poster, contentDescription = null, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
+                    Box(Modifier.fillMaxSize().background(Brush.horizontalGradient(listOf(LiveColors.Background.copy(alpha = 0.92f), Color.Transparent))))
+                    Column(Modifier.align(Alignment.BottomStart).padding(18.dp).widthIn(max = 420.dp)) {
+                        Text(if (rows.top.isNotEmpty()) "TOP PICK" else "NEW", color = LiveColors.Accent, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                        Text(h.title, color = LiveColors.Text, fontSize = 24.sp, fontWeight = FontWeight.ExtraBold, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                        val facts = listOfNotNull(h.year?.toString(), h.rating?.let { "★ " + ((it * 10).toInt() / 10.0) }).joinToString("  ·  ")
+                        if (facts.isNotBlank()) Text(facts, color = LiveColors.Dim, fontSize = 13.sp)
+                        Spacer(Modifier.height(10.dp))
+                        PillButton("Details", icon = Icons.Default.PlayArrow) { onOpen(h) }
+                    }
+                }
+            }
+        }
+        if (continueItems.isNotEmpty()) item(key = "cont") {
+            HomeRow("Continue watching", continueItems.map { it.item }, cardW, notes = continueItems.associate { it.item.key to leftNote(it) },
+                progress = continueItems.associate { it.item.key to it.progress.fraction }, onMore = { onPick(CONTINUE) }, onOpen = onOpen)
+        }
+        if (mine.isNotEmpty()) item(key = "mine") { HomeRow("My list", mine, cardW, onMore = { onPick(MYLIST) }, onOpen = onOpen) }
+        if (because.isNotEmpty() && last != null) item(key = "because") { HomeRow("Because you watched ${last.title}", because, cardW, onOpen = onOpen) }
+        if (rows.top.isNotEmpty()) item(key = "top") { TopTenRow(rows.top, if (wide) 120.dp else 96.dp, onOpen) }
+        if (rows.recent.isNotEmpty()) item(key = "recent") { HomeRow("Recently added", rows.recent, cardW, onMore = { onPick(RECENT) }, onOpen = onOpen) }
+        if (rows.family.isNotEmpty()) item(key = "family") { HomeRow("Family time", rows.family, cardW, onOpen = onOpen) }
+        if (rows.rated.isNotEmpty()) item(key = "rated") { HomeRow("Highly rated", rows.rated, cardW, onOpen = onOpen) }
+        rows.biggest.forEachIndexed { i, (name, list) ->
+            item(key = "big$i") {
+                val id = shelf.categories.firstOrNull { it.name == name }?.id
+                HomeRow(name, list, cardW, onMore = id?.let { { onPick(it) } }, onOpen = onOpen)
+            }
+        }
+    }
+}
+
+@Composable
+private fun HomeRow(
+    title: String, items: List<VodItem>, cardW: androidx.compose.ui.unit.Dp,
+    notes: Map<String, String> = emptyMap(), progress: Map<String, Float> = emptyMap(),
+    onMore: (() -> Unit)? = null, onOpen: (VodItem) -> Unit
+) {
+    Column {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(title, color = LiveColors.Text, fontSize = 17.sp, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
+            if (onMore != null) Text("See all", color = LiveColors.Accent, fontSize = 13.sp, modifier = Modifier.clickable(onClick = onMore).padding(6.dp))
+        }
+        Spacer(Modifier.height(8.dp))
+        LazyRow(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            items(items.size, key = { items[it].key }) { i ->
+                val item = items[i]
+                Column(Modifier.width(cardW).clickable { onOpen(item) }) {
+                    Box(Modifier.fillMaxWidth().aspectRatio(2f / 3f).clip(RoundedCornerShape(10.dp)).background(LiveColors.Card), contentAlignment = Alignment.Center) {
+                        Text(item.title, color = LiveColors.Dim, fontSize = 12.sp, maxLines = 4, modifier = Modifier.padding(8.dp))
+                        if (!item.poster.isNullOrBlank()) AsyncImage(model = item.poster, contentDescription = null, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
+                        progress[item.key]?.let { f -> Box(Modifier.fillMaxSize().padding(6.dp), contentAlignment = Alignment.BottomCenter) { Bar(f, Modifier.fillMaxWidth()) } }
+                    }
+                    Spacer(Modifier.height(5.dp))
+                    Text(item.title, color = LiveColors.Text, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    (notes[item.key] ?: item.year?.toString())?.let { Text(it, color = LiveColors.Faint, fontSize = 11.sp, maxLines = 1, overflow = TextOverflow.Ellipsis) }
+                }
+            }
+        }
+    }
+}
+
+/** Top 10 with big outlined numbers beside the posters. */
+@Composable
+private fun TopTenRow(items: List<VodItem>, cardW: androidx.compose.ui.unit.Dp, onOpen: (VodItem) -> Unit) {
+    Column {
+        Text("Top 10", color = LiveColors.Text, fontSize = 17.sp, fontWeight = FontWeight.Bold)
+        Spacer(Modifier.height(8.dp))
+        LazyRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            items(items.size, key = { items[it].key }) { i ->
+                val item = items[i]
+                Row(Modifier.clickable { onOpen(item) }, verticalAlignment = Alignment.Bottom) {
+                    Text(
+                        "${i + 1}", fontSize = 72.sp, fontWeight = FontWeight.Black, color = LiveColors.Dim,
+                        style = androidx.compose.ui.text.TextStyle(
+                            drawStyle = androidx.compose.ui.graphics.drawscope.Stroke(width = 4f)
+                        ),
+                        modifier = Modifier.padding(end = 2.dp)
+                    )
+                    Box(Modifier.width(cardW).aspectRatio(2f / 3f).clip(RoundedCornerShape(10.dp)).background(LiveColors.Card), contentAlignment = Alignment.Center) {
+                        Text(item.title, color = LiveColors.Dim, fontSize = 12.sp, maxLines = 4, modifier = Modifier.padding(8.dp))
+                        if (!item.poster.isNullOrBlank()) AsyncImage(model = item.poster, contentDescription = null, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
+                    }
+                }
             }
         }
     }
@@ -423,8 +472,21 @@ private fun timeText(ms: Long): String {
 // ---------------------------------------------------------------- details
 
 @Composable
-private fun VodDetailsSheet(lib: VodLibrary, item: VodItem, onPlay: (Playback) -> Unit, onClose: () -> Unit) {
+private fun VodDetailsSheet(lib: VodLibrary, item: VodItem, onPlay: (Playback) -> Unit, onOpen: (VodItem) -> Unit, onClose: () -> Unit) {
     val details by produceState<VodDetails?>(null, item.key) { value = lib.details(item) }
+    // Optional extras from TMDB, only with the user's own key.
+    var loadedDetails by remember(item.key) { mutableStateOf(false) }
+    LaunchedEffect(details) { if (details != null) loadedDetails = true }
+    val extra by produceState<TmdbInfo?>(null, item.key, loadedDetails) {
+        if (lib.tmdbKey == null) return@produceState
+        if (!loadedDetails) delay(4_000)
+        value = lib.extra(item, details)
+    }
+    val related by produceState<List<VodItem>>(emptyList(), extra) { value = extra?.let { lib.related(it, item) }.orEmpty() }
+    val myList by lib.myList.collectAsState()
+    val inList = myList.any { it.key == item.key }
+    // Back from a "More like this" title returns here.
+    val history = remember { mutableListOf<VodItem>() }
     var waited by remember(item.key) { mutableStateOf(false) }
     LaunchedEffect(item.key) { delay(15_000); waited = true }
     val resume by lib.resume.collectAsState()
@@ -433,10 +495,10 @@ private fun VodDetailsSheet(lib: VodLibrary, item: VodItem, onPlay: (Playback) -
     var season by remember(item.key) { mutableStateOf<Int?>(null) }
 
     Box(Modifier.fillMaxSize().background(LiveColors.Background).pointerInput(Unit) { detectTapGestures { } }) {
-        d?.backdrop?.let { AsyncImage(model = it, contentDescription = null, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxWidth().height(320.dp)) }
+        (d?.backdrop ?: extra?.backdrop)?.let { AsyncImage(model = it, contentDescription = null, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxWidth().height(320.dp)) }
         Box(Modifier.fillMaxWidth().height(320.dp).background(Brush.verticalGradient(listOf(LiveColors.Background.copy(alpha = 0.35f), LiveColors.Background))))
         Column(Modifier.fillMaxSize().statusBarsPadding().verticalScroll(rememberScrollState()).padding(horizontal = 20.dp)) {
-            IconButton(onClick = onClose) {
+            IconButton(onClick = { history.removeLastOrNull()?.let(onOpen) ?: onClose() }) {
                 Box(Modifier.size(40.dp).clip(RoundedCornerShape(20.dp)).background(Color.Black.copy(alpha = 0.45f)), contentAlignment = Alignment.Center) {
                     Icon(Icons.Default.ArrowBack, "Back", tint = Color.White)
                 }
@@ -444,15 +506,17 @@ private fun VodDetailsSheet(lib: VodLibrary, item: VodItem, onPlay: (Playback) -
             Spacer(Modifier.height(90.dp))
             Row(verticalAlignment = Alignment.Bottom) {
                 Box(Modifier.width(120.dp).aspectRatio(2f / 3f).clip(RoundedCornerShape(10.dp)).background(LiveColors.Card)) {
-                    if (!it2.poster.isNullOrBlank()) AsyncImage(model = it2.poster, contentDescription = null, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
+                    (it2.poster?.takeIf { p -> p.isNotBlank() } ?: extra?.poster)?.let { p -> AsyncImage(model = p, contentDescription = null, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize()) }
                 }
                 Spacer(Modifier.width(16.dp))
                 Column(Modifier.weight(1f)) {
                     Text(it2.title, color = LiveColors.Text, fontSize = 24.sp, fontWeight = FontWeight.ExtraBold, maxLines = 3, overflow = TextOverflow.Ellipsis)
                     val facts = listOfNotNull(
-                        it2.year?.toString() ?: d?.releaseDate?.take(4), d?.genre,
-                        d?.durationSecs?.takeIf { s -> s > 0 }?.let { s -> if (s >= 3600) "${s / 3600}h ${(s % 3600) / 60}m" else "${s / 60}m" },
-                        it2.rating?.let { r -> "★ " + ((r * 10).toInt() / 10.0) },
+                        it2.year?.toString() ?: d?.releaseDate?.take(4) ?: extra?.year?.toString(),
+                        d?.genre ?: extra?.genres?.take(3)?.joinToString(", ")?.ifBlank { null },
+                        d?.durationSecs?.takeIf { s -> s > 0 }?.let { s -> if (s >= 3600) "${s / 3600}h ${(s % 3600) / 60}m" else "${s / 60}m" }
+                            ?: extra?.runtimeMin?.takeIf { m -> m > 0 }?.let { m -> if (m >= 60) "${m / 60}h ${m % 60}m" else "${m}m" },
+                        (it2.rating ?: extra?.rating)?.let { r -> "★ " + ((r * 10).toInt() / 10.0) },
                         d?.seasons?.size?.takeIf { n -> n > 0 }?.let { n -> if (n == 1) "1 season" else "$n seasons" }
                     ).joinToString("  ·  ")
                     if (facts.isNotBlank()) Text(facts, color = LiveColors.Dim, fontSize = 13.sp)
@@ -473,10 +537,37 @@ private fun VodDetailsSheet(lib: VodLibrary, item: VodItem, onPlay: (Playback) -
                     Text("Remove from Continue watching", color = LiveColors.Faint, fontSize = 13.sp, modifier = Modifier.clickable { lib.forget(item) }.padding(vertical = 6.dp))
                 }
             }
+            Spacer(Modifier.height(10.dp))
+            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                PillButton(if (inList) "In my list" else "My list", primary = false, icon = if (inList) Icons.Default.Check else Icons.Default.Add) { lib.toggleMyList(it2) }
+                (d?.trailerYouTubeId ?: extra?.trailerYouTubeId)?.takeIf { t -> t.isNotBlank() }?.let { t ->
+                    PillButton("Trailer", primary = false, icon = Icons.Default.PlayArrow) {
+                        NSURL.URLWithString("https://www.youtube.com/watch?v=$t")?.let { u -> UIApplication.sharedApplication.openURL(u, emptyMap<Any?, Any?>(), null) }
+                    }
+                }
+            }
             Spacer(Modifier.height(14.dp))
-            Text(d?.plot ?: if (!waited && d == null) "Loading details…" else "No description from the provider.", color = LiveColors.Text, fontSize = 15.sp,
+            Text(d?.plot?.takeIf { t -> t.isNotBlank() } ?: extra?.overview ?: if (!waited && d == null) "Loading details…" else "No description from the provider.", color = LiveColors.Text, fontSize = 15.sp,
                 modifier = Modifier.widthIn(max = 760.dp))
-            d?.cast?.let { Spacer(Modifier.height(6.dp)); Text("With $it", color = LiveColors.Faint, fontSize = 13.sp, maxLines = 2, overflow = TextOverflow.Ellipsis) }
+            val people = extra?.cast.orEmpty()
+            if (people.isNotEmpty()) {
+                Spacer(Modifier.height(14.dp))
+                Text("Cast", color = LiveColors.Text, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                Spacer(Modifier.height(8.dp))
+                LazyRow(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    items(people.size) { i ->
+                        val c = people[i]
+                        Column(Modifier.width(78.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                            Box(Modifier.size(64.dp).clip(RoundedCornerShape(32.dp)).background(LiveColors.Card), contentAlignment = Alignment.Center) {
+                                Text(c.name.split(' ').mapNotNull { w -> w.firstOrNull()?.toString() }.take(2).joinToString(""), color = LiveColors.Dim, fontSize = 16.sp)
+                                c.photo?.let { ph -> AsyncImage(model = ph, contentDescription = null, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize()) }
+                            }
+                            Text(c.name, color = LiveColors.Text, fontSize = 12.sp, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                            c.character?.let { ch -> Text(ch, color = LiveColors.Faint, fontSize = 11.sp, maxLines = 1, overflow = TextOverflow.Ellipsis) }
+                        }
+                    }
+                }
+            } else d?.cast?.let { Spacer(Modifier.height(6.dp)); Text("With $it", color = LiveColors.Faint, fontSize = 13.sp, maxLines = 2, overflow = TextOverflow.Ellipsis) }
             Spacer(Modifier.height(18.dp))
 
             if (item.kind == VodKind.SERIES && d != null) {
@@ -531,6 +622,10 @@ private fun VodDetailsSheet(lib: VodLibrary, item: VodItem, onPlay: (Playback) -
             } else if (item.kind == VodKind.SERIES) {
                 Text(if (waited) "Couldn't load the episodes. Go back and try again." else "Loading episodes…", color = LiveColors.Dim, fontSize = 14.sp)
             }
+            if (related.isNotEmpty()) {
+                Spacer(Modifier.height(20.dp))
+                HomeRow("More like this", related, 104.dp) { r -> history.add(item); onOpen(r) }
+            }
             Spacer(Modifier.height(40.dp))
         }
     }
@@ -551,14 +646,19 @@ private fun VodPlayerScreen(lib: VodLibrary, pb: Playback, onNext: (Playback) ->
     var kick by remember { mutableStateOf(0) }
     var dragging by remember { mutableStateOf<Float?>(null) }
     var tracks by remember { mutableStateOf(false) }
-    val scope = rememberCoroutineScope()
     fun save() = lib.save(pb.item, pb.episode?.id, label, (player.position() * 1000).toLong(), (player.duration() * 1000).toLong())
+    var episodes by remember { mutableStateOf(false) }
+    var skipNext by remember(pb) { mutableStateOf(false) }
+    val nextEp = remember(pb) { pb.details?.episodes?.let { eps -> pb.episode?.let { e -> eps.getOrNull(eps.indexOf(e) + 1) } } }
+    fun playNext() { val n = nextEp ?: return; lib.episodeUrl(n)?.let { u -> save(); onNext(pb.copy(episode = n, url = u, startMs = 0)) } }
+    val scope = rememberCoroutineScope()
 
     DisposableEffect(player) {
         LiveTvApp.setFullScreen(true)
         // One stream: Live TV lets go first.
         LiveTvApp.controller.setVisible(false)
         player.playFrom(pb.url, emptyMap(), pb.startMs / 1000.0)
+        SubtitleLook.apply(player)
         onDispose {
             if (player.position() > 5) save()
             player.stop(); player.close()
@@ -573,14 +673,13 @@ private fun VodPlayerScreen(lib: VodLibrary, pb: Playback, onNext: (Playback) ->
             if (++ticks % 20 == 0 && !paused && status == "playing") save()
             if (status == "ended") {
                 save()
-                val next = pb.details?.episodes?.let { eps -> pb.episode?.let { e -> eps.getOrNull(eps.indexOf(e) + 1) } }
-                val u = next?.let { lib.episodeUrl(it) }
-                if (next != null && u != null) onNext(pb.copy(episode = next, url = u, startMs = 0)) else onClose()
+                val u = nextEp?.let { lib.episodeUrl(it) }
+                if (nextEp != null && u != null && !skipNext) onNext(pb.copy(episode = nextEp, url = u, startMs = 0)) else onClose()
                 break
             }
         }
     }
-    LaunchedEffect(controls, kick, paused) { if (controls && !paused && !tracks) { delay(4_000); controls = false } }
+    LaunchedEffect(controls, kick, paused) { if (controls && !paused && !tracks && !episodes) { delay(4_000); controls = false } }
 
     Box(Modifier.fillMaxSize().background(Color.Black).pointerInput(Unit) { detectTapGestures(onTap = { controls = !controls; kick++ }) }) {
         PlayerSurface(player, Modifier.fillMaxSize())
@@ -598,9 +697,16 @@ private fun VodPlayerScreen(lib: VodLibrary, pb: Playback, onNext: (Playback) ->
                         Icon(Icons.Default.Close, "Close", tint = Color.White)
                     }
                 }
-                IconButton(onClick = { tracks = true; kick++ }, modifier = Modifier.align(Alignment.TopEnd).statusBarsPadding().padding(8.dp)) {
-                    Box(Modifier.size(40.dp).clip(RoundedCornerShape(20.dp)).background(Color.Black.copy(alpha = 0.45f)), contentAlignment = Alignment.Center) {
-                        Icon(Icons.Default.Subtitles, "Sound and subtitles", tint = Color.White)
+                Row(Modifier.align(Alignment.TopEnd).statusBarsPadding().padding(8.dp)) {
+                    if (pb.episode != null && !pb.details?.episodes.isNullOrEmpty()) IconButton(onClick = { episodes = true; kick++ }) {
+                        Box(Modifier.size(40.dp).clip(RoundedCornerShape(20.dp)).background(Color.Black.copy(alpha = 0.45f)), contentAlignment = Alignment.Center) {
+                            Icon(Icons.Default.List, "Episodes", tint = Color.White)
+                        }
+                    }
+                    IconButton(onClick = { tracks = true; kick++ }) {
+                        Box(Modifier.size(40.dp).clip(RoundedCornerShape(20.dp)).background(Color.Black.copy(alpha = 0.45f)), contentAlignment = Alignment.Center) {
+                            Icon(Icons.Default.Subtitles, "Sound and subtitles", tint = Color.White)
+                        }
                     }
                 }
                 Row(Modifier.align(Alignment.Center), horizontalArrangement = Arrangement.spacedBy(36.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -626,7 +732,25 @@ private fun VodPlayerScreen(lib: VodLibrary, pb: Playback, onNext: (Playback) ->
                 }
             }
         }
+        // Next episode in the last 30 seconds.
+        val left = dur - pos
+        if (nextEp != null && !skipNext && dur > 120 && left in 0.5..30.0 && status == "playing") {
+            Column(
+                Modifier.align(Alignment.BottomEnd).padding(24.dp).clip(RoundedCornerShape(16.dp)).background(LiveColors.Panel.copy(alpha = 0.95f)).padding(16.dp).widthIn(max = 320.dp)
+            ) {
+                Text("Next episode in ${left.toInt()} s", color = LiveColors.Faint, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                Text("S${nextEp.season} E${nextEp.episode} · ${nextEp.title}", color = LiveColors.Text, fontSize = 15.sp, fontWeight = FontWeight.SemiBold, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                Spacer(Modifier.height(10.dp))
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    PillButton("Play now", icon = Icons.Default.SkipNext) { playNext() }
+                    PillButton("Cancel", primary = false) { skipNext = true }
+                }
+            }
+        }
         if (tracks) TrackSheet(player, onClose = { tracks = false; kick++ })
+        if (episodes) pb.details?.let { d ->
+            EpisodeSheet(lib, d, pb.episode, onPick = { e -> lib.episodeUrl(e)?.let { u -> save(); episodes = false; onNext(pb.copy(episode = e, url = u, startMs = 0)) } }, onClose = { episodes = false; kick++ })
+        }
     }
 }
 
@@ -657,6 +781,25 @@ private fun TrackSheet(player: LivePlayer, onClose: () -> Unit) {
             Text("SUBTITLES", color = LiveColors.Faint, fontSize = 12.sp, fontWeight = FontWeight.Bold)
             TrackRow("Off", subs.none { it.third }) { player.selectTrack("sub", "no"); tick++ }
             subs.forEach { (id, name, on) -> TrackRow(name, on) { player.selectTrack("sub", id); tick++ } }
+            if (subs.isNotEmpty()) {
+                Spacer(Modifier.height(10.dp))
+                Text("SUBTITLE SIZE", color = LiveColors.Faint, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(vertical = 8.dp)) {
+                    listOf("Small" to 0.8, "Normal" to 1.0, "Large" to 1.3, "Huge" to 1.6).forEach { (n, v) ->
+                        val on = SubtitleLook.scale == v
+                        Text(n, color = if (on) LiveColors.Background else LiveColors.Text, fontSize = 14.sp,
+                            modifier = Modifier.clip(RoundedCornerShape(18.dp)).background(if (on) LiveColors.Text else LiveColors.Card)
+                                .clickable { SubtitleLook.scale = v; SubtitleLook.apply(player); tick++ }.padding(horizontal = 12.dp, vertical = 7.dp))
+                    }
+                }
+                Text("SUBTITLE TIMING", color = LiveColors.Faint, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.padding(vertical = 8.dp)) {
+                    PillButton("− 0.5 s", primary = false) { SubtitleLook.delay -= 0.5; SubtitleLook.apply(player); tick++ }
+                    Text((if (SubtitleLook.delay > 0) "+" else "") + SubtitleLook.delay + " s", color = LiveColors.Text, fontSize = 15.sp)
+                    PillButton("+ 0.5 s", primary = false) { SubtitleLook.delay += 0.5; SubtitleLook.apply(player); tick++ }
+                    if (SubtitleLook.delay != 0.0) Text("Reset", color = LiveColors.Accent, fontSize = 13.sp, modifier = Modifier.clickable { SubtitleLook.delay = 0.0; SubtitleLook.apply(player); tick++ })
+                }
+            }
             Spacer(Modifier.height(10.dp))
             PillButton("Done") { onClose() }
             Spacer(Modifier.height(12.dp))
@@ -671,4 +814,159 @@ private fun TrackRow(name: String, on: Boolean, onClick: () -> Unit) {
         fontWeight = if (on) FontWeight.Bold else FontWeight.Normal,
         modifier = Modifier.fillMaxWidth().clickable(onClick = onClick).padding(vertical = 10.dp)
     )
+}
+
+/** Subtitle size (kept) and timing (this title only). */
+private object SubtitleLook {
+    var scale: Double
+        get() = NSUserDefaults.standardUserDefaults.doubleForKey("np_sub_scale").takeIf { it > 0 } ?: 1.0
+        set(v) = NSUserDefaults.standardUserDefaults.setDouble(v, "np_sub_scale")
+    var delay = 0.0
+    fun apply(player: LivePlayer) {
+        player.setOption("sub-scale", scale.toString())
+        player.setOption("sub-delay", delay.toString())
+    }
+}
+
+@Composable
+private fun EpisodeSheet(lib: VodLibrary, d: VodDetails, current: VodEpisode?, onPick: (VodEpisode) -> Unit, onClose: () -> Unit) {
+    var season by remember { mutableStateOf(current?.season ?: d.seasons.firstOrNull() ?: 1) }
+    Box(Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.5f)).pointerInput(Unit) { detectTapGestures(onTap = { onClose() }) }, contentAlignment = Alignment.CenterEnd) {
+        Column(
+            Modifier.fillMaxHeight().width(360.dp).background(LiveColors.Panel).pointerInput(Unit) { detectTapGestures { } }.statusBarsPadding().padding(16.dp)
+        ) {
+            Text("Episodes", color = LiveColors.Text, fontSize = 18.sp, fontWeight = FontWeight.Bold)
+            if (d.seasons.size > 1) {
+                Spacer(Modifier.height(8.dp))
+                LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    items(d.seasons.size) { i ->
+                        val s = d.seasons[i]; val on = s == season
+                        Text("Season $s", color = if (on) LiveColors.Background else LiveColors.Text, fontSize = 13.sp,
+                            modifier = Modifier.clip(RoundedCornerShape(18.dp)).background(if (on) LiveColors.Text else LiveColors.Card).clickable { season = s }.padding(horizontal = 12.dp, vertical = 6.dp))
+                    }
+                }
+            }
+            Spacer(Modifier.height(8.dp))
+            val eps = d.episodes.filter { it.season == season }
+            LazyColumn(Modifier.weight(1f)) {
+                items(eps.size, key = { eps[it].id }) { i ->
+                    val e = eps[i]
+                    val p = lib.progress("e:${e.id}")
+                    val now = e.id == current?.id
+                    Row(
+                        Modifier.fillMaxWidth().padding(vertical = 3.dp).clip(RoundedCornerShape(10.dp)).background(if (now) LiveColors.Card else Color.Transparent)
+                            .clickable { if (!now) onPick(e) }.padding(10.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text("${e.episode}", color = if (now) LiveColors.Accent else LiveColors.Faint, fontSize = 14.sp, fontWeight = FontWeight.Bold, modifier = Modifier.width(30.dp))
+                        Column(Modifier.weight(1f)) {
+                            Text(e.title, color = LiveColors.Text, fontSize = 14.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                            val sub = if (now) "Playing" else p?.let { if (it.finished) "Watched" else "Stopped at ${timeText(it.positionMs)}" }
+                            sub?.let { Text(it, color = LiveColors.Faint, fontSize = 11.sp) }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+// ---------------------------------------------------------------- hiding categories
+
+@Composable
+private fun CategoryManagerSheet(lib: VodLibrary, kind: VodKind, onClose: () -> Unit) {
+    val all = remember { lib.allCategories(kind) }
+    val counts = remember { lib.counts(kind) }
+    var hidden by remember { mutableStateOf(lib.hidden(kind)) }
+    val byTag = remember(all) { all.groupBy { OnDemand.categoryTag(it.name) }.filterKeys { it != null }.mapKeys { it.key!! }.toList().sortedByDescending { it.second.size } }
+    fun set(ids: Set<String>) { hidden = ids; lib.setHidden(kind, ids) }
+    Box(Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.5f)).pointerInput(Unit) { detectTapGestures(onTap = { onClose() }) }, contentAlignment = Alignment.BottomCenter) {
+        Column(
+            Modifier.fillMaxWidth().widthIn(max = 720.dp).fillMaxHeight(0.85f).clip(RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp)).background(LiveColors.Panel)
+                .pointerInput(Unit) { detectTapGestures { } }.padding(20.dp)
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text("Show or hide categories", color = LiveColors.Text, fontSize = 18.sp, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
+                PillButton("Done") { onClose() }
+            }
+            Text("Hidden ones are left out of Home, Top 10, search and More like this.", color = LiveColors.Dim, fontSize = 13.sp)
+            if (all.isEmpty()) {
+                Spacer(Modifier.height(20.dp))
+                Text("The list is still loading. Try again in a moment.", color = LiveColors.Dim, fontSize = 14.sp)
+                return@Column
+            }
+            if (byTag.isNotEmpty()) {
+                Spacer(Modifier.height(12.dp))
+                Text("BY LANGUAGE (tap to hide or show all)", color = LiveColors.Faint, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                Spacer(Modifier.height(6.dp))
+                LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    items(byTag.size, key = { byTag[it].first }) { i ->
+                        val (tag, cats) = byTag[i]
+                        val ids = cats.map { it.id }.toSet()
+                        val off = hidden.containsAll(ids)
+                        Text((if (off) "✕ " else "") + "$tag · ${cats.size}", color = if (off) LiveColors.Faint else LiveColors.Background, fontSize = 13.sp, fontWeight = FontWeight.SemiBold,
+                            modifier = Modifier.clip(RoundedCornerShape(18.dp)).background(if (off) LiveColors.Card else LiveColors.Text)
+                                .clickable { set(if (off) hidden - ids else hidden + ids) }.padding(horizontal = 12.dp, vertical = 7.dp))
+                    }
+                }
+            }
+            Spacer(Modifier.height(10.dp))
+            Row(horizontalArrangement = Arrangement.spacedBy(14.dp)) {
+                Text("Show all", color = LiveColors.Accent, fontSize = 13.sp, modifier = Modifier.clickable { set(emptySet()) }.padding(vertical = 6.dp))
+                Text("Hide all", color = LiveColors.Accent, fontSize = 13.sp, modifier = Modifier.clickable { set(all.map { it.id }.toSet()) }.padding(vertical = 6.dp))
+                Text("${hidden.size} hidden", color = LiveColors.Faint, fontSize = 13.sp, modifier = Modifier.padding(vertical = 6.dp))
+            }
+            LazyColumn(Modifier.weight(1f)) {
+                items(all.size, key = { all[it].id }) { i ->
+                    val c = all[i]
+                    val on = c.id !in hidden
+                    Row(Modifier.fillMaxWidth().clickable { set(if (on) hidden + c.id else hidden - c.id) }.padding(vertical = 9.dp), verticalAlignment = Alignment.CenterVertically) {
+                        Box(Modifier.size(22.dp).clip(RoundedCornerShape(6.dp)).background(if (on) LiveColors.Accent else LiveColors.Card), contentAlignment = Alignment.Center) {
+                            if (on) Icon(Icons.Default.Check, null, tint = LiveColors.Background, modifier = Modifier.size(16.dp))
+                        }
+                        Spacer(Modifier.width(12.dp))
+                        Text(c.name, color = if (on) LiveColors.Text else LiveColors.Faint, fontSize = 15.sp, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
+                        counts[c.id]?.let { Text("$it", color = LiveColors.Faint, fontSize = 12.sp) }
+                    }
+                }
+            }
+        }
+    }
+}
+
+// ---------------------------------------------------------------- TMDB key
+
+@Composable
+private fun TmdbSheet(lib: VodLibrary, onClose: () -> Unit) {
+    var key by remember { mutableStateOf(lib.tmdbKey.orEmpty()) }
+    var note by remember { mutableStateOf<String?>(if (lib.tmdbKey != null) "A key is saved." else null) }
+    var busy by remember { mutableStateOf(false) }
+    val scope = rememberCoroutineScope()
+    Box(Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.5f)).pointerInput(Unit) { detectTapGestures(onTap = { onClose() }) }, contentAlignment = Alignment.Center) {
+        Column(
+            Modifier.widthIn(max = 520.dp).padding(20.dp).clip(RoundedCornerShape(20.dp)).background(LiveColors.Panel).pointerInput(Unit) { detectTapGestures { } }.padding(22.dp)
+        ) {
+            Text("Movie info (optional)", color = LiveColors.Text, fontSize = 18.sp, fontWeight = FontWeight.Bold)
+            Spacer(Modifier.height(6.dp))
+            Text("With your own free TMDB key, details pages get descriptions, cast photos, trailers and \"More like this\". Get one at themoviedb.org › Settings › API.",
+                color = LiveColors.Dim, fontSize = 13.sp)
+            Spacer(Modifier.height(14.dp))
+            VodSearchField(key, "TMDB API key or read access token") { key = it.trim() }
+            note?.let { Spacer(Modifier.height(8.dp)); Text(it, color = LiveColors.Faint, fontSize = 13.sp) }
+            Spacer(Modifier.height(14.dp))
+            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                PillButton(if (busy) "Checking…" else "Check & save") {
+                    if (busy || key.isBlank()) return@PillButton
+                    busy = true
+                    scope.launch {
+                        val ok = runCatching { lib.checkTmdb(key) }.getOrDefault(false)
+                        busy = false
+                        if (ok) { lib.tmdbKey = key; note = "Saved. Details pages now show more." } else note = "That key didn't work. Check it and try again."
+                    }
+                }
+                if (lib.tmdbKey != null) PillButton("Remove", primary = false) { lib.tmdbKey = null; key = ""; note = "Removed." }
+                PillButton("Close", primary = false) { onClose() }
+            }
+        }
+    }
 }

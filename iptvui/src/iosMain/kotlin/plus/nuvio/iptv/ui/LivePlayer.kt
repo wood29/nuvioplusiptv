@@ -36,6 +36,8 @@ interface LivePlayer {
     fun tracks(type: String): String
     /** "audio" or "sub"; id "no" turns subtitles off. */
     fun selectTrack(type: String, id: String)
+    /** An mpv setting, e.g. "sub-delay" = "1.5" or "sub-scale" = "1.25". */
+    fun setOption(name: String, value: String)
 }
 
 interface LivePlayerCreator {

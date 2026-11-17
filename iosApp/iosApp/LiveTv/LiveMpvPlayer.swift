@@ -116,6 +116,10 @@ final class LiveMpvPlayer: NSObject, LivePlayer {
         return lines.joined(separator: "\n")
     }
 
+    func setOption(name: String, value: String) {
+        setString(name, value)
+    }
+
     func selectTrack(type: String, id: String) {
         setString(type == "audio" ? "aid" : "sid", id)
     }
