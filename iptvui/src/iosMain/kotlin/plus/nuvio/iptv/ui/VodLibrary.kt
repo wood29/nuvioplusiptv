@@ -21,7 +21,6 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import platform.Foundation.NSCachesDirectory
-import platform.Foundation.NSDate
 import platform.Foundation.NSFileManager
 import platform.Foundation.NSString
 import platform.Foundation.NSURL
@@ -30,7 +29,6 @@ import platform.Foundation.NSUserDefaults
 import platform.Foundation.NSUserDomainMask
 import platform.Foundation.create
 import platform.Foundation.stringWithContentsOfFile
-import platform.Foundation.timeIntervalSince1970
 import platform.Foundation.writeToFile
 import plus.nuvio.iptv.OnDemand
 import plus.nuvio.iptv.Source
@@ -42,7 +40,6 @@ import plus.nuvio.iptv.VodEpisode
 import plus.nuvio.iptv.VodItem
 import plus.nuvio.iptv.VodKind
 
-internal fun nowMs(): Long = (NSDate().timeIntervalSince1970 * 1000).toLong()
 
 /** Movies and series from the provider, and where you stopped watching. One for the app. */
 class VodLibrary internal constructor(private val source: () -> Source?) {
