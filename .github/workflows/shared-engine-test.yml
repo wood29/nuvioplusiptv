@@ -1,0 +1,126 @@
+name: Shared engine test app
+
+# avonioTV Home on the shared avonioTV engine (step 1): builds the TEST app ("Nuvio + IPTV Test",
+# its own app ID, next to the real one) from the shared-engine branch. Doesn't publish a release,
+# so the real app's updates are untouched; the APK is kept as a download on the run.
+on:
+  push:
+    branches: [ shared-engine ]
+  workflow_dispatch:
+
+concurrency:
+  group: shared-engine-test
+  cancel-in-progress: true
+
+jobs:
+  test-app:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.27.3"
+          cache-dependency-path: vpn-android/native/go.sum
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+          cache: gradle
+
+      - name: Write app keys
+        env:
+          NUVIO_BACKEND_URL: ${{ secrets.NUVIO_BACKEND_URL }}
+          NUVIO_BACKEND_KEY: ${{ secrets.NUVIO_BACKEND_KEY }}
+          TMDB_API_KEY: ${{ secrets.TMDB_API_KEY }}
+          TRAKT_CLIENT_ID: ${{ secrets.TRAKT_CLIENT_ID }}
+          TRAKT_CLIENT_SECRET: ${{ secrets.TRAKT_CLIENT_SECRET }}
+          # Trakt "Development" apps only accept localhost redirect addresses (sign-in itself uses a code).
+          TRAKT_REDIRECT_URI: ${{ secrets.TRAKT_REDIRECT_URI }}
+          SIMKL_CLIENT_ID: ${{ secrets.SIMKL_CLIENT_ID }}
+          SIMKL_APP_NAME: ${{ secrets.SIMKL_APP_NAME }}
+          MDBLIST_CLIENT_ID: ${{ secrets.MDBLIST_CLIENT_ID }}
+          GOOGLE_DRIVE_CLIENT_ID: ${{ secrets.GOOGLE_DRIVE_CLIENT_ID }}
+          GOOGLE_DRIVE_CLIENT_SECRET: ${{ secrets.GOOGLE_DRIVE_CLIENT_SECRET }}
+          PREMIUMIZE_CLIENT_ID: ${{ secrets.PREMIUMIZE_CLIENT_ID }}
+          # IMDb ratings (episode ratings and the rating on details pages) come from Nuvio's
+          # ratings services; without these the app has nowhere to ask, so no ratings show.
+          IMDB_RATINGS_API_BASE_URL: ${{ secrets.IMDB_RATINGS_API_BASE_URL }}
+          IMDB_TAPFRAME_API_BASE_URL: ${{ secrets.IMDB_TAPFRAME_API_BASE_URL }}
+          # Skip intro: IntroDB (introdb.app), a free and open timestamp service (no key needed to
+          # read). A secret can point it elsewhere; otherwise the public address is used.
+          INTRODB_API_URL: ${{ secrets.INTRODB_API_URL }}
+        run: |
+          : > keys.properties
+          add() { if [ -n "$2" ]; then echo "$1=$2" >> keys.properties; fi; }
+          if [ -n "$NUVIO_BACKEND_URL" ]; then
+            BACKEND="${NUVIO_BACKEND_URL%/}"
+            add NUVIO_SUPABASE_URL "$BACKEND"
+            add NUVIO_SUPABASE_ANON_KEY "$NUVIO_BACKEND_KEY"
+            case "$BACKEND" in
+              *api.nuvio.tv*)
+                # Official Nuvio accounts: the app's built-in nuvio.tv login pages are already right.
+                ;;
+              *)
+                # Self-hosted server: its login pages live on the server itself.
+                add TV_LOGIN_WEB_BASE_URL "$BACKEND/tv-login"
+                add DEVICE_LOGIN_WEB_BASE_URL "$BACKEND/link"
+                add AVATAR_PUBLIC_BASE_URL "$BACKEND/storage/v1/object/public/avatars"
+                ;;
+            esac
+          fi
+          add TMDB_API_KEY "$TMDB_API_KEY"
+          add TRAKT_CLIENT_ID "$TRAKT_CLIENT_ID"
+          add TRAKT_CLIENT_SECRET "$TRAKT_CLIENT_SECRET"
+          add TRAKT_REDIRECT_URI "$TRAKT_REDIRECT_URI"
+          add SIMKL_CLIENT_ID "$SIMKL_CLIENT_ID"
+          add SIMKL_APP_NAME "$SIMKL_APP_NAME"
+          add MDBLIST_CLIENT_ID "$MDBLIST_CLIENT_ID"
+          add GOOGLE_DRIVE_CLIENT_ID "$GOOGLE_DRIVE_CLIENT_ID"
+          add GOOGLE_DRIVE_CLIENT_SECRET "$GOOGLE_DRIVE_CLIENT_SECRET"
+          add PREMIUMIZE_CLIENT_ID "$PREMIUMIZE_CLIENT_ID"
+          add IMDB_RATINGS_API_BASE_URL "$IMDB_RATINGS_API_BASE_URL"
+          add IMDB_TAPFRAME_API_BASE_URL "$IMDB_TAPFRAME_API_BASE_URL"
+          add INTRODB_API_URL "${INTRODB_API_URL:-https://api.introdb.app/}"
+          # The build reads some values from each file, so write both.
+          cp keys.properties local.properties
+          cp keys.properties local.dev.properties
+          rm keys.properties
+          echo "Keys set:"; cut -d= -f1 local.properties
+
+      # Our own signing key, only from the repository secrets (never in the code).
+      - name: Signing
+        env:
+          KEYSTORE_B64: ${{ secrets.PERSONAL_KEYSTORE_B64 }}
+          KEY_PASS: ${{ secrets.PERSONAL_KEY_PASS }}
+        run: |
+          if [ -z "$KEYSTORE_B64" ] || [ -z "$KEY_PASS" ]; then
+            echo "::error::Add the PERSONAL_KEYSTORE_B64 and PERSONAL_KEY_PASS repository secrets first." >&2
+            exit 1
+          fi
+          # Spaces or line breaks picked up while copying don't matter.
+          if ! printf '%s' "$KEYSTORE_B64" | tr -d ' \r\n\t' | base64 -d > "$RUNNER_TEMP/key.jks"; then
+            echo "::error::PERSONAL_KEYSTORE_B64 couldn't be read: paste the whole contents of PERSONAL_KEYSTORE_B64.txt again." >&2
+            exit 1
+          fi
+          echo "Signing key: $(wc -c < "$RUNNER_TEMP/key.jks") bytes (expected about 2,600)"
+          {
+            echo "NUVIO_RELEASE_STORE_FILE=$RUNNER_TEMP/key.jks"
+            echo "NUVIO_RELEASE_KEY_ALIAS=personal"
+            echo "NUVIO_RELEASE_KEY_PASSWORD=$KEY_PASS"
+            echo "NUVIO_RELEASE_STORE_PASSWORD=$KEY_PASS"
+          } >> "$GITHUB_ENV"
+
+      - name: Build the test app
+        env:
+          LIVETV_TESTER_KEY: ${{ secrets.LIVETV_TESTER_KEY }}
+        run: |
+          chmod +x gradlew
+          ./gradlew :app:assembleFullRelease --stacktrace -PlivetvTestBuild=true
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: avonioTV-Home-shared-engine-test
+          path: app/build/outputs/apk/full/release/*.apk

@@ -25,6 +25,7 @@ dependencyResolutionManagement {
 
 rootProject.name = "My Application"
 include(":app")
+include(":avonio-core")
 include(":baselineprofile")
 include(":ffmpeg-decoder-downmix")
 include(":vpn-core")

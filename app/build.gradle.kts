@@ -407,6 +407,9 @@ val livetvTesterKey = if (livetvIsTestBuild) {
 android.defaultConfig.buildConfigField("String", "NUVIO_CHANNEL", "\"${if (livetvIsTestBuild) "test" else "stable"}\"")
 android.defaultConfig.buildConfigField("String", "TEST_UPDATES_URL", "\"https://livetv-cloud.nuvioplusiptv.workers.dev\"")
 android.defaultConfig.buildConfigField("String", "TESTER_KEY", buildConfigString(livetvTesterKey))
+// The test app reads channels and the guide with the shared avonioTV engine (step 1 of moving
+// avonioTV Home onto it); the real app keeps its own until the test app has proven itself.
+android.defaultConfig.buildConfigField("boolean", "SHARED_ENGINE", livetvIsTestBuild.toString())
 if (livetvIsTestBuild) {
     // 1767225600 = 2026-01-01 00:00 UTC, in seconds.
     val minutesSince2026: Int = ((System.currentTimeMillis() / 1000L - 1767225600L) / 60L).toInt()
@@ -653,6 +656,8 @@ dependencies {
     implementation(libs.supabase.storage)
     implementation(libs.supabase.realtime)
     implementation(libs.ktor.client.okhttp)
+    // The shared avonioTV engine: channels and guide in the test app (see SHARED_ENGINE).
+    implementation(project(":avonio-core"))
     implementation(libs.sentry.android)
 
     // Kotlinx Serialization

@@ -488,6 +488,7 @@ class LiveTvRepository @Inject constructor(
         automatic: Boolean
     ) {
         if (!automatic) manualQueued.value = false
+        if (com.nuvio.tv.BuildConfig.SHARED_ENGINE) { sharedRefresh(refreshGuide = forceEpg || forcePlaylists || !automatic); return }
         val t0Update = System.currentTimeMillis()
         LIVE_REPORT.add(if (automatic) "Update check started" else "Update started")
         try { refreshBody(forcePlaylists, forceEpg, forceIds, automatic) }
@@ -660,6 +661,7 @@ class LiveTvRepository @Inject constructor(
     }
 
     private suspend fun rebuildLocked() {
+        if (com.nuvio.tv.BuildConfig.SHARED_ENGINE) { sharedRefresh(refreshGuide = false); return }
         // Reading the saved channels and guide takes a second or two and changes nothing, so no
         // "Loading channels…" bubble for it (people took it for a full reload every time). The
         // bubble only shows if the playlists really have to be read again.
@@ -694,6 +696,35 @@ class LiveTvRepository @Inject constructor(
             LIVE_REPORT.add("Stored guide used: ${_programs.value.size} channels with listings in ${System.currentTimeMillis() - t0} ms")
         }
         _status.value = LiveTvStatus(loading = false, loadedOnce = true)
+    }
+
+    // ---------------------------------------------------------------- shared avonioTV engine (test app)
+
+    private val shared by lazy { SharedEngineLive(http, context.filesDir) }
+
+    /** Step 1 of avonioTV Home on the shared engine: channels and guide from avonioTV's own code. */
+    private suspend fun sharedRefresh(refreshGuide: Boolean) {
+        val playlists = prefs.currentPlaylists().filter { it.liveEnabled }
+        val t0 = System.currentTimeMillis()
+        LIVE_REPORT.add("Shared avonioTV engine: loading ${playlists.size} playlist(s)" + if (refreshGuide) " and the guide" else "")
+        setStatus(loading = true, message = if (_channels.value.isEmpty()) "Loading channels…" else null, quiet = _channels.value.isNotEmpty())
+        val r = runCatching { shared.load(playlists, refreshGuide) }.getOrElse { e ->
+            SharedEngineLive.Result(emptyList(), emptyMap(), e.message ?: e.javaClass.simpleName, null)
+        }
+        val now = System.currentTimeMillis()
+        if (r.channels.isNotEmpty()) {
+            _channels.value = r.channels
+            _programs.value = r.programs
+            val counts = r.channels.groupingBy { it.sourceId }.eachCount()
+            prefs.updatePlaylists { list ->
+                list.map { pl -> counts[pl.id]?.let { pl.copy(channelCount = it, lastUpdatedMs = now, lastError = null) } ?: pl }
+            }
+        } else if (r.error != null) {
+            prefs.updatePlaylists { list -> list.map { if (it.liveEnabled) it.copy(lastError = r.error) else it } }
+        }
+        LIVE_REPORT.add("Shared engine: ${r.channels.size} channels, ${r.programs.size} with listings in ${(now - t0) / 1000} s" +
+            (r.error?.let { " · error: $it" } ?: "") + (r.guideError?.let { " · guide: $it" } ?: ""))
+        _status.value = LiveTvStatus(loading = false, loadedOnce = true, error = if (r.channels.isEmpty()) r.error else null)
     }
 
     /** Which parts of a saved copy's fingerprint differ (for the start-up report). */
@@ -924,6 +955,7 @@ class LiveTvRepository @Inject constructor(
      * lists are saved or read on their own, which is all Assign EPG uses.
      */
     fun ensureEpgDetails() {
+        if (com.nuvio.tv.BuildConfig.SHARED_ENGINE) return // the shared engine keeps the whole guide in memory
         if (!epgDetailsPending) return
         epgDetailsPending = false
         ensureSourceLists()
@@ -1108,6 +1140,7 @@ class LiveTvRepository @Inject constructor(
     @Volatile private var pendingRange: Pair<Long, Long>? = null
 
     fun ensureRange(fromMs: Long, toMs: Long) {
+        if (com.nuvio.tv.BuildConfig.SHARED_ENGINE) return // the shared engine keeps the whole guide in memory
         dropOldHours(fromMs)
         if (!guideInDb || (fromMs >= loadedFrom && toMs <= loadedTo)) return
         if (!rangeBusy.compareAndSet(false, true)) {
@@ -1222,6 +1255,7 @@ class LiveTvRepository @Inject constructor(
      * top): all days for every channel of every playlist would be too much for smaller boxes.
      */
     fun ensureFullRange(channelKeys: List<String>) {
+        if (com.nuvio.tv.BuildConfig.SHARED_ENGINE) return // the shared engine keeps the whole guide in memory
         if (!guideInDb || channelKeys.isEmpty()) return
         val todo = channelKeys.take(MAX_FULL_RANGE_CHANNELS).filter { it !in fullRangeChannels }
         if (todo.isEmpty()) return
@@ -1385,6 +1419,7 @@ class LiveTvRepository @Inject constructor(
     }
 
     fun ensureChannelSchedule(channelKey: String) {
+        if (com.nuvio.tv.BuildConfig.SHARED_ENGINE) return // the shared engine keeps the whole guide in memory
         if (!guideInDb) return
         scope.launch {
             val now = System.currentTimeMillis()
