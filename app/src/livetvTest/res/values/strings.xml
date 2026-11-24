@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The test app's own name, so it can't be mixed up with the real avonioTV Home on the box. -->
+<resources>
+    <string name="app_name">avonioTV Test</string>
+</resources>
