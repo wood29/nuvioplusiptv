@@ -2,11 +2,15 @@ name: Shared engine test app
 
 # avonioTV Home on the shared avonioTV engine (step 1): builds the TEST app ("Nuvio + IPTV Test",
 # its own app ID, next to the real one) from the shared-engine branch. Doesn't publish a release,
-# so the real app's updates are untouched; the APK is kept as a download on the run.
+# so the real app's updates are untouched (the in-app updater ignores it). The APK goes onto the
+# "shared-engine-test" pre-release, replaced each time, so it can be fetched and installed on the box.
 on:
   push:
     branches: [ shared-engine ]
   workflow_dispatch:
+
+permissions:
+  contents: write
 
 concurrency:
   group: shared-engine-test
@@ -124,3 +128,17 @@ jobs:
         with:
           name: avonioTV-Home-shared-engine-test
           path: app/build/outputs/apk/full/release/*.apk
+
+      - name: Put the APK on the shared-engine-test pre-release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          APK=$(ls app/build/outputs/apk/full/release/*universal*.apk 2>/dev/null | head -1)
+          [ -z "$APK" ] && APK=$(ls app/build/outputs/apk/full/release/*.apk | head -1)
+          mkdir -p out && cp "$APK" out/avonioTV-Home-Test.apk
+          if ! gh release view shared-engine-test -R "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release create shared-engine-test -R "$GITHUB_REPOSITORY" --target shared-engine --prerelease --latest=false \
+              --title "avonioTV Home Test (shared engine)" \
+              --notes "Test app only (its own app ID). Replaced with the newest build each time; not offered as an update to the real app."
+          fi
+          gh release upload shared-engine-test out/avonioTV-Home-Test.apk -R "$GITHUB_REPOSITORY" --clobber
