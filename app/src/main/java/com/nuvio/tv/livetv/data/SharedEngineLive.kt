@@ -11,6 +11,8 @@ import io.ktor.client.HttpClient
 import io.ktor.client.engine.okhttp.OkHttp
 import okhttp3.OkHttpClient
 import java.io.File
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
 
 /**
  * avonioTV Home on the shared avonioTV engine, step 1 (test app only, BuildConfig.SHARED_ENGINE):
@@ -28,8 +30,10 @@ internal class SharedEngineLive(okHttp: OkHttpClient, filesDir: File) {
     val engine = LiveTvEngine(
         http,
         clock = { System.currentTimeMillis() },
-        guidePastMs = 3 * LiveTvEngine.DAY,
-        guideAheadMs = 2 * LiveTvEngine.DAY
+        // A narrower window than Home's own database keeps: the whole guide sits in memory here,
+        // and a TV box running Nuvio too has little to spare (a wide window made it crawl).
+        guidePastMs = 2 * LiveTvEngine.DAY,
+        guideAheadMs = 26 * LiveTvEngine.HOUR
     ).also { it.guideStore = FileGuideStore(File(filesDir, "livetv/shared-guide")) }
 
     /** Home's playlist settings as engine sources (Xtream logins and M3U links). */
@@ -53,26 +57,62 @@ internal class SharedEngineLive(okHttp: OkHttpClient, filesDir: File) {
     )
 
     /**
-     * Loads every enabled playlist (the first, then the others added to it) and the guide.
-     * [refreshGuide] = false: the saved guide is used while it is under 6 hours old.
+     * Loads every enabled playlist (the first, then the others added to it), then the guide.
+     * [onChannels] gets the channel list as soon as it's there (the guide comes after, in
+     * [onGuide]), so the list is on screen in seconds rather than after the whole guide.
      */
-    suspend fun load(playlists: List<PlaylistSource>, refreshGuide: Boolean): Result {
+    suspend fun load(
+        playlists: List<PlaylistSource>,
+        refreshGuide: Boolean,
+        onChannels: suspend (List<LiveChannel>) -> Unit,
+        onGuide: suspend (Map<String, List<EpgProgram>>, String?) -> Unit
+    ): String? {
         val sources = sourcesOf(playlists)
-        if (sources.isEmpty()) return Result(emptyList(), emptyMap(), null, null)
-        engine.load(sources.first(), sources.drop(1))
-        if (refreshGuide && engine.state.value.lineup != null) engine.refreshGuide()
+        if (sources.isEmpty()) return null
+        val channels = kotlinx.coroutines.coroutineScope {
+            val job = launch { engine.load(sources.first(), sources.drop(1)) }
+            // The channels, the moment the engine has them (it goes on with the guide).
+            val st = engine.state.first { it.lineup != null || it.error != null }
+            val lineup = st.lineup ?: run { job.cancel(); return@coroutineScope null }
+            val list = toChannels(lineup, playlists)
+            onChannels(list)
+            job.join()
+            list
+        } ?: return engine.state.value.error ?: "Couldn't load the channels"
+        if (refreshGuide) engine.refreshGuide()
         val st = engine.state.value
-        val lineup = st.lineup ?: return Result(emptyList(), emptyMap(), st.error ?: "Couldn't load the channels", null)
+        val guide = st.guide
+        if (guide.all().any()) {
+            val programs = HashMap<String, List<EpgProgram>>(channels.size)
+            val lineup = st.lineup
+            val byKey = channels.associateBy { it.key }
+            // Each Home channel back to the engine's channel, to ask the guide for its listings.
+            val engineByKey = lineup?.let { l -> l.channels.zip(channels).associate { (e, h) -> h.key to e } }.orEmpty()
+            for ((key, ec) in engineByKey) {
+                if (key !in byKey) continue
+                val listings = guide.listings(ec)
+                if (listings.isNotEmpty()) programs[key] = listings.map {
+                    EpgProgram(it.startMs, it.stopMs, it.title, it.description, it.category, it.episode, it.icon, it.year, it.people)
+                }
+            }
+            // One copy in memory, not two: the engine keeps its saved copy on disk.
+            engine.releaseGuide()
+            onGuide(programs, st.guideError)
+        } else onGuide(emptyMap(), st.guideError)
+        return null
+    }
+
+    /** The engine's channels in Home's shape (same order). */
+    private fun toChannels(lineup: app.avoniotv.core.Lineup, playlists: List<PlaylistSource>): List<LiveChannel> {
         val byId = playlists.associateBy { it.id }
         val groupName = lineup.groups.associate { it.id to it.name }
         val multi = playlists.size > 1
         val used = HashSet<String>()
         val out = ArrayList<LiveChannel>(lineup.channels.size)
-        val programs = HashMap<String, List<EpgProgram>>()
         for (c in lineup.channels) {
             // Added providers' channels carry "<playlist id>:" in front (see LiveTvEngine.load).
             val plId = if (c.sourceId in byId) c.sourceId else c.id.substringBefore(':', lineup.source.id)
-            val pl = byId[plId] ?: byId[lineup.source.id] ?: continue
+            val pl = byId[plId] ?: byId[lineup.source.id] ?: playlists.first()
             val group = groupName[c.groupId]?.ifBlank { null } ?: "Uncategorized"
             val base = "${pl.id}|${c.guideId ?: ""}|${c.name}"
             var key = base
@@ -94,11 +134,7 @@ internal class SharedEngineLive(okHttp: OkHttpClient, filesDir: File) {
                 headers = headers,
                 catchup = if (c.catchupDays > 0) CatchupInfo(type = if (pl.isXtream) "xc" else "default", source = null, days = c.catchupDays) else null
             )
-            val listings = st.guide.listings(c)
-            if (listings.isNotEmpty()) programs[key] = listings.map {
-                EpgProgram(it.startMs, it.stopMs, it.title, it.description, it.category, it.episode, it.icon, it.year, it.people)
-            }
         }
-        return Result(out, programs, null, st.guideError)
+        return out
     }
 }

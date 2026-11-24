@@ -172,6 +172,12 @@ class LiveTvEngine(
 
     fun nowNext(channel: Channel): NowNext = state.value.guide.nowNext(channel, clock())
 
+    /**
+     * Lets go of the guide in memory (the saved copy stays). For an app that copies the listings
+     * into its own shapes (avonioTV Home): one copy instead of two on a TV box with little memory.
+     */
+    fun releaseGuide() { _state.value = _state.value.copy(guide = Guide(emptyList())) }
+
     fun catchupUrl(channel: Channel, programme: Programme, serverOffsetMinutes: Int = 0): String? {
         val lineup = state.value.lineup ?: return null
         val src = (lineup.sources.firstOrNull { it.id == channel.sourceId } ?: lineup.source) as? Source.Xtream ?: return null

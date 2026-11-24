@@ -708,23 +708,29 @@ class LiveTvRepository @Inject constructor(
         val t0 = System.currentTimeMillis()
         LIVE_REPORT.add("Shared avonioTV engine: loading ${playlists.size} playlist(s)" + if (refreshGuide) " and the guide" else "")
         setStatus(loading = true, message = if (_channels.value.isEmpty()) "Loading channels…" else null, quiet = _channels.value.isNotEmpty())
-        val r = runCatching { shared.load(playlists, refreshGuide) }.getOrElse { e ->
-            SharedEngineLive.Result(emptyList(), emptyMap(), e.message ?: e.javaClass.simpleName, null)
+        var count = 0
+        val error = runCatching {
+            shared.load(playlists, refreshGuide,
+                onChannels = { list ->
+                    count = list.size
+                    _channels.value = list
+                    // Channels are on screen: the guide follows by itself.
+                    _status.value = LiveTvStatus(loading = false, loadedOnce = true, error = null)
+                    LIVE_REPORT.add("Shared engine: ${list.size} channels after ${(System.currentTimeMillis() - t0) / 1000} s")
+                    val counts = list.groupingBy { it.sourceId }.eachCount()
+                    val now = System.currentTimeMillis()
+                    prefs.updatePlaylists { pls -> pls.map { pl -> counts[pl.id]?.let { pl.copy(channelCount = it, lastUpdatedMs = now, lastError = null) } ?: pl } }
+                },
+                onGuide = { programs, guideError ->
+                    _programs.value = programs
+                    LIVE_REPORT.add("Shared engine: guide for ${programs.size} channels after ${(System.currentTimeMillis() - t0) / 1000} s" + (guideError?.let { " · $it" } ?: ""))
+                })
+        }.getOrElse { e -> e.message ?: e.javaClass.simpleName }
+        if (error != null) {
+            prefs.updatePlaylists { list -> list.map { if (it.liveEnabled) it.copy(lastError = error) else it } }
+            LIVE_REPORT.add("Shared engine: error: $error")
         }
-        val now = System.currentTimeMillis()
-        if (r.channels.isNotEmpty()) {
-            _channels.value = r.channels
-            _programs.value = r.programs
-            val counts = r.channels.groupingBy { it.sourceId }.eachCount()
-            prefs.updatePlaylists { list ->
-                list.map { pl -> counts[pl.id]?.let { pl.copy(channelCount = it, lastUpdatedMs = now, lastError = null) } ?: pl }
-            }
-        } else if (r.error != null) {
-            prefs.updatePlaylists { list -> list.map { if (it.liveEnabled) it.copy(lastError = r.error) else it } }
-        }
-        LIVE_REPORT.add("Shared engine: ${r.channels.size} channels, ${r.programs.size} with listings in ${(now - t0) / 1000} s" +
-            (r.error?.let { " · error: $it" } ?: "") + (r.guideError?.let { " · guide: $it" } ?: ""))
-        _status.value = LiveTvStatus(loading = false, loadedOnce = true, error = if (r.channels.isEmpty()) r.error else null)
+        _status.value = LiveTvStatus(loading = false, loadedOnce = true, error = if (count == 0) error else null)
     }
 
     /** Which parts of a saved copy's fingerprint differ (for the start-up report). */
