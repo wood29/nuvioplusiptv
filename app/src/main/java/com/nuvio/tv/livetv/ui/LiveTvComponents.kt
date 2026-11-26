@@ -153,15 +153,19 @@ internal fun ScrollingDescription(
         if (max <= 0) return@LaunchedEffect
         // About one line every 2.5 seconds (a slow reading pace), whatever the text size. It sits
         // on the first lines for a while first, and on the last lines for a while at the end.
-        val pxPerSecond = with(density) { lineHeight.toPx() } / 2.5f
+        // Line by line (a short glide, then a pause), so it never stops with lines cut in half
+        // at the top and bottom, which looked squashed under the title.
+        val line = with(density) { lineHeight.toPx() }.toInt().coerceAtLeast(1)
         while (true) {
             scroll.scrollTo(0)
             kotlinx.coroutines.delay(6_000)
-            scroll.animateScrollTo(
-                max,
-                androidx.compose.animation.core.tween((max / pxPerSecond * 1000).toInt().coerceAtLeast(1_500), easing = androidx.compose.animation.core.LinearEasing)
-            )
-            kotlinx.coroutines.delay(6_000)
+            var pos = 0
+            while (pos < max) {
+                pos = (pos + line).coerceAtMost(max)
+                scroll.animateScrollTo(pos, androidx.compose.animation.core.tween(450))
+                kotlinx.coroutines.delay(2_500)
+            }
+            kotlinx.coroutines.delay(4_000)
         }
     }
     Box(modifier.heightIn(max = boxHeight).clipToBounds()) {
