@@ -1853,8 +1853,13 @@ class LiveTvRepository @Inject constructor(
             fun matchList(xmlChannels: Collection<Pair<String, List<String>>>) {
                 xmlChannels.forEach { (id, names) ->
                     byTvgId[id.lowercase()]?.let { idHits.getOrPut(id) { LinkedHashSet() }.addAll(it) }
+                    // A name match only within the same country: "AT| TV1" must not get Bulgaria's "TV1.bg".
+                    val theirs = guideCountry(id)
                     (names.map { normalize(it) } + normalize(id) + idName(id)).distinct().forEach { k ->
-                        byName[k]?.let { nameHits.getOrPut(id) { LinkedHashSet() }.addAll(it) }
+                        byName[k]?.let { l ->
+                            val ok = if (theirs == null) l else l.filter { c -> channelCountry(c).let { it == null || it == theirs } }
+                            if (ok.isNotEmpty()) nameHits.getOrPut(id) { LinkedHashSet() }.addAll(ok)
+                        }
                     }
                 }
             }
@@ -1976,7 +1981,11 @@ class LiveTvRepository @Inject constructor(
                 // Guide had no <channel> list before programs: match program channel ids directly.
                 meta.keys.forEach { id ->
                     byTvgId[id.lowercase()]?.let { idHits.getOrPut(id) { LinkedHashSet() }.addAll(it) }
-                    (byName[normalize(id)] ?: byName[idName(id)])?.let { nameHits.getOrPut(id) { LinkedHashSet() }.addAll(it) }
+                    (byName[normalize(id)] ?: byName[idName(id)])?.let { l ->
+                        val theirs = guideCountry(id)
+                        val ok = if (theirs == null) l else l.filter { c -> channelCountry(c).let { it == null || it == theirs } }
+                        if (ok.isNotEmpty()) nameHits.getOrPut(id) { LinkedHashSet() }.addAll(ok)
+                    }
                 }
             }
             var count = 0
@@ -2887,6 +2896,26 @@ class LiveTvRepository @Inject constructor(
         private const val SOURCE_LISTS_VERSION = 1
 
         private val countryEnd = Regex("""(\.(com|co|net|tv))?\.[a-z]{2}$""", RegexOption.IGNORE_CASE)
+
+        private val guideCountryRx = Regex("""\.([a-z]{2})(?:@.*)?$""", RegexOption.IGNORE_CASE)
+        private val chCountryRx = Regex("""^\s*([A-Za-z]{2})\s*[|:]""")
+        private val regionCountry = Regex("""^\s*[A-Za-z]{2,4}\s*\|\s*([A-Za-z]+)""")
+        private val countryWords = mapOf("AUSTRIA" to "at", "GERMANY" to "de", "SWITZERLAND" to "ch", "UK" to "gb", "ENGLAND" to "gb", "FRANCE" to "fr",
+            "ITALY" to "it", "SPAIN" to "es", "PORTUGAL" to "pt", "NETHERLANDS" to "nl", "BELGIUM" to "be", "POLAND" to "pl", "BULGARIA" to "bg",
+            "ROMANIA" to "ro", "HUNGARY" to "hu", "GREECE" to "gr", "TURKEY" to "tr", "SWEDEN" to "se", "NORWAY" to "no", "DENMARK" to "dk",
+            "USA" to "us", "CANADA" to "ca")
+
+        /** "tv1.bg" -> "bg" (null when the id says no country). */
+        internal fun guideCountry(id: String): String? =
+            guideCountryRx.find(id.trim())?.groupValues?.get(1)?.lowercase()?.let { if (it == "uk") "gb" else it }?.takeIf { it !in setOf("tv", "hd", "fm", "sd") }
+
+        /** "AT| TV1 HD" or group "EU | AUSTRIA" -> "at" (null when it can't tell). */
+        internal fun channelCountry(c: LiveChannel): String? {
+            chCountryRx.find(c.name)?.groupValues?.get(1)?.lowercase()?.let { return if (it == "uk") "gb" else it }
+            regionCountry.find(c.group)?.groupValues?.get(1)?.uppercase()?.let { w -> countryWords[w]?.let { return it } }
+            chCountryRx.find(c.group)?.groupValues?.get(1)?.lowercase()?.let { return if (it == "uk") "gb" else it }
+            return null
+        }
 
         /** A guide or tvg-id as a name: "GloboSP.br" -> "globosp". */
         internal fun idName(id: String): String = normalize(id.trim().replace(countryEnd, ""))

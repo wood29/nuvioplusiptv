@@ -5459,18 +5459,19 @@ private fun NowSeenHeader(
                 LiveText(
                     text = p?.title?.let { titleMarks(it).title } ?: channel.name,
                     modifier = Modifier.fillMaxWidth(),
-                    size = if (small) 26.sp else 34.sp,
+                    size = if (small) 26.sp else 32.sp,
                     weight = FontWeight.ExtraBold,
                     maxLines = 1,
                     marquee = true
                 )
+                Spacer(Modifier.height(2.dp))
                 val meta = listOfNotNull(
                     p?.episode?.takeIf { settings.showEpisodeNumbers },
                     p?.category,
                     channel.catchup?.let { "Catch-up" }
                 ).joinToString("  ·  ")
                 if (meta.isNotBlank()) LiveText(meta, color = NuvioTheme.colors.TextSecondary, size = 14.sp)
-                Spacer(Modifier.height(4.dp))
+                Spacer(Modifier.height(8.dp))
                 val about = rememberChannelAbout(channel, p)
                 ScrollingDescription(
                     text = about?.description?.takeIf { it.isNotBlank() } ?: p?.description ?: if (p == null) "No program information" else "",
