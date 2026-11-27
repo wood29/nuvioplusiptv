@@ -37,7 +37,27 @@ data class TmdbInfo(
     val age: Int? = null
 )
 
-data class TmdbPerson(val name: String, val character: String?, val photo: String?)
+data class TmdbPerson(val name: String, val character: String?, val photo: String?, val id: Int? = null)
+
+/** An actor's (or director's) page: who they are, and everything they were in. */
+data class TmdbPersonInfo(
+    val id: Int,
+    val name: String,
+    val photo: String?,
+    /** "Acting", "Directing"… */
+    val department: String?,
+    val birthday: String?,
+    val deathday: String?,
+    val birthplace: String?,
+    val biography: String?,
+    val credits: List<TmdbCredit>
+)
+
+/** One of the week's most watched titles on TMDB. */
+data class TmdbTrend(val id: Int, val title: String, val original: String?, val year: Int?, val rating: Double?, val votes: Int)
+
+/** One title in a filmography: the part played (or job), its rating, and how well known it is. */
+data class TmdbCredit(val title: TmdbTitle, val role: String?, val rating: Double?, val votes: Int, val popularity: Double, val crew: Boolean)
 data class TmdbTitle(val id: Int, val kind: VodKind, val title: String, val originalTitle: String?, val year: Int?, val poster: String?)
 
 /**
@@ -74,6 +94,18 @@ class Tmdb(private val http: HttpClient, private val key: String, private val la
         return search(true) ?: if (year != null) search(false) else null
     }
 
+    /** What's most watched this week (two pages, about 40 titles), with TMDB's rating. */
+    suspend fun trending(kind: VodKind): List<TmdbTrend> = (1..2).flatMap { page ->
+        get(if (kind == VodKind.MOVIE) "/trending/movie/week" else "/trending/tv/week", "page" to page.toString())?.arr("results").orEmpty().mapNotNull { r ->
+            val id = r.int("id") ?: return@mapNotNull null
+            TmdbTrend(
+                id, r.str("title") ?: r.str("name") ?: return@mapNotNull null, r.str("original_title") ?: r.str("original_name"),
+                (r.str("release_date") ?: r.str("first_air_date"))?.take(4)?.toIntOrNull(),
+                (r["vote_average"] as? JsonPrimitive)?.contentOrNull?.toDoubleOrNull()?.takeIf { it > 0 }, r.int("vote_count") ?: 0
+            )
+        }
+    }
+
     /** Everything for the details page; null when TMDB doesn't know the title. */
     suspend fun info(kind: VodKind, tmdbId: Int?, title: String, year: Int?): TmdbInfo? {
         val cacheKey = "${kind.name}:${tmdbId ?: "$title|$year"}"
@@ -90,7 +122,7 @@ class Tmdb(private val http: HttpClient, private val key: String, private val la
         val date = o.str(if (kind == VodKind.MOVIE) "release_date" else "first_air_date")
         val cast = o.obj("credits")?.arr("cast").orEmpty().take(12).mapNotNull { p ->
             val name = p.str("name") ?: return@mapNotNull null
-            TmdbPerson(name, p.str("character")?.ifBlank { null }, p.str("profile_path")?.let { IMG_FACE + it })
+            TmdbPerson(name, p.str("character")?.ifBlank { null }, p.str("profile_path")?.let { IMG_FACE + it }, p.int("id"))
         }
         val trailer = o.obj("videos")?.arr("results").orEmpty()
             .filter { it.str("site") == "YouTube" && it.str("type") in setOf("Trailer", "Teaser") }
@@ -123,6 +155,47 @@ class Tmdb(private val http: HttpClient, private val key: String, private val la
         )
     }
 
+    private val people = HashMap<Int, TmdbPersonInfo?>()
+
+    /** An actor's page; the biography falls back to English when there is none in your language. */
+    suspend fun person(id: Int): TmdbPersonInfo? {
+        if (people.containsKey(id)) return people[id]
+        val o = get("/person/$id", "append_to_response" to "combined_credits") ?: return null
+        var bio = o.str("biography")?.ifBlank { null }
+        if (bio == null && !language.startsWith("en")) bio = runCatching { Tmdb(http, key, "en-US").get("/person/$id")?.str("biography")?.ifBlank { null } }.getOrNull()
+        val cc = o.obj("combined_credits")
+        fun credit(r: JsonObject, crew: Boolean): TmdbCredit? {
+            val rid = r.int("id") ?: return null
+            val kind = when (r.str("media_type")) { "movie" -> VodKind.MOVIE; "tv" -> VodKind.SERIES; else -> return null }
+            val t = r.str("title") ?: r.str("name") ?: return null
+            // Talk shows, award nights and the like: a guest appearance, not part of a filmography.
+            if (kind == VodKind.SERIES && !crew &&
+                (r["genre_ids"] as? JsonArray)?.any { (it as? JsonPrimitive)?.contentOrNull in setOf("10767", "10763", "10764") } == true) return null
+            if (r.str("character")?.contains("Self", ignoreCase = true) == true) return null
+            return TmdbCredit(
+                TmdbTitle(rid, kind, t, r.str("original_title") ?: r.str("original_name"),
+                    (r.str("release_date") ?: r.str("first_air_date"))?.take(4)?.toIntOrNull(), r.str("poster_path")?.let { IMG_POSTER + it }),
+                role = (if (crew) r.str("job") else r.str("character"))?.ifBlank { null },
+                rating = (r["vote_average"] as? JsonPrimitive)?.contentOrNull?.toDoubleOrNull()?.takeIf { it > 0 },
+                votes = r.int("vote_count") ?: 0,
+                popularity = (r["popularity"] as? JsonPrimitive)?.contentOrNull?.toDoubleOrNull() ?: 0.0,
+                crew = crew
+            )
+        }
+        val acting = cc?.arr("cast").orEmpty().mapNotNull { credit(it, false) }
+        // Directors and writers: their own work too (an actor's crew jobs only when they're mainly crew).
+        val dept = o.str("known_for_department")
+        val crew = if (dept != null && dept != "Acting") cc?.arr("crew").orEmpty().filter { it.str("job") in setOf("Director", "Screenplay", "Writer", "Creator") }.mapNotNull { credit(it, true) } else emptyList()
+        val credits = (acting + crew).groupBy { it.title.kind to it.title.id }.values.map { same -> same.first().copy(role = same.mapNotNull { it.role }.distinct().take(2).joinToString(" · ").ifBlank { null }) }
+        val info = TmdbPersonInfo(
+            id = id, name = o.str("name").orEmpty(), photo = o.str("profile_path")?.let { IMG_PROFILE + it },
+            department = dept, birthday = o.str("birthday")?.ifBlank { null }, deathday = o.str("deathday")?.ifBlank { null },
+            birthplace = o.str("place_of_birth")?.ifBlank { null }, biography = bio, credits = credits
+        )
+        people[id] = info
+        return info
+    }
+
     /** The age rating: Austria first, then Germany, then the US. */
     private fun certification(o: JsonObject, kind: VodKind): Int? {
         val byCountry: Map<String, List<String>> = if (kind == VodKind.MOVIE)
@@ -142,6 +215,7 @@ class Tmdb(private val http: HttpClient, private val key: String, private val la
         const val IMG_POSTER = "https://image.tmdb.org/t/p/w342"
         const val IMG_BACKDROP = "https://image.tmdb.org/t/p/w1280"
         const val IMG_FACE = "https://image.tmdb.org/t/p/w185"
+        const val IMG_PROFILE = "https://image.tmdb.org/t/p/h632"
 
         /**
          * The provider's titles that match TMDB's related titles (same name, year within one),

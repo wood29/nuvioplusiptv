@@ -46,7 +46,7 @@ class LiveTvEngine(
     val state: StateFlow<State> = _state.asStateFlow()
 
     /** Forget the source (signed out). */
-    fun reset() { _state.value = State() }
+    fun reset() { rawLineup = null; _state.value = State() }
 
     /**
      * Where to keep a copy of the guide on the device. With it, the guide appears straight away
@@ -54,6 +54,45 @@ class LiveTvEngine(
      */
     /** Where the guide is kept between starts (a file on the TV box, the app's folder on iPad). */
     @kotlin.concurrent.Volatile var guideStore: GuideStore? = null
+    @kotlin.concurrent.Volatile var lineupStore: LineupStore? = null
+
+    /** The provider's list as it came (before "Sort your channels"). */
+    @kotlin.concurrent.Volatile var rawLineup: Lineup? = null
+        private set
+
+    /**
+     * Your "Sort your channels" answers (null = the provider's order). Setting it sorts the list
+     * on screen again at once; the guide stays as it is.
+     */
+    @kotlin.concurrent.Volatile var sortPlan: ChannelSorter.Plan? = null
+        private set
+    /** Groups you've hidden: their channels are never moved up by the sorting. */
+    @kotlin.concurrent.Volatile var sortSkipGroups: Set<String> = emptySet()
+        private set
+
+    /** Sets your sorting (and hidden groups) and shows the list sorted again at once. */
+    fun setSort(plan: ChannelSorter.Plan?, skipGroups: Set<String>) {
+        sortPlan = plan; sortSkipGroups = skipGroups
+        rawLineup?.let { raw -> _state.value = _state.value.copy(lineup = ordered(ChannelSorter.apply(raw, plan, skipGroups))) }
+    }
+
+    /** Your order of the groups (ids, first to last; set on the computer page). Others follow in the provider's order. */
+    @kotlin.concurrent.Volatile var groupOrder: List<String> = emptyList()
+        private set
+
+    fun setGroupOrder(order: List<String>) {
+        groupOrder = order
+        rawLineup?.let { raw -> _state.value = _state.value.copy(lineup = ordered(ChannelSorter.apply(raw, sortPlan, sortSkipGroups))) }
+    }
+
+    private fun ordered(l: Lineup): Lineup {
+        if (groupOrder.isEmpty()) return l
+        val at = groupOrder.withIndex().associate { it.value to it.index }
+        val n = l.groups.size
+        return l.copy(groups = l.groups.withIndex().sortedBy { (i, g) -> at[g.id] ?: (groupOrder.size + i) }.map { it.value }.also { check(it.size == n) })
+    }
+
+    private fun arranged(l: Lineup): Lineup { rawLineup = l; return ordered(ChannelSorter.apply(l, sortPlan, sortSkipGroups)) }
 
     /** A guide link of your own, used instead of the provider's (null = the provider's). */
     @kotlin.concurrent.Volatile var guideOverride: String? = null
@@ -72,11 +111,46 @@ class LiveTvEngine(
      * provider's, and a group with the same name gets the provider's name after it.
      */
     suspend fun load(source: Source, extras: List<Source> = emptyList()) {
+        // The channels saved last time show at once (with the saved guide); the provider's fresh
+        // list replaces them when it arrives.
+        val saved = runCatching { lineupStore?.read(source, extras) }.getOrNull()?.takeIf { it.channels.isNotEmpty() }
+        if (saved != null) {
+            showWithSavedGuide(saved)
+            val fresh = try { fetchLineup(source, extras) } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) { null }
+            if (fresh != null) {
+                runCatching { lineupStore?.write(fresh) }
+                _state.value = _state.value.copy(lineup = arranged(fresh))
+            }
+            val st = _state.value
+            if (st.guide.all().none() || clock() - st.guideLoadedAt >= GUIDE_FRESH_MS) refreshGuide()
+            return
+        }
         _state.value = State(loading = true)
-        val first = try { lineupOf(source) } catch (e: Exception) {
+        val lineup = try { fetchLineup(source, extras) } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) {
             _state.value = State(error = e.message ?: "Couldn't load the channels")
             return
         }
+        // Show first; saving the list for next time comes after (it can take a moment on big lists).
+        val fresh = showWithSavedGuide(lineup)
+        runCatching { lineupStore?.write(lineup) }
+        if (fresh) return
+        refreshGuide()
+    }
+
+    /** Shows [lineup] with the saved guide; true when that guide is fresh enough (no download needed). */
+    private fun showWithSavedGuide(lineup: Lineup): Boolean {
+        _state.value = State(lineup = arranged(lineup), guideLoading = true)
+        val url = guideKey(lineup)
+        val saved = url?.let { runCatching { guideStore?.read(it, clock()) }.getOrNull() }
+        if (saved != null) {
+            _state.value = _state.value.copy(guide = saved.first, guideLoadedAt = saved.second, guideUrl = url.substringBefore("|"), guideLoading = false)
+            return clock() - saved.second < GUIDE_FRESH_MS
+        }
+        return false
+    }
+
+    private suspend fun fetchLineup(source: Source, extras: List<Source>): Lineup {
+        val first = lineupOf(source)
         var lineup = first
         if (extras.isNotEmpty()) {
             val groups = first.groups.toMutableList()
@@ -96,15 +170,7 @@ class LiveTvEngine(
             }
             lineup = first.copy(groups = groups, channels = channels, sources = listOf(source) + extras.filter { it.id !in failed }, failed = failed)
         }
-        _state.value = State(lineup = lineup, guideLoading = true)
-        // The saved copy first (seconds); the provider's guide only when it is old or missing.
-        val url = guideKey(lineup)
-        val saved = url?.let { runCatching { guideStore?.read(it, clock()) }.getOrNull() }
-        if (saved != null) {
-            _state.value = _state.value.copy(guide = saved.first, guideLoadedAt = saved.second, guideUrl = url.substringBefore("|"), guideLoading = false)
-            if (clock() - saved.second < GUIDE_FRESH_MS) return
-        }
-        refreshGuide()
+        return lineup
     }
 
     /** The guide link in use: yours, the playlist's, or the provider's. */
@@ -134,6 +200,8 @@ class LiveTvEngine(
                 Guide(parts.flatMap { it.all().toList() }, parts.fold(emptyMap()) { acc, g -> acc + g.channelNames })
             }
         }
+        // Stopped half-way (the app closed, a newer load took over): not an error to show.
+        result.exceptionOrNull()?.let { if (it is kotlinx.coroutines.CancellationException) { _state.value = _state.value.copy(guideLoading = false); throw it } }
         result.getOrNull()?.let { g -> runCatching { guideStore?.write(url, g, clock()) } }
         _state.value = _state.value.copy(
             guide = result.getOrNull() ?: _state.value.guide,

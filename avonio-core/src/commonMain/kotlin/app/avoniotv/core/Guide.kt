@@ -14,9 +14,27 @@ class Guide(
     private val byGuideId: Map<String, List<Programme>> =
         programmes.groupBy { it.guideId.lowercase() }.mapValues { (_, l) -> l.sortedBy { it.startMs }.dedupe() }
 
-    private val byName: Map<String, String> = buildMap {
-        channelNames.forEach { (id, names) -> names.forEach { n -> normalize(n).let { k -> if (k !in this) put(k, id.lowercase()) } } }
-        byGuideId.keys.forEach { id -> normalize(id).let { k -> if (k !in this) put(k, id) } }
+    /** Name → every guide channel with that name ("tv1" is TV1 in Austria and TV1 in Bulgaria). */
+    private val byName: Map<String, List<String>> = HashMap<String, MutableList<String>>().apply {
+        channelNames.forEach { (id, names) -> names.forEach { n -> getOrPut(normalize(n)) { ArrayList(2) }.let { l -> id.lowercase().let { i -> if (i !in l) l += i } } } }
+        byGuideId.keys.forEach { id -> getOrPut(normalize(id)) { ArrayList(2) }.let { l -> if (id !in l) l += id } }
+    }
+
+    /** Each guide channel's country from its id ("tv1.bg" → "bg"), worked out once. */
+    private val idCountryOf: Map<String, String> = buildMap {
+        byName.values.forEach { l -> l.forEach { id -> idCountryCode(id)?.let { put(id, it) } } }
+    }
+
+    /** The guide channel for this name, from the channel's own country when names clash. */
+    private fun pick(key: String, channel: Channel): String? {
+        val ids = byName[key] ?: return null
+        // The usual case: one guide channel, no country in its id. Nothing to check.
+        if (ids.size == 1 && ids[0] !in idCountryOf) return ids[0]
+        val mine = countryOf(channel)
+        if (mine == null) return ids.firstOrNull { it !in idCountryOf } ?: ids[0]
+        ids.firstOrNull { idCountryOf[it] == mine }?.let { return it }
+        // No guide channel from this country: one without a country, else none (a foreign one shows wrong listings).
+        return ids.firstOrNull { it !in idCountryOf }
     }
 
     val isEmpty get() = byGuideId.isEmpty()
@@ -31,7 +49,7 @@ class Guide(
     /** All listings for a channel, oldest first. */
     fun listings(channel: Channel): List<Programme> {
         channel.guideId?.lowercase()?.let { id -> byGuideId[id]?.let { return it } }
-        val key = byName[normalize(channel.name)] ?: channel.guideId?.let { byName[normalize(it)] }
+        val key = pick(normalize(channel.name), channel) ?: channel.guideId?.let { pick(normalize(it), channel) }
         return key?.let { byGuideId[it] }.orEmpty()
     }
 
@@ -55,15 +73,30 @@ class Guide(
         }.sortedBy { it.second.startMs }.take(limit).toList()
 
     companion object {
+        private val idCountry = Regex("\\.([a-z]{2})(?:@.*)?$")
+
+        /** "AT| TV1 HD" → "at" (also "uk" → "gb", as guides write it). */
+        internal fun countryOf(channel: Channel): String? =
+            ChannelSorter.countryOf(channel, null)?.lowercase()?.let { if (it == "uk") "gb" else it }?.takeIf { it.length == 2 }
+
+        /** "tv1.bg" → "bg"; null when the id says no country. */
+        internal fun idCountryCode(guideId: String): String? =
+            idCountry.find(guideId.lowercase())?.groupValues?.get(1)?.let { if (it == "uk") "gb" else it }?.takeIf { it !in setOf("tv", "hd", "fm", "sd") }
+
         /** "ORF 2 HD", "orf2.at", "AT: ORF2 (FHD)" → "orf2". */
+        // Made once (they were rebuilt on every call: hundreds of thousands of times for the sports list).
+        private val brackets = Regex("\\(.*?\\)|\\[.*?]")
+        private val domain = Regex("\\.(at|de|ch|uk|us|tv)$")
+        private val quality = Regex("\\b(uhd|fhd|hd|sd|4k|hevc|h265|backup|raw)\\b")
+
         fun normalize(name: String): String {
             var s = name.lowercase()
             // "AT: ORF 2" / "AT | ORF 2": drop the country prefix.
             s = s.substringAfter(": ", s)
             s = s.substringAfter("| ", s)
-            s = s.replace(Regex("\\(.*?\\)|\\[.*?]"), " ")
-            s = s.replace(Regex("\\.(at|de|ch|uk|us|tv)$"), "")
-            s = s.replace(Regex("\\b(uhd|fhd|hd|sd|4k|hevc|h265|backup|raw)\\b"), " ")
+            s = s.replace(brackets, " ")
+            s = s.replace(domain, "")
+            s = s.replace(quality, " ")
             return s.filter { it.isLetterOrDigit() }
         }
 

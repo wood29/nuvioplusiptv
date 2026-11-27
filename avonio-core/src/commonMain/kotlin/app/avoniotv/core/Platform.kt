@@ -4,6 +4,12 @@
 package app.avoniotv.core
 
 /** Keeps the guide between starts. [read] gives the guide and when it was loaded. */
+/** Keeps the last channel list on the device, so the next start shows it at once (then refreshes). */
+interface LineupStore {
+    fun read(source: Source, extras: List<Source>): Lineup?
+    fun write(lineup: Lineup)
+}
+
 interface GuideStore {
     fun read(url: String, now: Long): Pair<Guide, Long>?
     fun write(url: String, guide: Guide, now: Long)

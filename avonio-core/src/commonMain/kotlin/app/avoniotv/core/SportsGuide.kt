@@ -73,7 +73,7 @@ object SportsGuide {
 
     /** "Bundesliga: FC Bayern – Borussia Dortmund (Live)" → ["FC Bayern", "Borussia Dortmund"]. */
     fun sidesOf(title: String): List<String> {
-        val clean = title.replace(liveMark, " ").replace(Regex("\\(.*?\\)|\\[.*?]"), " ")
+        val clean = title.replace(liveMark, " ").replace(bracketsRx, " ")
         val afterLabel = clean.substringAfterLast(": ").substringAfterLast(" | ")
         val parts = afterLabel.split(versus)
         if (parts.size != 2) return emptyList()
@@ -92,14 +92,17 @@ object SportsGuide {
         val found = LinkedHashMap<String, MutableList<Pair<Channel, Programme>>>()
         val sportOfKey = HashMap<String, Sport>()
         for (ch in channels) {
+            var chName: String? = null
             for (p in guide.listings(ch)) {
                 if (p.stopMs <= fromMs || p.startMs >= toMs) continue
                 // Channel filler (a 12-hour block named like the channel) isn't a match.
                 if (p.stopMs - p.startMs > MAX_EVENT_MS) continue
-                if (Guide.normalize(p.title) == Guide.normalize(ch.name)) continue
+                // The cheap sport check first; names are only compared for real candidates.
                 val sport = sportOf(p, ch) ?: continue
+                val title = Guide.normalize(p.title)
+                if (title == (chName ?: Guide.normalize(ch.name).also { chName = it })) continue
                 if (matchesOnly && isMagazine(p.title, nowMs)) continue
-                val key = Guide.normalize(p.title) + "@" + p.startMs
+                val key = title + "@" + p.startMs
                 found.getOrPut(key) { mutableListOf() } += ch to p
                 if (key !in sportOfKey) sportOfKey[key] = sport
             }
@@ -130,6 +133,7 @@ object SportsGuide {
     }
 
     private const val MAX_EVENT_MS = 5 * 3_600_000L
+    private val bracketsRx = Regex("\\(.*?\\)|\\[.*?]")
     private val year = Regex("(?<![\\d/])(19|20)\\d\\d(?![\\d/–-])")
 
     /** "Boxing … 28.03.2021" on a 2026 evening is a replay, not tonight's fight. */
